@@ -8,6 +8,7 @@
 - [Typed compiler boundaries](type-safety.md)
 - [Compiler time and allocation benchmarks](benchmarks.md)
 - [Recent upstream source corpus](upstream-corpus.md)
-- [GitHub checks and static analysis](github-analysis.md)
+- [GitHub checks and inspection](github-analysis.md)
+- [LLVM backend and setup](llvm-backend.md)
 
 Public source corpora are input data.
