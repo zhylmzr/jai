@@ -8,3 +8,6 @@
 /fuzz/corpus/
 /fuzz/artifacts/
 /fuzz/coverage/
+/node_modules/
+/editor-build.json
+/editor-dependency-age.json
