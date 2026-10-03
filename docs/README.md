@@ -290,3 +290,4 @@ Public source corpora are input data.
 - [Reference corpus tests](reference-corpus-tests.md)
 - [Historical right-handed GetRect](stdlib/getrect-legacy-right-handed.md) — versioned geometry and focused source overlay.
 - [Historical right-handed UI](stdlib/getrect-legacy-right-handed-ui.md) — retained widgets, upward-positive layout, and cached resource reads.
+- [Enum source namespaces](enum-source-namespaces.md) — original enum alias type facts for inferred source header defaults.
