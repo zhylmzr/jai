@@ -287,3 +287,4 @@ Public source corpora are input data.
 - [Compile-time resource limits](compile-time-resource-limits.md)
 - [Continuous integration](continuous-integration.md) — hosted correctness checks and strict lint enforcement.
 - [Source expression parsing](source-expression-parsing.md) — callable disambiguation and typed array targets.
+- [Reference corpus tests](reference-corpus-tests.md)
