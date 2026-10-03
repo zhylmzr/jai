@@ -1,5 +1,7 @@
 #scope_export
 #load "color-math.jai";
+#load "color-compatibility.jai";
+#load "color-surfaces.jai";
 get_desired_aspect_ratio :: (theme:*Color_Animation_Editor_Theme)->float { return 4.0/max(1-2*theme.vertical_padding,0.1); }
 get_desired_aspect_ratio :: (theme:*Color_Picker_Theme)->float { return 1.6+theme.stashed_color_width+theme.margin_between_color_input_and_stashed_colors; }
 set_original_and_current_color_rgb :: (state:*Color_Picker_State,rgb:Vector3) { state.original_rgb_color=left_clip_rgb(rgb); set_current_color_rgb(state,null,rgb); }
@@ -8,7 +10,7 @@ set_current_color_hsv :: (state:*Color_Picker_State,hsv:Vector3,update_zoom_hue:
     r,g,b:=hsv_to_rgb(state.current_hsv_color.x/360,state.current_hsv_color.y,state.current_hsv_color.z);
     state.current_rgb_color=.{r,g,b};
     if update_zoom_hue state.zoom_hue_center=state.current_hsv_color.x;
-    state.disc_point=.{state.current_hsv_color.y*2-1,1-state.current_hsv_color.z*2};
+    state.disc_point=backsolve_disc_point_from_hsv(state,state.current_hsv_color.x,state.current_hsv_color.y,state.current_hsv_color.z);
     angle:=state.current_hsv_color.x*PI/180; state.ring_point=.{cos(angle),sin(angle)};
 }
 set_current_color_rgb :: (state:*Color_Picker_State,theme:*Color_Picker_Theme,rgb:Vector3,update_hsv:=true,maintain_h:=FLOAT32_INFINITY,update_disc_point:=true) {
@@ -18,12 +20,12 @@ set_current_color_rgb :: (state:*Color_Picker_State,theme:*Color_Picker_Theme,rg
         if maintain_h!=FLOAT32_INFINITY h=maintain_h/360;
         set_current_color_hsv(state,.{h*360,s,v});
     }
-    if update_disc_point state.disc_point=.{state.current_hsv_color.y*2-1,1-state.current_hsv_color.z*2};
+    if update_disc_point state.disc_point=backsolve_disc_point_from_hsv(state,state.current_hsv_color.x,state.current_hsv_color.y,state.current_hsv_color.z);
 }
 hsv_to_argb :: (hsv:Vector3)->Vector4 { r,g,b:=hsv_to_rgb(hsv.x/360,hsv.y,hsv.z); return .{r,g,b,1}; }
-stash_color :: (using state:*Color_Picker_State,color:Vector3) { array_add(*state.stashed_colors,left_clip_rgb(color)); }
+stash_color :: (using state:*Color_Picker_State,color:Vector3) { if state.stashed_colors.count>=MAX_STASHED_COLORS { for i:1..state.stashed_colors.count-1 state.stashed_colors[i-1]=state.stashed_colors[i]; state.stashed_colors.count-=1; } array_add(*state.stashed_colors,left_clip_rgb(color)); }
 toggle_rectangle_picker_mode :: (state:*Color_Picker_State) { state.hsv_picker_in_rectangle_mode=!state.hsv_picker_in_rectangle_mode; }
-toggle_circle_picker_mode :: (state:*Color_Picker_State) { state.circle_picker_in_warped_mode=!state.circle_picker_in_warped_mode; }
+toggle_circle_picker_mode :: (state:*Color_Picker_State) { state.circle_picker_in_warped_mode=!state.circle_picker_in_warped_mode; state.disc_point=backsolve_disc_point_from_rgb(state,state.current_rgb_color); }
 color_picker :: (r:Rect,input_and_output_color_rgb:*Vector3,theme:*Color_Picker_Theme=null,identifier:s64=0,loc:=#caller_location)->(applied:bool,still_dragging:bool,state:*Color_Picker_State) {
     if !theme theme=*default_overall_theme.color_picker_theme;
     assert(input_and_output_color_rgb); if !input_and_output_color_rgb return false,false,null;
@@ -60,15 +62,29 @@ color_picker :: (r:Rect,input_and_output_color_rgb:*Vector3,theme:*Color_Picker_
     actions.x+=actions.w;
     pressed,button_state,released=button(actions,"Stash",*theme.stash_button_theme,identifier*37+203,loc);
     if pressed stash_color(state,state.current_rgb_color);
-    dragging:=state.dragging_in_ring||state.dragging_in_disc||state.dragging_in_h||state.dragging_in_s||state.dragging_in_l||state.dragging_in_r||state.dragging_in_g||state.dragging_in_b;
+    dragging:=state.dragging_in_ring||state.dragging_in_disc||state.dragging_in_h||state.dragging_in_s||state.dragging_in_l||state.dragging_in_r||state.dragging_in_g||state.dragging_in_b||state.dragging_in_hsv_rectangle;
     return applied,dragging,state;
 }
 draw_hsv_sliders :: (area:Rect,theme:*Color_Picker_Theme,state:*Color_Picker_State) {
-    row:=area; row.h/=3; hsv:=state.current_hsv_color;
+    row:=area; row.h/=4; hsv:=state.current_hsv_color;
     changed:=slider(row,*hsv.x,theme.slider_hue_min,theme.slider_hue_max,1.0,*default_overall_theme.slider_theme,"H ","",1);
-    row.y+=row.h; changed=slider(row,*hsv.y,0.0,1.0,0.01,*default_overall_theme.slider_theme,"S ","",2)||changed;
-    row.y+=row.h; changed=slider(row,*hsv.z,0.0,1.0,0.01,*default_overall_theme.slider_theme,"V ","",3)||changed;
     if changed set_current_color_hsv(state,hsv);
+    row.y+=row.h; zoom:=state.current_hsv_color.x; half:=max(theme.hue_range_in_zoomed_slider/2,EPSILON);
+    zoom_changed:=slider(row,*zoom,state.zoom_hue_center-half,state.zoom_hue_center+half,0.1,*default_overall_theme.slider_theme,"H zoom ","",4);
+    if zoom_changed { hsv=state.current_hsv_color; hsv.x=zoom; set_current_color_hsv(state,hsv,false); }
+    row.y+=row.h;
+    if state.hsv_picker_in_rectangle_mode {
+        plane:=row; plane.h*=2; status:=get_status_flags(plane,state);
+        if status&.PRESSED { state.dragging_in_hsv_rectangle=true; active_widget_add(state,true); }
+        if state.dragging_in_hsv_rectangle left_sv_drag(plane,state,false);
+        if mouse_button_left_state&.END { state.dragging_in_hsv_rectangle=false; active_widget_remove(state); }
+        left_sv_surface(plane,state,false);
+    } else {
+        hsv=state.current_hsv_color; changed=slider(row,*hsv.y,0.0,1.0,0.01,*default_overall_theme.slider_theme,"S ","",2);
+        row.y+=row.h; changed=slider(row,*hsv.z,0.0,1.0,0.01,*default_overall_theme.slider_theme,"V ","",3)||changed;
+        if changed set_current_color_hsv(state,hsv,false);
+    }
+    if mouse_button_right_state&.START&&has_focus(area) toggle_rectangle_picker_mode(state);
 }
 draw_rgb_sliders :: (area:Rect,theme:*Color_Picker_Theme,state:*Color_Picker_State) {
     row:=area; row.h/=3; rgb:=state.current_rgb_color;
@@ -143,32 +159,7 @@ color_animation_editor :: (r:Rect,theme:*Color_Animation_Editor_Theme=null,ident
     if created { set_keyframes(state,theme.default_keyframes); set_interpolation(state,theme.default_interpolation); state.num_clipboard_samples=theme.default_num_clipboard_samples; state.time_view_period=theme.default_time_view_period; }
     rounded_rectangle(r,theme.background.shape,theme.background.color,theme.background.frame_color);
     bar:=shrink_xy(r,r.w*theme.horizontal_padding,r.h*theme.vertical_padding); bar.h*=0.50;
-    sorted:=get_sorted_keyframes(state); sample_count:=max(cast(int)bar.w,1); array_resize(*state.color_samples,sample_count); generate_color_samples(sorted,get_interpolation(state),state.color_samples);
-    for color,index:state.color_samples { stripe:=Rect.{bar.x+bar.w*index/sample_count,bar.y,bar.w/sample_count+1,bar.h}; left_color_fill(stripe,color); }
-    hit:=-1; halfwidth:=bar.h*theme.keyframe_width_relative_to_bar_height_nondragging/2;
-    for *frame,index:state.color_keyframes {
-        marker:=Rect.{bar.x+clamp(frame.t,0.0,1.0)*bar.w-halfwidth,bar.y,halfwidth*2,bar.h}; frame.pos_x=marker.x+halfwidth;
-        if is_inside(mouse_x_float,mouse_y_float,shrink(marker,-halfwidth)) hit=index;
-        left_color_fill(marker,ifx frame.active then theme.keyframe_color_active else theme.keyframe_color_inactive);
-        left_color_fill(shrink(marker,halfwidth*(1-theme.keyframe_inset_ratio)),frame.color_rgb);
-    }
-    status:=get_status_flags(bar,state);
-    if status&.PRESSED {
-        if hit<0 {
-            frame:=array_add(*state.color_keyframes); frame.t=clamp((mouse_x_float-bar.x)/max(bar.w,1.0),0.0,1.0);
-            nearest:=clamp(cast(int)(frame.t*(sample_count-1)),0,sample_count-1); frame.color_rgb=state.color_samples[nearest]; hit=state.color_keyframes.count-1;
-        }
-        if shift_key_state&.DOWN { state.color_picker_keyframe_index=hit; open_color_picker(theme,state,hit,bar); }
-        else { state.dragging_in_strip=true; state.dragging_keyframe_index=hit; active_widget_add(state,true); }
-    }
-    if mouse_button_right_state&.START&&hit>=0 {
-        for i:hit+1..state.color_keyframes.count-1 state.color_keyframes[i-1]=state.color_keyframes[i]; state.color_keyframes.count-=1;
-        state.dragging_in_strip=false; state.color_picker_subwindow_info.open=false;
-    }
-    if state.dragging_in_strip&&state.dragging_keyframe_index>=0&&state.dragging_keyframe_index<state.color_keyframes.count {
-        state.color_keyframes[state.dragging_keyframe_index].t=clamp((mouse_x_float-bar.x)/max(bar.w,1.0),0.0,1.0);
-        if mouse_button_left_state&.END { state.dragging_in_strip=false; active_widget_remove(state); }
-    }
+    my_color_slider(bar,1.0,theme,state);
     row:=r; row.y=bar.y+bar.h; row.h=(r.y+r.h-row.y)/2; row.w=r.w/3;
     if theme.draw_subwidgets_flags&.INTERPOLATION_CONTROLS {
         spaces:=string.["RGB","HSV","Oklab"]; geometries:=string.["Linear","Quadric","Hermite"];
@@ -235,21 +226,24 @@ left_color_fill :: (r:Rect,color:Vector4) { draw_procs.set_shader_for_color(true
 left_clip_rgb :: (rgb:Vector3)->Vector3 { return .{clamp(rgb.x,0.0,1.0),clamp(rgb.y,0.0,1.0),clamp(rgb.z,0.0,1.0)}; }
 left_color_disc :: (r:Rect,theme:*Color_Picker_Theme,state:*Color_Picker_State) {
     center:=xy(r.x+r.w/2,r.y+r.h/2); radius:=min(r.w,r.h)*theme.outer_circle_diameter/2; inner:=min(radius,min(r.w,r.h)*theme.inner_circle_diameter/2);
+    side:=inner*(ifx state.circle_picker_in_warped_mode then 2.0 else 1.41421356)*theme.inner_disc_radius; plane:=Rect.{center.x-side/2,center.y-side/2,side,side};
     distance:=length(xy(mouse_x_float,mouse_y_float)-center); status:=get_status_flags(r,state);
-    if status&.PRESSED { state.dragging_in_ring=distance>=inner&&distance<=radius; state.dragging_in_disc=distance<inner; if state.dragging_in_ring||state.dragging_in_disc active_widget_add(state,true); }
+    if status&.PRESSED {
+        state.dragging_in_ring=distance>=inner&&distance<=radius;
+        state.dragging_in_disc=ifx state.circle_picker_in_warped_mode then distance<=side/2 else is_inside(mouse_x_float,mouse_y_float,plane);
+        if state.dragging_in_ring||state.dragging_in_disc active_widget_add(state,true);
+    }
     if state.dragging_in_ring { angle:=atan2(mouse_y_float-center.y,mouse_x_float-center.x); hsv:=state.current_hsv_color; hsv.x=cast(float)(angle*180/PI); set_current_color_hsv(state,hsv); }
-    if state.dragging_in_disc { hsv:=state.current_hsv_color; hsv.y=clamp((mouse_x_float-center.x)/max(inner,1.0)*0.5+0.5,0.0,1.0); hsv.z=clamp(0.5-(mouse_y_float-center.y)/max(inner,1.0)*0.5,0.0,1.0); set_current_color_hsv(state,hsv,false); }
+    if state.dragging_in_disc left_sv_drag(plane,state,state.circle_picker_in_warped_mode);
     if mouse_button_left_state&.END { state.dragging_in_ring=false; state.dragging_in_disc=false; active_widget_remove(state); }
+    if mouse_button_right_state&.START&&has_focus(r) toggle_circle_picker_mode(state);
     draw_procs.set_shader_for_color(true);
     for i:0..47 {
         a:=i*2*PI/48; b:=(i+1)*2*PI/48; ca:=hsv_to_argb(.{i*360.0/48,1,1}); cb:=hsv_to_argb(.{(i+1)*360.0/48,1,1});
         p0:=center+xy(cos(a),sin(a))*inner; p1:=center+xy(cos(a),sin(a))*radius; p2:=center+xy(cos(b),sin(b))*radius; p3:=center+xy(cos(b),sin(b))*inner;
-        draw_procs.immediate_triangle(.{p0.x,p0.y,0},.{p1.x,p1.y,0},.{p2.x,p2.y,0},ca,ca,cb);
-        draw_procs.immediate_triangle(.{p0.x,p0.y,0},.{p2.x,p2.y,0},.{p3.x,p3.y,0},ca,cb,cb);
+        draw_procs.immediate_triangle(to_vec3(p0),to_vec3(p1),to_vec3(p2),ca,ca,cb); draw_procs.immediate_triangle(to_vec3(p0),to_vec3(p2),to_vec3(p3),ca,cb,cb);
     }
-    side:=inner*1.41421356*theme.inner_disc_radius;
-    for y:0..15 for x:0..15 { cell:=Rect.{center.x-side/2+x*side/16,center.y-side/2+y*side/16,side/16+1,side/16+1}; left_color_fill(cell,hsv_to_argb(.{state.current_hsv_color.x,cast(float)x/15,1-cast(float)y/15})); }
-    marker:=Rect.{center.x+(state.current_hsv_color.y-0.5)*side-2,center.y+(0.5-state.current_hsv_color.z)*side-2,4,4}; left_color_fill(marker,.{1,1,1,1});
+    left_sv_surface(plane,state,state.circle_picker_in_warped_mode);
 }
 left_color_space :: (rgba:Vector4,interp:Interpolation)->Vector3 {
     rgb:=Vector3.{rgba.x,rgba.y,rgba.z};

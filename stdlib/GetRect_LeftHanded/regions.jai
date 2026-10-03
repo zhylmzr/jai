@@ -119,16 +119,17 @@ add_subwindow :: (info:*Subwindow_Info,theme:*Subwindow_Theme=null,identifier:s6
 draw_subwindow :: (state:*Subwindow_State) {
     if !state.info||!state.info.open return;
     start_using_state(state); defer stop_using_state(state);
+    occluder_start(state,state.info.rect); defer occluder_finish(state,state.info.rect);
     theme:=*state.theme; info:=state.info; full:=info.rect;
     title_height:=ifx theme.subwindow_flags&.TITLE_BAR then get_title_bar_height(theme) else 0.0;
     if info.fixed_aspect_ratio>0 full.h=full.w/info.fixed_aspect_ratio;
     title:=full; title.h=min(title_height,full.h); state.title_bar_rect=title;
-    controls:=left_resize_hit(full,theme,mouse_x_float,mouse_y_float);
+    controls:=adjust_resize_control(theme,state,left_resize_hit(full,theme,mouse_x_float,mouse_y_float));
     if controls!=0 {
         outer:=shrink(full,-max(theme.drag_extrusion_east,max(theme.drag_extrusion_west,max(theme.drag_extrusion_north,theme.drag_extrusion_south)))*render_target_height);
         resize_status:=get_status_flags(outer,state,ignore=.SCISSOR|.TOOLTIP);
         if resize_status&.PRESSED { state.dragging=.RESIZE; state.dragging_resize_control=controls; start_resizing(state,full); active_widget_add(state,true); raise(state); }
-        if draw_procs.set_pointer_image draw_procs.set_pointer_image(get_pointer_from_resize_control(controls),state);
+        left_request_cursor(get_pointer_from_resize_control(controls),state);
     }
     title_status:=get_status_flags(title,state);
     if title_status&.PRESSED { state.dragging=.TITLE; state.dragging_last=.{mouse_x_float,mouse_y_float}; active_widget_add(state,true); raise(state); }

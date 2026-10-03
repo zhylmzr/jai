@@ -7,6 +7,7 @@ Simp :: #import "Simp";
 String :: #import "String";
 Tables :: #import "Hash_Table";
 using Input;
+using Tables;
 #scope_export
 #if Type_Indicator == void {
     USE_SIMP :: true;
@@ -27,6 +28,9 @@ using Input;
 #load "text-interaction.jai";
 #load "text-flow.jai";
 #load "theme-presets.jai";
+#load "compatibility.jai";
+#load "occlusion.jai";
+#load "cursors.jai";
 #add_context getrect_current_window: Window_Type = cast(Window_Type)0;
 default_overall_theme: Overall_Theme;
 draw_procs: Draw_Procs;
@@ -45,7 +49,7 @@ some_widget_received_left_mouse_button:bool;
 active_widget:*Active_Widget;
 active_widget_is_grabbing:bool;
 state_stack:[..]*Active_Widget;
-state_table: Tables.Table(u64,*Active_Widget);
+state_table: Table(u64,*Active_Widget);
 popups:[..]Popup_Info;
 events_to_handle_this_frame:[..]Event;
 default_font_data:string;
@@ -65,6 +69,7 @@ ui_init :: (default_font := "",procs:*Draw_Procs=null) {
         if !draw_procs.immediate_triangle draw_procs.immediate_triangle=left_triangle;
         if !draw_procs.immediate_quad draw_procs.immediate_quad=left_quad;
         if !draw_procs.immediate_flush draw_procs.immediate_flush=Simp.immediate_flush;
+        if !draw_procs.set_pointer_image draw_procs.set_pointer_image=getrect_set_pointer_image;
     }
     assert(draw_procs.set_scissor&&draw_procs.clear_scissor&&draw_procs.set_shader_for_color&&draw_procs.immediate_quad&&draw_procs.immediate_flush,"GetRect drawing callbacks are required");
     default_font_data=default_font;
@@ -98,7 +103,7 @@ ui_per_frame_update :: (window:Window_Type,_render_target_width:s32,_render_targ
     if current_getrect_frame==0 current_dt=0;
     current_getrect_frame+=1; active_tooltip=.{}; current_tooltip=.{}; some_widget_received_left_mouse_button=false;
     context.getrect_current_window=window;
-    windows_per_frame_update(); popups_per_frame_update(); events_per_frame_update();
+    windows_per_frame_update(); popups_per_frame_update(); occlusion_per_frame_update(); events_per_frame_update();
     mouse_button_left_state=ui_get_button_state(.MOUSE_BUTTON_LEFT);
     mouse_button_right_state=ui_get_button_state(.MOUSE_BUTTON_RIGHT);
     shift_key_state=ui_get_button_state(.SHIFT);
@@ -124,7 +129,7 @@ switch_window :: (window:Window_Type,_render_target_width:s32,_render_target_hei
     if left_scoped_input {
         buttons:=left_buttons(window); mouse_button_left_state=buttons.left; mouse_button_right_state=buttons.right; shift_key_state=buttons.shift;
     }
-    events_per_window_update(window);
+    occlusion_per_window_update(window); events_per_window_update(window);
     return active_widget_is_grabbing,active_widget!=null;
 }
 getrect_handle_event :: (event:Event) { getrect_handle_event(event,context.getrect_current_window); }
@@ -153,7 +158,7 @@ events_per_window_update :: (window:Window_Type) {
     active_widget.serial_events_proc(active_widget,filtered); array_reset(*filtered);
 }
 
-find_or_create_state :: ($T:Type,hash:u64,start_using:=true)->*T,created:bool {
+find_or_create_state :: ( $ T : Type , hash : u64 , start_using := true ) -> ( * T , created : bool ) {
     if state_stack.count>0 hash=combine_hashes(hash,cast,no_check(u64)state_stack[state_stack.count-1]);
     for index:0..state_table.count-1 {
         widget:=state_table.values[index];
@@ -169,8 +174,8 @@ find_or_create_state :: ($T:Type,hash:u64,start_using:=true)->*T,created:bool {
 start_using_state :: (widget:*Active_Widget) {
     assert(!widget.is_on_state_stack,"A widget state is already on the draw stack");
     widget.window=context.getrect_current_window;
-    widget.exists_on_occluder=null;
-    if state_stack.count>0 { parent:=state_stack[state_stack.count-1]; widget.exists_on_occluder=ifx parent.widget_type==Subwindow_State then parent else parent.exists_on_occluder; }
+    widget.exists_on_occluder=occluder_being_drawn;
+    if !occluder_being_drawn&&state_stack.count>0 { parent:=state_stack[state_stack.count-1]; widget.exists_on_occluder=ifx parent.widget_type==Subwindow_State then parent else parent.exists_on_occluder; }
     widget.cosmetic_dt=cast(float)max(current_time-widget.last_update_time,0.0);
     if widget.last_getrect_frame==0 widget.cosmetic_dt=0;
     widget.last_update_time=current_time; widget.last_getrect_frame=current_getrect_frame;
@@ -197,6 +202,7 @@ active_widgets_per_frame_update :: () {
 }
 get_status_flags :: (r:Rect,widget_if_querying_outside_of_render_time:*Active_Widget=null,ignore:=Status_Flags_Ignore.NOTHING)->Status_Flags {
     status:Status_Flags;
+    if events_occluded(widget_if_querying_outside_of_render_time) return status;
     occluder:=left_subwindow_hit(context.getrect_current_window,mouse_x_float,mouse_y_float);
     query:=widget_if_querying_outside_of_render_time; if !query&&state_stack.count>0 query=state_stack[state_stack.count-1];
     if occluder&&query!=occluder&&(!query||query.exists_on_occluder!=occluder) return status;
@@ -213,8 +219,8 @@ get_status_flags :: (r:Rect,widget_if_querying_outside_of_render_time:*Active_Wi
     if !(ignore&.TOOLTIP) current_tooltip=.{};
     return status;
 }
-has_focus :: (r:Rect)->bool { return (get_status_flags(r,ignore=.LEFT_CLICK|.TOOLTIP)&.OVER)!=0; }
-push_scissor :: (r:Rect) {
+has_focus :: ( rect : Rect ) -> bool { r := rect; return (get_status_flags(r,ignore=.LEFT_CLICK|.TOOLTIP)&.OVER)!=0; }
+push_scissor :: ( _rect : Rect ) { r := _rect;
     clipped:=r; if scissor_stack.count>0 clipped=intersect(r,scissor_stack[scissor_stack.count-1]);
     array_add(*scissor_stack,clipped);
     draw_procs.set_scissor(cast(s32)floor(clipped.x),cast(s32)floor(clipped.y),cast(s32)ceil(clipped.x+clipped.w),cast(s32)ceil(clipped.y+clipped.h));
@@ -226,15 +232,15 @@ pop_scissor :: () {
     else { r:=scissor_stack[scissor_stack.count-1]; draw_procs.set_scissor(cast(s32)r.x,cast(s32)r.y,cast(s32)(r.x+r.w),cast(s32)(r.y+r.h)); }
 }
 is_visible_in_scissor :: (x:float,y:float)->bool { if scissor_stack.count==0 return true; return is_inside(x,y,scissor_stack[scissor_stack.count-1]); }
-is_visible_in_scissor :: (r:Rect)->bool { if scissor_stack.count==0 return true; overlap:=intersect(r,scissor_stack[scissor_stack.count-1]); return overlap.w>0&&overlap.h>0; }
+is_visible_in_scissor :: (using rect:Rect)->bool { r:=rect; if scissor_stack.count==0 return true; overlap:=intersect(r,scissor_stack[scissor_stack.count-1]); return overlap.w>0&&overlap.h>0; }
 get_default_font_at_size :: (fsize:float)->*Font {
     if default_overall_theme.font return default_overall_theme.font;
     if !default_font_data||!draw_procs.get_font_at_size return null;
     return draw_procs.get_font_at_size(cast([]u8)default_font_data,max(cast(int)floor(fsize+0.5),1));
 }
-em :: (value:float,font:*Font)->float { if !font return 0; return value*font.em_width; }
-text_size :: (font:*Font,text:string)->float,float { if !font return 0,0; return cast(float)draw_procs.prepare_text(font,text,0),cast(float)(font.max_ascender+font.max_descender); }
-text_origin :: (theme:*Label_Theme,font:*Font,r:Rect,text_width:float)->float,float {
+em :: (x:float,font:*Font)->float { if !font return 0; return x*font.em_width; }
+text_size :: ( font : * Font , text : string ) -> ( width : float , height : float ) { if !font return 0,0; return cast(float)draw_procs.prepare_text(font,text,0),cast(float)(font.max_ascender+font.max_descender); }
+text_origin :: ( theme : * Label_Theme , font : * Font , r : Rect , text_width : float ) -> ( x : float , y : float ) {
     x:=r.x+em(theme.alignment_pad_ems,font);
     if theme.alignment==.Center x=r.x+(r.w-text_width)*0.5;
     if theme.alignment==.Right x=r.x+r.w-text_width-em(theme.alignment_pad_ems,font);
@@ -260,7 +266,7 @@ label_from_prepared_text :: (r:Rect,font:*Font,theme:*Label_Theme,do_scissor:=tr
         draw_procs.draw_prepared_text(font,cast(s64)x,cast(s64)y,theme.text_color,theme.effects);
     } else { assert(false,"Custom fonts must implement their own prepared-label measurement"); }
 }
-rounded_rectangle :: (r:Rect,shape:Rectangle_Shape,color:Vector4,frame_color:Vector4,frame_thickness_override:=FLOAT32_INFINITY)->frame_pixels:float,actual_roundedness:float {
+rounded_rectangle :: ( r : Rect , shape : Rectangle_Shape , color : Vector4 , frame_color : Vector4 , frame_thickness_override := FLOAT32_INFINITY ) -> ( frame_pixels : float , actual_roundedness : float ) {
     radius:=clamp(get_float_parameter(r,shape.roundedness_type,shape.roundedness,global_rounding_radius_in_pixels),0.0,min(r.w,r.h)*0.5);
     thickness:=clamp(get_float_parameter(r,shape.frame_thickness_type,shape.frame_thickness,global_frame_thickness_in_pixels,frame_thickness_override),0.0,min(r.w,r.h)*0.5);
     draw_procs.set_shader_for_color(true);
@@ -276,7 +282,7 @@ update_over_state :: (state:*Button_State,theme:*Button_Theme,status:Status_Flag
     if over>0 state.over_duration+=dt; else state.over_duration=0;
     if down>0 state.down_duration+=dt; else state.down_duration=0;
 }
-update_action_durations :: (state:*Button_State,theme:*Button_Theme,begin:bool,dt:float)->pressed_flash_factor:float {
+update_action_durations :: ( state : * Button_State , theme : * Button_Theme , begin : bool , dt : float ) -> ( pressed_flash_factor : float ) {
     if begin { state.action_duration=0; state.action_duration_2=0; }
     if state.action_duration_2>=0 state.action_duration_2+=dt;
     if state.action_duration<0 return 0;
@@ -289,7 +295,7 @@ update_production_value_button :: (r:Rect,changed:bool,state:*Button_State,statu
     state.over_factor=state.over_effect_t;
     state.pressed_factor=update_action_durations(state,theme,changed,current_dt);
 }
-get_colors_and_thickness_for_button :: (theme:*Button_Theme,state:*Button_State)->surface_color:Vector4,frame_color:Vector4,frame_thickness:float {
+get_colors_and_thickness_for_button :: ( theme : * Button_Theme , state : * Button_State ) -> ( surface_color : Vector4 , frame_color : Vector4 , frame_thickness : float ) {
     surface_color=lerp(lerp(lerp(theme.surface_color,theme.surface_color_over,state.over_factor),theme.surface_color_down,state.down_effect_t),theme.surface_color_flash,state.pressed_factor);
     frame_color=lerp(lerp(lerp(theme.frame_color,theme.frame_color_over,state.over_factor),theme.frame_color_down,state.down_effect_t),theme.frame_color_flash,state.pressed_factor);
     frame_thickness=FLOAT32_INFINITY;
@@ -300,13 +306,13 @@ core_draw_button :: (r:Rect,text:string,state:*Button_State,status:Status_Flags,
     if theme.properties&.DO_NOT_DRAW||!is_visible_in_scissor(r) return;
     surface,frame,thickness:=get_colors_and_thickness_for_button(theme,state);
     state.frame_pixels=rounded_rectangle(r,theme.rectangle_shape,surface,frame,thickness);
-    if text.count>0 label(shrink(r,state.frame_pixels),text,*theme.label_theme);
+    if text.count>0 core_draw_button_label(r,text,state,theme);
     if texture&&draw_procs.set_shader_for_images {
         p0,p1,p2,p3:=get_quad(r); draw_procs.set_shader_for_images(texture);
         draw_procs.immediate_quad(p0,p1,p2,p3,theme.text_color);
     }
 }
-button :: (r:Rect,text:string,theme:*Button_Theme=null,identifier:s64=0,loc:=#caller_location,texture:*Texture=null,disable_over:=false,disable_press:=false)->was_just_pressed:bool,state:*Button_State,was_just_released:bool {
+button :: ( r : Rect , text : string , theme : * Button_Theme = null , identifier : s64 = 0 , loc := #caller_location , texture : * Texture = null , disable_over := false , disable_press := false ) -> ( was_just_pressed : bool , state : * Button_State , was_just_released : bool ) {
     if !theme theme=*default_overall_theme.button_theme;
     state=find_or_create_state(Button_State,get_hash(loc,identifier)); defer stop_using_state(state);
     state.rect=r; state.hash=get_hash(loc,identifier);
@@ -323,7 +329,7 @@ button :: (r:Rect,text:string,theme:*Button_Theme=null,identifier:s64=0,loc:=#ca
     if theme.draw_callback theme.draw_callback(r,text,theme,texture,state);
     return was_just_pressed,state,was_just_released;
 }
-base_checkbox :: (r:Rect,text:string,selected:bool,theme:*Checkbox_Theme=null,identifier:s64=0,loc:=#caller_location)->changed:bool,checkbox_state:Checkbox_State {
+base_checkbox :: ( _r : Rect , text : string , selected : bool , theme : * Checkbox_Theme = null , identifier : s64 = 0 , loc := #caller_location ) -> changed : bool , checkbox_state : Checkbox_State { r := _r;
     if !theme theme=*default_overall_theme.checkbox_theme;
     state:=find_or_create_state(Checkbox_State,get_hash(loc,identifier)); defer stop_using_state(state);
     status:=get_status_flags(r); changed:=(status&.PRESSED)!=0;
@@ -384,7 +390,7 @@ draw_popups :: () {
     for popup:popups if popup.proc popup.proc(popup.data);
     drawing_popups=false;
     if mouse_button_left_state&.START&&!some_widget_received_left_mouse_button active_widget_deactivate_all();
-    if draw_procs.set_pointer_image draw_procs.set_pointer_image(.NORMAL,null);
+    pointer_end_frame();
     draw_procs.immediate_flush();
 }
 require_texture :: (data:string,loc:=#caller_location)->*Texture {
@@ -395,8 +401,8 @@ require_texture :: (data:string,loc:=#caller_location)->*Texture {
 }
 // Host cursor handling is an explicit hook; there is no fake native implementation.
 pointer_image_sink: (image:Pointer_Image,widget:*Active_Widget)=null;
-getrect_set_pointer_image :: (image:Pointer_Image,widget:*Active_Widget) { if pointer_image_sink pointer_image_sink(image,widget); }
-pointer_end_frame :: () { if draw_procs.set_pointer_image draw_procs.set_pointer_image(.NORMAL,null); }
+
+pointer_end_frame :: () { if !left_pointer_requested&&draw_procs.set_pointer_image draw_procs.set_pointer_image(.NORMAL,null); left_pointer_requested=false; }
 
 get_selection_indices :: (state:*Text_Input_State)->start:int,end:int {
     if !state.selection.active return state.insert_point,state.insert_point;
@@ -405,16 +411,16 @@ get_selection_indices :: (state:*Text_Input_State)->start:int,end:int {
 get_selection :: (state:*Text_Input_State)->string {
     start,end:=get_selection_indices(state); return .{end-start,state.text.data+start};
 }
-get_result :: (state:*Text_Input_State)->string { return state.text; }
-deselect :: (selection:*Selection) { selection.active=false; }
-selection_was_modified :: (selection:*Selection) { if selection.start_character==selection.end_character selection.active=false; }
+get_result :: ( using state : * Text_Input_State ) -> string { return state.text; }
+deselect :: ( using selection : * Selection ) { selection.active=false; }
+selection_was_modified :: ( using selection : * Selection ) { if selection.start_character==selection.end_character selection.active=false; }
 nonempty :: (selection:Selection)->bool { return selection.active&&selection.start_character!=selection.end_character; }
-select_all :: (state:*Text_Input_State) {
+select_all :: ( using state : * Text_Input_State ) {
     state.selection=.{start_line=0,end_line=0,start_character=0,end_character=state.text.count,active=state.text.count>0};
     state.insert_point=state.text.count;
 }
 clamp_insert_point :: (state:*Text_Input_State) { state.insert_point=clamp(state.insert_point,0,state.text.count); }
-set_input :: (state:*Text_Input_State,_s:string) {
+set_input :: ( using state : * Text_Input_State , _s : string ) {
     size:=min(_s.count,Text_Input_State.MAX_BUFFER_SIZE);
     // Do not split a UTF-8 codepoint when trimming a fixed-size buffer.
     while size>0&&size<_s.count&&(_s[size]&0xc0)==0x80 size-=1;
@@ -429,7 +435,7 @@ set_text :: (state:*Text_Input_State,s:string,replace_pre_modification_text:=tru
     set_input(state,s);
     if replace_pre_modification_text { saved:=copy_string(state.text); free(state.pre_modification_text.data); state.pre_modification_text=saved; }
 }
-clear_text :: (state:*Text_Input_State) { set_input(state,""); state.pending_result_actions|=.TEXT_MODIFIED; }
+clear_text :: ( using state : * Text_Input_State ) { set_input(state,""); state.pending_result_actions|=.TEXT_MODIFIED; }
 replace_selection :: (state:*Text_Input_State,s:string) {
     start,end:=get_selection_indices(state); new_count:=state.text.count-(end-start)+s.count;
     if new_count>Text_Input_State.MAX_BUFFER_SIZE return;
@@ -441,12 +447,12 @@ replace_selection :: (state:*Text_Input_State,s:string) {
     state.text=.{new_count,*state.input_buffer[0]}; state.insert_point=start+s.count;
     state.selection.active=false; state.pending_result_actions|=.TEXT_MODIFIED;
 }
-insert_text :: (state:*Text_Input_State,s:string)->bool {
+insert_text :: ( using state : * Text_Input_State , s : string ) -> bool {
     start,end:=get_selection_indices(state);
     if state.text.count-(end-start)+s.count>Text_Input_State.MAX_BUFFER_SIZE return false;
     replace_selection(state,s); return true;
 }
-append_text :: (state:*Text_Input_State,s:string) { state.insert_point=state.text.count; state.selection.active=false; insert_text(state,s); }
+append_text :: ( using state : * Text_Input_State , s : string ) { state.insert_point=state.text.count; state.selection.active=false; insert_text(state,s); }
 seek_left_one_utf8_character :: (s:string,_point:int)->int {
     point:=clamp(_point,0,s.count); if point==0 return 0;
     point-=1; while point>0&&(s[point]&0xc0)==0x80 point-=1; return point;
@@ -461,7 +467,7 @@ move_cursor_to :: (state:*Text_Input_State,point:int,want_selection:bool) {
     } else state.selection.active=false;
     state.insert_point=point;
 }
-move_cursor_left :: (state:*Text_Input_State,want_selection:=false) { move_cursor_to(state,seek_left_one_utf8_character(state.text,state.insert_point),want_selection); }
+move_cursor_left :: ( using state : * Text_Input_State , want_selection := false ) { move_cursor_to(state,seek_left_one_utf8_character(state.text,state.insert_point),want_selection); }
 move_cursor_right :: (state:*Text_Input_State,want_selection:=false) { move_cursor_to(state,seek_right_one_utf8_character(state.text,state.insert_point),want_selection); }
 move_cursor_to_beginning :: (state:*Text_Input_State,want_selection:=false) { move_cursor_to(state,0,want_selection); }
 move_cursor_to_end :: (state:*Text_Input_State,want_selection:=false) { move_cursor_to(state,state.text.count,want_selection); }
@@ -477,12 +483,12 @@ delete_from_cursor :: (using state:*Text_Input_State,by_word:=false) {
     state.selection=.{start_character=state.insert_point,end_character=ifx by_word then seek_right_one_word(state.text,state.insert_point) else seek_right_one_utf8_character(state.text,state.insert_point),active=true};
     replace_selection(state,"");
 }
-activate :: (state:*Text_Input_State) {
+activate :: ( using state : * Text_Input_State ) {
     if state.disabled return;
     if !state.active { saved:=copy_string(state.text); free(state.pre_modification_text.data); state.pre_modification_text=saved; }
     state.active=true; state.widget.window=context.getrect_current_window; active_widget_add(state);
 }
-reset :: (state:*Text_Input_State) {
+reset :: ( using state : * Text_Input_State ) {
     set_input(state,""); state.active=false; state.selection.active=false; state.pending_result_actions=0;
     active_widget_remove(state);
 }
@@ -516,26 +522,21 @@ handle_event :: (state:*Text_Input_State,event:Event) {
     if event.key_code==.BACKSPACE backspace_from_cursor(state,event.ctrl_pressed||event.cmd_meta_pressed);
     if event.key_code==.DELETE delete_from_cursor(state,event.ctrl_pressed||event.cmd_meta_pressed);
     if cast(s32)event.key_code==65&&(event.ctrl_pressed||event.cmd_meta_pressed) select_all(state);
-    if event.key_code==.TAB { advance_auto_complete(state,event.shift_pressed); return; }
+    if event.key_code==.TAB { press_tab(state,event.shift_pressed); return; }
     if event.key_code==.ARROW_UP navigate_history_backward(state);
     if event.key_code==.ARROW_DOWN navigate_history_forward(state);
     if (event.ctrl_pressed||event.cmd_meta_pressed)&&cast(s32)event.key_code==67 copy_selection_to_clipboard(state);
     if (event.ctrl_pressed||event.cmd_meta_pressed)&&cast(s32)event.key_code==88 copy_selection_to_clipboard(state,true);
     if (event.ctrl_pressed||event.cmd_meta_pressed)&&cast(s32)event.key_code==86 left_paste_clipboard(state);
-    if event.key_code==.ENTER {
-        if state.tab_pressed&&accept_auto_complete(state) return;
-        state.pending_result_actions|=.ENTERED;
-        if state.text.count>0&&(state.command_history.count==0||state.command_history[state.command_history.count-1]!=state.text) array_add(*state.command_history,copy_string(state.text));
-        state.command_history_index=state.command_history.count;
-    }
-    if event.key_code==.ESCAPE state.pending_result_actions|=.ESCAPED;
+    if event.key_code==.ENTER press_enter(state,event.shift_pressed);
+    if event.key_code==.ESCAPE press_escape(state);
 }
 draw_text_input_background :: (r:Rect,theme:*Text_Input_Theme,state:*Text_Input_State,active:=false,changed:=false) {
     status:=get_status_flags(r,*state.widget,ignore=.LEFT_CLICK|.TOOLTIP);
     if active status|=.DOWN; if changed status|=.PRESSED;
     core_draw_button(r,"",*state.base,status,*theme.button_theme,null);
 }
-text_input :: (_r:Rect,inert_text:string,theme:*Text_Input_Theme,identifier:s64=0,loc:=#caller_location,input_action:Text_Input_Action=0,auto_complete:Auto_Complete=.{})->result_action:Text_Result_Action,new_string:string,state:*Text_Input_State {
+text_input :: ( _r : Rect , inert_text : string , theme : * Text_Input_Theme , identifier : s64 = 0 , loc := #caller_location , input_action : Text_Input_Action = 0 , auto_complete : Auto_Complete = .{} ) -> ( result_action : Text_Result_Action , new_string : string , state : * Text_Input_State ) {
     state,created:=find_or_create_state(Text_Input_State,get_hash(loc,identifier)); defer stop_using_state(state);
     return left_text_input_body(_r,inert_text,theme,state,created,input_action,auto_complete);
 }
@@ -564,7 +565,7 @@ left_text_input_body :: (_r:Rect,inert_text:string,theme:*Text_Input_Theme,state
 }
 #scope_export
 
-draw :: (state:*Text_Input_State,r:Rect,theme:*Text_Input_Theme=null,identifier:s64=0,loc:=#caller_location) {
+draw :: ( using state : * Text_Input_State , r : Rect , theme : * Text_Input_Theme = null , identifier : s64 = 0 , loc := #caller_location ) {
     if !theme theme=*default_overall_theme.text_input_theme;
     state.rect=r; draw_text_input_background(r,theme,state,state.active); left_draw_input_contents(r,theme,state);
 }
@@ -589,7 +590,7 @@ slider :: (_r:Rect,value:*$T,min_value:T,max_value:T,spinbox_step:T,theme:*Slide
             if info.type==.FLOAT initial=theme.format_text_float("","",cast(float64)value.*,theme,state,.EDITING);
             else initial=theme.format_text_int("","",cast(s64)value.*,theme,state,.EDITING);
             set_text(*runtime.editor,initial); set_last_inert_text(*runtime.editor,initial); state.inputting_text=true; runtime.editor.active=true; active_widget_add(*runtime.editor);
-        } else { state.sliding=true; state.sliding_is_relative=theme.sliding_is_relative; active_widget_add(state,true); }
+        } else { set_initial_value(state,value.*); state.sliding=true; state.sliding_is_relative=theme.sliding_is_relative; active_widget_add(state,true); }
     }
     if state.sliding {
         if state.sliding_is_relative||(theme.sliding_becomes_relative_by_pressing_shift&&(shift_key_state&.DOWN)!=0) {
@@ -617,8 +618,10 @@ slider :: (_r:Rect,value:*$T,min_value:T,max_value:T,spinbox_step:T,theme:*Slide
         if actions&.ESCAPED||!runtime.editor.active state.inputting_text=false;
     }
     if info.type==.INTEGER candidate=round(candidate);
-    if !entered||theme.clamp_text_input_low candidate=max(candidate,cast(float64)min_value);
-    if !entered||theme.clamp_text_input_high candidate=min(candidate,cast(float64)max_value);
+    clamp_drag:=true;
+    if state.sliding&&(state.sliding_is_relative||shift_key_state&.DOWN)&&!theme.do_clamp_if_we_are_relative_dragging_but_started_outside_the_clamp_range { initial:=get_initial_value(state,T); clamp_drag=initial>=min_value&&initial<=max_value; }
+    if (entered&&theme.clamp_text_input_low)||(!entered&&clamp_drag) candidate=max(candidate,cast(float64)min_value);
+    if (entered&&theme.clamp_text_input_high)||(!entered&&clamp_drag) candidate=min(candidate,cast(float64)max_value);
     value.*=cast(T)candidate;
     fraction:=0.0; if max_value>min_value fraction=cast(float)((candidate-min_value)/(cast(float64)max_value-min_value));
     state.current_slide_setting=clamp(fraction,0.0,1.0); state.changed_this_frame=value.*!=before;
@@ -647,8 +650,8 @@ slider_format_text_float_default :: (prefix:string,suffix:string,value:float64,t
 slider_format_text_int_default :: (prefix:string,suffix:string,value:s64,theme:*Slider_Theme,state:*Slider_State,mode:Slider_Format_Text_Mode)->string {
     if mode==.EDITING return tprint("%",value); return tprint("%%%",prefix,value,suffix);
 }
-slider_parse_text_float_default :: (text:string,theme:*Slider_Theme,state:*Slider_State)->success:bool,value:float64 { parsed,valid:=String.string_to_float(text); return valid,parsed; }
-slider_parse_text_int_default :: (text:string,theme:*Slider_Theme,state:*Slider_State)->success:bool,value:s64 { parsed,valid:=String.string_to_int(text); return valid,parsed; }
+slider_parse_text_float_default :: ( text : string , theme : * Slider_Theme , state : * Slider_State ) -> ( success : bool , value : float64 ) { parsed,valid:=String.string_to_float(text); return valid,parsed; }
+slider_parse_text_int_default :: ( text : string , theme : * Slider_Theme , state : * Slider_State ) -> ( success : bool , value : s64 ) { parsed,valid:=String.string_to_int(text); return valid,parsed; }
 
 #scope_module
 initialized:bool; drawing_popups:bool;
@@ -681,7 +684,9 @@ left_round_fill :: (r:Rect,shape:Rectangle_Shape,radius:float,color:Vector4) {
     }
     array_reset(*points);
 }
-draw_dropdown_popup :: (data:*void) {
+#scope_export
+draw_dropdown_popup :: ( _state : * void ) {
+    data:=_state;
     state:=cast(*Dropdown_State)data;
     if !state.open return;
     start_using_state(state); defer stop_using_state(state);
@@ -692,6 +697,8 @@ draw_dropdown_popup :: (data:*void) {
         if clicked { state.current_value_pointer.*=cast(s32)index; state.open=false; active_widget_remove(state); }
     }
 }
+#scope_module
+
 #if USE_SIMP {
 left_shader_color :: (enable_blend:=false) { Simp.set_shader_for_color(enable_blend); }
 left_prepare_text :: (font:*Font,text:string,effects:Font_Effects=0)->s64 { return Simp.prepare_text(font,text,effects); }
@@ -740,6 +747,7 @@ ui_deinit :: () {
         if widget.widget_type==Color_Animation_Editor_State { state:=cast(*Color_Animation_Editor_State)widget; array_reset(*state.color_keyframes); array_reset(*state.color_samples); }
         free(widget);
     }
+    array_reset(*occlusions_current_frame); array_reset(*occlusions_next_frame); array_reset(*left_occluder_stack); occluder_under_the_cursor=null; occluder_being_drawn=null;
     Tables.deinit(*state_table); array_reset(*state_stack); array_reset(*scissor_stack); array_reset(*popups);
     array_reset(*events_to_handle_this_frame); array_reset(*left_event_windows); array_reset(*left_window_buttons);
     array_reset(*this_frame_per_window_states); array_reset(*last_frame_per_window_states);

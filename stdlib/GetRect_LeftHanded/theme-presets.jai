@@ -1,6 +1,6 @@
 #scope_export
-THEME_COUNT :: cast(int)Default_Themes.HIGH_CONTRAST+1;
-default_theme_procs:[THEME_COUNT]Theme_Proc=Theme_Proc.[theme_proc_default,theme_proc_grayscale,theme_proc_bentonite,theme_proc_nimbus,theme_proc_blood_vampire,theme_proc_freddie_freeloader,theme_proc_high_contrast];
+THEME_COUNT :: #run enum_highest_value(Default_Themes)+1;
+default_theme_procs:[THEME_COUNT]Theme_Proc:Theme_Proc.[theme_proc_default,theme_proc_grayscale,theme_proc_bentonite,theme_proc_nimbus,theme_proc_blood_vampire,theme_proc_freddie_freeloader,theme_proc_high_contrast];
 set_theme_from_base_colors :: (theme:*Overall_Theme,main_surface_color:Vector4,border_color:Vector4,interact_color:Vector4,atop_surface_text:Vector4,atop_border_text:Vector4) {
     base:=theme.button_theme;
     base.surface_color=main_surface_color; base.surface_color_over=lerp(main_surface_color,interact_color,0.25); base.surface_color_down=lerp(main_surface_color,interact_color,0.60); base.surface_color_flash=interact_color;

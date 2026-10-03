@@ -4,7 +4,7 @@ Math :: #import "Math";
 using Math;
 Basic :: #import "Basic";
 #load "ui.jai";
-Rect :: struct { x, y, w, h: float; }
+Rect :: struct { x,y:float; w,h:float; }
 get_rect :: (x: float, y: float, w: float, h: float) -> Rect { return .{x,y,w,h}; }
 expand :: (rect: Rect, amount: float) -> Rect { return .{rect.x-amount,rect.y-amount,rect.w+2*amount,rect.h+2*amount}; }
 expand_x :: (rect: Rect, amount: float) -> Rect { return .{rect.x-amount,rect.y,rect.w+2*amount,rect.h}; }
@@ -42,7 +42,7 @@ get_quad :: (using r: Rect, snap_coordinates := false) -> (p0: Vector2, p1: Vect
 }
 KNUTH_GOLDEN_RATIO_64 :: 11400714819323198485;
 combine_hashes :: (a: u64, b: u64) -> u64 #no_aoc { return (a ^ b) * KNUTH_GOLDEN_RATIO_64; }
-get_hash :: (loc: Source_Code_Location, identifier: s64) -> u64 #no_aoc {
+get_hash :: (loc: Source_Code_Location, identifier: s64) -> u64 {
     hash: u64=14695981039346656037;
     for byte: loc.fully_pathed_filename hash=(hash ^ byte)*1099511628211;
     hash=combine_hashes(hash,cast(u64) loc.line_number);

@@ -65,6 +65,10 @@ input_application_has_focus := false;
 init_input_system :: () {
     input_application_has_focus = true;
     for *state: input_button_states state.* = .NONE;
+    for *state: unscoped_button_states state.* = .NONE;
+    for *record: window_input_states for *state: record.buttons state.* = .NONE;
+    unscoped_input_focus = false;
+    if window_input_states.count > 0 refresh_application_focus();
     install_native_input_adapter();
     if input_initialize_source != null input_initialize_source();
 }
@@ -82,6 +86,8 @@ input_per_frame_event_and_flag_update :: () {
     }
     events_this_frame.count = 0;
     for *state: input_button_states state.* &= .DOWN;
+    for *state: unscoped_button_states state.* &= .DOWN;
+    for *record: window_input_states for *state: record.buttons state.* &= .DOWN;
     mouse_delta_x = 0; mouse_delta_y = 0; mouse_delta_z = 0;
 }
 
@@ -122,12 +128,33 @@ queue_window_resize :: (window: Window_Type, width: s32, height: s32) {
     array_add(*pending_resizes, .{window, width, height});
 }
 set_input_focus :: (focused: bool) {
-    input_application_has_focus = focused;
-    if !focused release_focus_buttons(0, false);
+    unscoped_input_focus = focused;
+    if !focused {
+        for *record: window_input_states record.focused = false;
+        release_focus_buttons(0, false);
+    }
+    refresh_application_focus();
 }
 set_input_focus :: (window: Window_Type, focused: bool) {
-    input_application_has_focus = focused;
+    index := ensure_input_window(window);
+    window_input_states[index].focused = focused;
     if !focused release_focus_buttons(window, true);
+    refresh_application_focus();
+}
+// Unknown windows have no observed focus or held state.
+window_has_input_focus :: (window: Window_Type) -> bool {
+    index := find_input_window(window);
+    if index < 0 return false;
+    return window_input_states[index].focused;
+}
+get_window_key_state :: (window: Window_Type, key: Key_Code) -> Key_Current_State {
+    if cast(u32) key >= NUM_BUTTON_STATES return .NONE;
+    index := find_input_window(window);
+    if index < 0 return .NONE;
+    return window_input_states[index].buttons[cast(u32) key];
+}
+window_key_is_down :: (window: Window_Type, key: Key_Code) -> bool {
+    return (get_window_key_state(window, key) & .DOWN) != 0;
 }
 
 get_window_moves :: () -> [] Window_Move_Record {
@@ -142,46 +169,105 @@ input_event_source: () = null;
 input_initialize_source: () = null;
 input_pointer_source: (window: Window_Type, client_area: bool) -> float, float = null;
 input_pointer_query_source: (window: Window_Type, client_area: bool) -> float, float, bool = null;
+Window_Input_State :: struct {
+    window: Window_Type;
+    focused := false;
+    buttons: [NUM_BUTTON_STATES] Key_Current_State;
+}
+window_input_states: [..] Window_Input_State;
+unscoped_input_focus := false;
+unscoped_button_states: [NUM_BUTTON_STATES] Key_Current_State;
 Pending_Input_Event :: struct { event: Event; window: Window_Type; associated := false; }
 pending_events: [..] Pending_Input_Event;
-#if OS == .WINDOWS { #load "windows.jai"; }
-else #if OS == .LINUX { #load "x11.jai"; }
-else #if OS == .MACOS { #load "macos.jai"; }
+#if ENABLE_NATIVE_INPUT_ADAPTERS {
+    #if OS == .WINDOWS { #load "windows.jai"; }
+    else #if OS == .LINUX { #load "x11.jai"; }
+    else #if OS == .MACOS { #load "macos.jai"; }
+}
 pending_moves: [..] Window_Move_Record;
 moves_to_free: [..] Window_Move_Record;
 pending_resizes: [..] Window_Resize_Record;
 pending_mouse_x: int; pending_mouse_y: int; pending_mouse_z: int;
 custom_cursor_handling := false;
+find_input_window :: (window: Window_Type) -> s64 {
+    for record, index: window_input_states if record.window == window return index;
+    return -1;
+}
+ensure_input_window :: (window: Window_Type) -> s64 {
+    index := find_input_window(window);
+    if index >= 0 return index;
+    record: Window_Input_State; record.window = window;
+    array_add(*window_input_states, record);
+    return window_input_states.count - 1;
+}
+refresh_application_focus :: () {
+    input_application_has_focus = unscoped_input_focus;
+    for record: window_input_states if record.focused { input_application_has_focus = true; return; }
+}
+key_has_any_owner_down :: (key: u32) -> bool {
+    if (unscoped_button_states[key] & .DOWN) != 0 return true;
+    for record: window_input_states if (record.buttons[key] & .DOWN) != 0 return true;
+    return false;
+}
+update_owner_key_state :: (state: *Key_Current_State, pressed: bool) {
+    if pressed {
+        if (state.* & .DOWN) == 0 state.* |= .START;
+        state.* |= .DOWN;
+    } else state.* = (state.* | .END) & ~Key_Current_State.DOWN;
+}
+key_has_scoped_source :: (key: u32) -> bool {
+    for record: window_input_states if (record.buttons[key] & .DOWN) != 0 return true;
+    for pending: pending_events if pending.associated && pending.event.type == .KEYBOARD && cast(u32) pending.event.key_code == key return true;
+    return false;
+}
+queued_window_key_down :: (window: Window_Type, key: u32) -> bool {
+    index := find_input_window(window);
+    down := false;
+    if index >= 0 down = (window_input_states[index].buttons[key] & .DOWN) != 0;
+    for pending: pending_events {
+        if !pending.associated || pending.window != window || pending.event.type != .KEYBOARD || cast(u32) pending.event.key_code != key continue;
+        down = pending.event.key_pressed;
+    }
+    return down;
+}
 release_focus_buttons :: (window: Window_Type, scoped: bool) {
-    for state, index: input_button_states {
-        down := (state & .DOWN) != 0;
-        origin := button_windows[index];
-        associated := button_associated[index];
-        for pending: pending_events {
-            if pending.event.type != .KEYBOARD || cast(s64) pending.event.key_code != index continue;
-            down = pending.event.key_pressed;
-            origin = pending.window;
-            associated = pending.associated;
+    if scoped {
+        for key: 0..NUM_BUTTON_STATES-1 {
+            if !queued_window_key_down(window, cast(u32) key) continue;
+            event: Event; event.type = .KEYBOARD; event.key_code = cast(Key_Code) key;
+            queue_input_event(window, event);
         }
-        if !down || (scoped && (!associated || origin != window)) continue;
-        event: Event;
-        event.type = .KEYBOARD; event.key_code = cast(Key_Code) index;
-        if associated queue_input_event(origin, event);
-        else queue_input_event(event);
+        return;
+    }
+    // Every queued scoped press must have a real record before releasing all origins.
+    for pending: pending_events if pending.associated && pending.event.type == .KEYBOARD ensure_input_window(pending.window);
+    for record: window_input_states release_focus_buttons(record.window, true);
+    for key: 0..NUM_BUTTON_STATES-1 {
+        down := (unscoped_button_states[key] & .DOWN) != 0;
+        if !down && !key_has_scoped_source(cast(u32) key) down = (input_button_states[key] & .DOWN) != 0;
+        for pending: pending_events {
+            if pending.associated || pending.event.type != .KEYBOARD || cast(s64) pending.event.key_code != key continue;
+            down = pending.event.key_pressed;
+        }
+        if !down continue;
+        event: Event; event.type = .KEYBOARD; event.key_code = cast(Key_Code) key;
+        queue_input_event(event);
     }
 }
 // Strict decoder shared by XIM and AppKit text streams.
 publish_pending_event :: (pending: Pending_Input_Event) {
     event := pending.event;
     if event.type == .KEYBOARD && cast(u32) event.key_code < NUM_BUTTON_STATES {
-        index := cast(u32) event.key_code;
-        state := *input_button_states[index];
+        key := cast(u32) event.key_code;
+        if pending.associated {
+            index := ensure_input_window(pending.window);
+            update_owner_key_state(*window_input_states[index].buttons[key], event.key_pressed);
+        } else update_owner_key_state(*unscoped_button_states[key], event.key_pressed);
+        state := *input_button_states[key];
         if event.key_pressed {
             if (state.* & .DOWN) == 0 state.* |= .START;
             state.* |= .DOWN;
-            button_windows[index] = pending.window;
-            button_associated[index] = pending.associated;
-        } else {
+        } else if !key_has_any_owner_down(key) {
             state.* = (state.* | .END) & ~Key_Current_State.DOWN;
         }
     }
@@ -218,18 +304,21 @@ queue_utf8_text :: (window: Window_Type, bytes: []u8, repeat := false) {
     }
 }
 install_native_input_adapter :: () {
-    #if OS == .WINDOWS {
-        if input_event_source == null input_event_source = windows_poll_input;
-        if input_pointer_source == null && input_pointer_query_source == null input_pointer_query_source = windows_pointer_query;
-    } else #if OS == .LINUX {
-        if input_event_source == null input_event_source = x11_poll_input;
-        if input_pointer_source == null && input_pointer_query_source == null input_pointer_query_source = x11_pointer_query;
-    } else #if OS == .MACOS {
-        if input_event_source == null input_event_source = macos_poll_input;
-        if input_pointer_source == null && input_pointer_query_source == null input_pointer_query_source = macos_pointer_query;
+    #if ENABLE_NATIVE_INPUT_ADAPTERS {
+        #if OS == .WINDOWS {
+            if input_event_source == null input_event_source = windows_poll_input;
+            if input_pointer_source == null && input_pointer_query_source == null input_pointer_query_source = windows_pointer_query;
+        } else #if OS == .LINUX {
+            if input_event_source == null input_event_source = x11_poll_input;
+            if input_pointer_source == null && input_pointer_query_source == null input_pointer_query_source = x11_pointer_query;
+        } else #if OS == .MACOS {
+            if input_event_source == null input_event_source = macos_poll_input;
+            if input_pointer_source == null && input_pointer_query_source == null input_pointer_query_source = macos_pointer_query;
+        }
     }
 }
 // Platform adapters enqueue events; this module owns frame lifetime and state.
+#module_parameters (ENABLE_NATIVE_INPUT_ADAPTERS := true);
 #import "Basic";
 Window_Type :: s64;
 
@@ -251,5 +340,3 @@ get_mouse_pointer_position :: (window: Window_Type, client_area := false) -> flo
 }
 
 #scope_module
-button_windows: [NUM_BUTTON_STATES] Window_Type;
-button_associated: [NUM_BUTTON_STATES] bool;
