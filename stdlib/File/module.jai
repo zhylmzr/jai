@@ -143,11 +143,3 @@ get_absolute_path :: inline (relative_path: string) -> string, success: bool {
 
 Seek_Type :: enum { START :: 0; CURRENT :: 1; END :: 2; }
 
-set_working_directory :: (path: string) -> bool {
-    System :: #import "System";
-    return System.set_working_directory(path);
-}
-get_working_directory :: () -> string {
-    System :: #import "System";
-    return System.get_working_directory();
-}
