@@ -52,6 +52,7 @@ Window_Event :: struct {
 }
 Event :: Window_Event;
 Routed_Input_Event :: struct { window: Window_Type; event: Event; }
+WHEEL_DELTA :: 120;  // Wheel units per notch, as in the original Input module.
 NUM_BUTTON_STATES :: 307;
 events_this_frame: [..] Event;
 // Borrowed frame views: payload ownership remains in events_this_frame.
@@ -66,6 +67,7 @@ Window_Move_Record :: struct { window: Window_Type; x: s32; y: s32; }
 
 // Adapters run on the owner thread; drag-and-drop buffers transfer ownership.
 window_resizes_this_frame: [..] Window_Resize_Record;
+window_minimized := false;
 input_application_has_focus := false;
 init_input_system :: () {
     input_application_has_focus = true;
@@ -102,7 +104,7 @@ update_window_events :: () {
     input_per_frame_event_and_flag_update();
     if input_event_source != null input_event_source();
     window_resizes_this_frame.count = 0;
-    swap(*pending_resizes, *window_resizes_this_frame);
+    Swap(*pending_resizes, *window_resizes_this_frame);
     mouse_delta_x = pending_mouse_x; mouse_delta_y = pending_mouse_y; mouse_delta_z = pending_mouse_z;
     pending_mouse_x = 0; pending_mouse_y = 0; pending_mouse_z = 0;
     for pending: pending_events publish_pending_event(pending);
@@ -134,6 +136,9 @@ queue_window_resize :: (window: Window_Type, width: s32, height: s32) {
     }
     array_add(*pending_resizes, .{window, width, height});
 }
+// Original-API spelling of queue_window_resize: coalesces per window until the next update.
+add_resize_record :: (window: Window_Type, width: s32, height: s32) { queue_window_resize(window, width, height); }
+// Set by hosts that learn a window is minimized; kept for source compatibility with the original Input module.
 set_input_focus :: (focused: bool) {
     unscoped_input_focus = focused;
     if !focused {
@@ -166,7 +171,7 @@ window_key_is_down :: (window: Window_Type, key: Key_Code) -> bool {
 
 get_window_moves :: () -> [] Window_Move_Record {
     moves_to_free.count = 0;
-    swap(*pending_moves, *moves_to_free);
+    Swap(*pending_moves, *moves_to_free);
     return moves_to_free;
 }
 get_window_resizes :: () -> [] Window_Resize_Record {
