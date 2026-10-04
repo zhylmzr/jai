@@ -302,6 +302,7 @@ Public source corpora are input data.
 - [Command-line arguments](stdlib/command-line.md)
 
 - [Metaprogram tooling](stdlib/metaprogram-tooling.md)
+- [Bindings generator](stdlib/bindings-generator.md)
 - [Program_Print source printer](stdlib/program-print.md)
 
 - [Window and audio bindings](stdlib/window-audio-bindings.md)
