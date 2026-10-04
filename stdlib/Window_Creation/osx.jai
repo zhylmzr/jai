@@ -120,6 +120,9 @@ create_window :: ( width : int , height : int , window_name : string , window_x 
 }
 init_mac_app :: ( ) {
     if application_initialized return;
+    // Referencing a symbol of the framework makes the linker/loader bring AppKit in before any class lookup.
+    app_kit_anchor := NSApplicationMain;
+    if app_kit_anchor == null return;
     init_objective_c();
     init_objective_c_foundation();
     init_app_kit();
