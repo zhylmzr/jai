@@ -75,7 +75,7 @@ deinit_memory_debugger :: () {
     context.__basic_memory_debugger_hook = null;
 }
 
-#scope_file
+#scope_module
 Preamble :: () #expand {
     if context.inside_memory_debugger `return;
     if _md_ignore_allocator(`allocator) `return;
