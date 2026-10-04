@@ -757,7 +757,7 @@ Provided_Import_Type :: enum u8 {
 // Everything here is plain data. The layout and member order follow the public
 // Compiler API so that metaprograms which cast a *Message to a Message_* record,
 // or walk Code_Node subclasses, compile unchanged. Messages and syntax nodes are
-// built from records exported by jaic (records.jai, docs/compiler-records.md).
+// built from records exported by jaic (records.jai, docs/metaprogramming/compiler-records.md).
 
 #scope_export
 
