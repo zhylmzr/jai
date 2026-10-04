@@ -164,37 +164,123 @@ allocations_before_this_call_will_not_be_considered_leaks :: () {
     defer _md_end();
     md_state.first_report_index = md_state.next_index;
 }
-make_leak_report :: () -> string {
-    options: Leak_Report_Options;
-    report := make_leak_report(options);
-    defer deinit(*report);
-    previous_guard := context.inside_memory_debugger;
-    context.inside_memory_debugger = true;
-    defer context.inside_memory_debugger = previous_guard;
-    previous_allocator := context.allocator;
-    context.allocator = temp;
-    defer context.allocator = previous_allocator;
-    builder: String_Builder;
-    init_string_builder(*builder);
-    defer free_buffers(*builder);
-    count: s64;
-    bytes: s64;
-    for summary: report.sorted_summaries {
-        count += summary.count + summary.child_count;
-        bytes += summary.bytes + summary.child_bytes;
+make_leak_report :: (options: Leak_Report_Options = .{}, for_visualizer := false) -> Leak_Report {
+    report: Leak_Report;
+    if !_md_begin(.{}) return report;
+    defer _md_end();
+    MD_Pool.set_allocators(*report.pool, md_state.storage_allocator);
+    report.leak_combiner_table.allocator = md_state.storage_allocator;
+    live_count: s64;
+    cursor := md_state.records;
+    while cursor {
+        if cursor.allocation.is_live live_count += 1;
+        cursor = cursor.next;
     }
-    print_to_builder(*builder, "Memory leaks: % allocations, % bytes\n", count, bytes);
-    for summary: report.sorted_summaries _md_append_summary(*builder, summary);
-    return builder_to_string(*builder);
+    rows := cast(*MD_Report_Row)MD_Pool.get(*report.pool, live_count * size_of(MD_Report_Row));
+    count: s64;
+    cursor = md_state.records;
+    while cursor {
+        if cursor.allocation.is_live {
+            rows[count] = .{};
+            rows[count].record = cursor;
+            rows[count].marked = !for_visualizer && !md_is_leak(*md_state, cursor);
+            count += 1;
+        }
+        cursor = cursor.next;
+    }
+    if !for_visualizer && options.scan_global_memory_to_remove_leaks {
+        runtime := MD_Compiler.get_runtime_info();
+        if !runtime.global_data_info {
+            log_error("memory debugger requires compiler runtime global-data metadata\n");
+            Runtime_Support.debug_break();
+            return report;
+        }
+        for *segment: runtime.global_data_info.segment_info _md_mark_referenced(rows, count, segment.data.data, segment.data.count);
+    }
+    // Propagate reachability from explicitly ignored allocations and globals.
+    changed := true;
+    while changed {
+        changed = false;
+        for i: 0..count-1 {
+            if !rows[i].marked || !rows[i].record.allocation.propagates_leak_ownership continue;
+            allocation := *rows[i].record.allocation;
+            if _md_mark_referenced(rows, count, allocation.pointer, allocation.size) changed = true;
+        }
+    }
+    for i: 0..count-1 {
+        if rows[i].marked {
+            report.marked_as_non_leak_allocations += 1;
+            report.marked_as_non_leak_bytes += rows[i].record.allocation.size;
+        }
+    }
+    if options.scan_leaks_to_combine {
+        // Prefer true graph roots, then retain one root per remaining cycle.
+        for parent: 0..count-1 {
+            if rows[parent].marked || !rows[parent].record.allocation.propagates_leak_ownership continue;
+            allocation := *rows[parent].record.allocation;
+            for child: 0..count-1 {
+                if child == parent || rows[child].marked continue;
+                if _md_points_at(allocation.pointer, allocation.size, rows[child].record.allocation.pointer) rows[child].incoming += 1;
+            }
+        }
+        for i: 0..count-1 {
+            if rows[i].marked || rows[i].incoming != 0 continue;
+            rows[i].visited = true;
+            _md_combine(*report, rows, count, i);
+        }
+        for i: 0..count-1 {
+            if rows[i].marked || rows[i].visited continue;
+            rows[i].visited = true;
+            _md_combine(*report, rows, count, i);
+        }
+    }
+    pointers := cast(**Leak_Summary)MD_Pool.get(*report.pool, count * size_of(*Leak_Summary));
+    summary_count: s64;
+    for i: 0..count-1 {
+        if rows[i].marked || rows[i].parent >= 0 continue;
+        allocation := *rows[i].record.allocation;
+        trace := _md_copy_trace(*report.pool, allocation.alloc_site_trace);
+        summary: *Leak_Summary;
+        for j: 0..summary_count-1 {
+            if md_trace_matches(pointers[j].alloc_site_trace, trace) { summary = pointers[j]; break; }
+        }
+        if !summary {
+            summary = cast(*Leak_Summary)MD_Pool.get(*report.pool, size_of(Leak_Summary));
+            summary.* = .{};
+            summary.alloc_site_trace = trace;
+            summary.allocator_proc = allocation.allocator.proc;
+            pointers[summary_count] = summary;
+            summary_count += 1;
+        } else if summary.allocator_proc != allocation.allocator.proc summary.allocator_proc = null;
+        summary.count += 1;
+        summary.bytes += allocation.size;
+        summary.child_count += rows[i].child_count;
+        summary.child_bytes += rows[i].child_bytes;
+        if rows[i].record.frame_cycle == md_state.frame_cycle {
+            summary.allocations_since_last_visualizer_update += rows[i].record.frame_allocations;
+            summary.bytes_allocated_since_last_visualizer_update += rows[i].record.frame_bytes;
+        }
+    }
+    report.sorted_summaries = .{summary_count, pointers};
+    for procedure: options.group_by_these_calls _md_group(*report, procedure);
+    _md_sort_summaries(report.sorted_summaries);
+    return report;
 }
-log_leak_report :: () { write_string(make_leak_report(), to_standard_error=true); }
+log_leak_report :: (report: Leak_Report, options: Leak_Report_Options = .{}) {
+    total_count: s64;
+    total_bytes: s64;
+    for summary: report.sorted_summaries {
+        total_count += summary.count + summary.child_count;
+        total_bytes += summary.bytes + summary.child_bytes;
+    }
+    log_warning("Memory leaks: % allocations, % bytes\n", total_count, total_bytes);
+    for summary: report.sorted_summaries _md_log_summary(summary, options, "  ");
+}
 report_memory_leaks :: (options: Leak_Report_Options = .{}) {
     report := make_leak_report(options);
     defer deinit(*report);
     log_leak_report(report, options);
 }
-// The maintained zero-argument surface returns temporary text. Explicit
-// options select the historical owned report, whose deinit stays separate.
 MD_Heap :: struct { allocator: Allocator; destroyed: bool; next: *MD_Heap; }
 MD_Report_Row :: struct {
     record: *MD_Record;
@@ -446,115 +532,3 @@ _md_append_summary :: (builder: *String_Builder, summary: *Leak_Summary) {
     }
 }
 #scope_export
-make_leak_report :: (options: Leak_Report_Options = .{}, for_visualizer := false) -> Leak_Report {
-    report: Leak_Report;
-    if !_md_begin(.{}) return report;
-    defer _md_end();
-    MD_Pool.set_allocators(*report.pool, md_state.storage_allocator);
-    report.leak_combiner_table.allocator = md_state.storage_allocator;
-    live_count: s64;
-    cursor := md_state.records;
-    while cursor {
-        if cursor.allocation.is_live live_count += 1;
-        cursor = cursor.next;
-    }
-    rows := cast(*MD_Report_Row)MD_Pool.get(*report.pool, live_count * size_of(MD_Report_Row));
-    count: s64;
-    cursor = md_state.records;
-    while cursor {
-        if cursor.allocation.is_live {
-            rows[count] = .{};
-            rows[count].record = cursor;
-            rows[count].marked = !for_visualizer && !md_is_leak(*md_state, cursor);
-            count += 1;
-        }
-        cursor = cursor.next;
-    }
-    if !for_visualizer && options.scan_global_memory_to_remove_leaks {
-        runtime := MD_Compiler.get_runtime_info();
-        if !runtime.global_data_info {
-            log_error("memory debugger requires compiler runtime global-data metadata\n");
-            Runtime_Support.debug_break();
-            return report;
-        }
-        for *segment: runtime.global_data_info.segment_info _md_mark_referenced(rows, count, segment.data.data, segment.data.count);
-    }
-    // Propagate reachability from explicitly ignored allocations and globals.
-    changed := true;
-    while changed {
-        changed = false;
-        for i: 0..count-1 {
-            if !rows[i].marked || !rows[i].record.allocation.propagates_leak_ownership continue;
-            allocation := *rows[i].record.allocation;
-            if _md_mark_referenced(rows, count, allocation.pointer, allocation.size) changed = true;
-        }
-    }
-    for i: 0..count-1 {
-        if rows[i].marked {
-            report.marked_as_non_leak_allocations += 1;
-            report.marked_as_non_leak_bytes += rows[i].record.allocation.size;
-        }
-    }
-    if options.scan_leaks_to_combine {
-        // Prefer true graph roots, then retain one root per remaining cycle.
-        for parent: 0..count-1 {
-            if rows[parent].marked || !rows[parent].record.allocation.propagates_leak_ownership continue;
-            allocation := *rows[parent].record.allocation;
-            for child: 0..count-1 {
-                if child == parent || rows[child].marked continue;
-                if _md_points_at(allocation.pointer, allocation.size, rows[child].record.allocation.pointer) rows[child].incoming += 1;
-            }
-        }
-        for i: 0..count-1 {
-            if rows[i].marked || rows[i].incoming != 0 continue;
-            rows[i].visited = true;
-            _md_combine(*report, rows, count, i);
-        }
-        for i: 0..count-1 {
-            if rows[i].marked || rows[i].visited continue;
-            rows[i].visited = true;
-            _md_combine(*report, rows, count, i);
-        }
-    }
-    pointers := cast(**Leak_Summary)MD_Pool.get(*report.pool, count * size_of(*Leak_Summary));
-    summary_count: s64;
-    for i: 0..count-1 {
-        if rows[i].marked || rows[i].parent >= 0 continue;
-        allocation := *rows[i].record.allocation;
-        trace := _md_copy_trace(*report.pool, allocation.alloc_site_trace);
-        summary: *Leak_Summary;
-        for j: 0..summary_count-1 {
-            if md_trace_matches(pointers[j].alloc_site_trace, trace) { summary = pointers[j]; break; }
-        }
-        if !summary {
-            summary = cast(*Leak_Summary)MD_Pool.get(*report.pool, size_of(Leak_Summary));
-            summary.* = .{};
-            summary.alloc_site_trace = trace;
-            summary.allocator_proc = allocation.allocator.proc;
-            pointers[summary_count] = summary;
-            summary_count += 1;
-        } else if summary.allocator_proc != allocation.allocator.proc summary.allocator_proc = null;
-        summary.count += 1;
-        summary.bytes += allocation.size;
-        summary.child_count += rows[i].child_count;
-        summary.child_bytes += rows[i].child_bytes;
-        if rows[i].record.frame_cycle == md_state.frame_cycle {
-            summary.allocations_since_last_visualizer_update += rows[i].record.frame_allocations;
-            summary.bytes_allocated_since_last_visualizer_update += rows[i].record.frame_bytes;
-        }
-    }
-    report.sorted_summaries = .{summary_count, pointers};
-    for procedure: options.group_by_these_calls _md_group(*report, procedure);
-    _md_sort_summaries(report.sorted_summaries);
-    return report;
-}
-log_leak_report :: (report: Leak_Report, options: Leak_Report_Options = .{}) {
-    total_count: s64;
-    total_bytes: s64;
-    for summary: report.sorted_summaries {
-        total_count += summary.count + summary.child_count;
-        total_bytes += summary.bytes + summary.child_bytes;
-    }
-    log_warning("Memory leaks: % allocations, % bytes\n", total_count, total_bytes);
-    for summary: report.sorted_summaries _md_log_summary(summary, options, "  ");
-}
