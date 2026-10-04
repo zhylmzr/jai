@@ -1,3 +1,8 @@
+// Platform adapters enqueue events; this module owns frame lifetime and state.
+#module_parameters (ENABLE_NATIVE_INPUT_ADAPTERS := true);
+#import "Basic";
+#import "Window_Type";
+
 Input_Event_Type :: enum {
     QUIT :: 0; KEYBOARD :: 1; TEXT_INPUT :: 2; WINDOW :: 3;
     MOUSE_WHEEL :: 4; DRAG_AND_DROP_FILES :: 6; TOUCH :: 7; UNINITIALIZED :: 8;
@@ -56,11 +61,11 @@ input_button_states: [NUM_BUTTON_STATES] Key_Current_State;
 mouse_delta_x: int;
 mouse_delta_y: int;
 mouse_delta_z: int;
-Window_Resize_Record :: Window_Resize;
+Window_Resize_Record :: struct { window: Window_Type; width: s32; height: s32; }
 Window_Move_Record :: struct { window: Window_Type; x: s32; y: s32; }
 
 // Adapters run on the owner thread; drag-and-drop buffers transfer ownership.
-window_resizes_this_frame: [..] Window_Resize;
+window_resizes_this_frame: [..] Window_Resize_Record;
 input_application_has_focus := false;
 init_input_system :: () {
     input_application_has_focus = true;
@@ -73,7 +78,9 @@ init_input_system :: () {
     if input_initialize_source != null input_initialize_source();
 }
 
-// These explicit adapters are additional authored integration points.
+// These explicit adapters are additional authored integration points. The pointer
+// getters are named distinctly from Window_Creation's get_mouse_pointer_position, which
+// programs commonly import alongside Input.
 set_custom_cursor_handling :: (is_custom: bool) {
     custom_cursor_handling = is_custom;
 }
@@ -131,7 +138,7 @@ set_input_focus :: (focused: bool) {
     unscoped_input_focus = focused;
     if !focused {
         for *record: window_input_states record.focused = false;
-        release_focus_buttons(0, false);
+        release_focus_buttons(INVALID_WINDOW, false);
     }
     refresh_application_focus();
 }
@@ -162,13 +169,30 @@ get_window_moves :: () -> [] Window_Move_Record {
     swap(*pending_moves, *moves_to_free);
     return moves_to_free;
 }
-get_window_resizes :: () -> [..] Window_Resize {
+get_window_resizes :: () -> [] Window_Resize_Record {
     return window_resizes_this_frame;
 }
 input_event_source: () = null;
 input_initialize_source: () = null;
 input_pointer_source: (window: Window_Type, client_area: bool) -> float, float = null;
 input_pointer_query_source: (window: Window_Type, client_area: bool) -> float, float, bool = null;
+get_input_pointer_position :: () -> float, float, bool {
+    if input_pointer_query_source != null return input_pointer_query_source(INVALID_WINDOW, false);
+    if input_pointer_source == null return 0, 0, false;
+    x, y := input_pointer_source(INVALID_WINDOW, false);
+    return x, y, true;
+}
+get_input_pointer_position :: (window: Window_Type, client_area := false) -> float, float {
+    if input_pointer_query_source != null {
+        x, y, success := input_pointer_query_source(window, client_area);
+        assert(success, "Native pointer query failed");
+        return x, y;
+    }
+    assert(input_pointer_source != null, "Input pointer adapter is not installed");
+    return input_pointer_source(window, client_area);
+}
+
+#scope_module
 Window_Input_State :: struct {
     window: Window_Type;
     focused := false;
@@ -317,26 +341,3 @@ install_native_input_adapter :: () {
         }
     }
 }
-// Platform adapters enqueue events; this module owns frame lifetime and state.
-#module_parameters (ENABLE_NATIVE_INPUT_ADAPTERS := true);
-#import "Basic";
-Window_Type :: s64;
-
-Window_Resize :: struct { window: Window_Type; width: int; height: int; }
-get_mouse_pointer_position :: () -> float, float, bool {
-    if input_pointer_query_source != null return input_pointer_query_source(0, false);
-    if input_pointer_source == null return 0, 0, false;
-    x, y := input_pointer_source(cast(Window_Type) 0, false);
-    return x, y, true;
-}
-get_mouse_pointer_position :: (window: Window_Type, client_area := false) -> float, float {
-    if input_pointer_query_source != null {
-        x, y, success := input_pointer_query_source(window, client_area);
-        assert(success, "Native pointer query failed");
-        return x, y;
-    }
-    assert(input_pointer_source != null, "Input pointer adapter is not installed");
-    return input_pointer_source(window, client_area);
-}
-
-#scope_module
