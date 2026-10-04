@@ -18,11 +18,15 @@ Matrix2 :: struct {
     union {
         coef: [2][2] float;
         v: [2] Vector2;
+        floats: [4] float;
         struct {
             _11, _12: float;
             _21, _22: float;
         }
     }
+    Row_Type :: Vector2;
+    Column_Type :: Vector2;
+    IsMatrixFromMathModule :: true;
 }
 Matrix2_Identity :: Matrix2.{_11=1, _22=1};
 multiply :: (m: Matrix2, v: Vector2) -> Vector2 { return .{m._11 * v.x + m._12 * v.y, m._21 * v.x + m._22 * v.y}; }
@@ -38,12 +42,16 @@ Matrix3 :: struct {
     union {
         coef: [3][3] float;
         v: [3] Vector3;
+        floats: [9] float;
         struct {
             _11, _12, _13: float;
             _21, _22, _23: float;
             _31, _32, _33: float;
         }
     }
+    Row_Type :: Vector3;
+    Column_Type :: Vector3;
+    IsMatrixFromMathModule :: true;
 }
 Matrix3_Identity :: Matrix3.{_11=1, _22=1, _33=1};
 multiply :: (m: Matrix3, n: Matrix3) -> Matrix3 {
@@ -59,6 +67,7 @@ Matrix4 :: struct {
     union {
         coef: [4][4] float;
         v: [4] Vector4;
+        floats: [16] float;
         struct {
             _11, _12, _13, _14: float;
             _21, _22, _23, _24: float;
@@ -66,6 +75,9 @@ Matrix4 :: struct {
             _41, _42, _43, _44: float;
         }
     }
+    Row_Type :: Vector4;
+    Column_Type :: Vector4;
+    IsMatrixFromMathModule :: true;
 }
 Matrix4_Identity :: Matrix4.{_11=1, _22=1, _33=1, _44=1};
 multiply :: (m: Matrix4, n: Matrix4) -> Matrix4 {
@@ -81,12 +93,16 @@ Matrix4x3 :: struct {
     union {
         coef: [3][4] float;
         v: [3] Vector4;
+        floats: [12] float;
         struct {
             _11, _12, _13, _14: float;
             _21, _22, _23, _24: float;
             _31, _32, _33, _34: float;
         }
     }
+    Row_Type :: Vector4;
+    Column_Type :: Vector3;
+    IsMatrixFromMathModule :: true;
 }
 Matrix4x3_Identity :: Matrix4x3.{_11=1, _22=1, _33=1};
 multiply :: (m: $T/interface AnyMatrix3, v: Vector3) -> Vector3 {

@@ -1,3 +1,10 @@
+// Hierarchy weights and independent squarified display rectangles.
+#scope_file;
+#import "Basic";
+#import "Math";
+Buckets :: #import "Bucket_Array";
+#scope_export;
+
 Treemap_Node :: struct {
     name: string;
     size: float64;
@@ -6,11 +13,11 @@ Treemap_Node :: struct {
     user_data_pointer: *void;
     user_data_s64: s64;
     user_data_float64: float64;
-    locator: Legacy_Buckets.Bucket_Locator;
+    locator: Buckets.Bucket_Locator;
 }
 
 Treemap :: struct {
-    nodes: Legacy_Buckets.Bucket_Array(Treemap_Node, 1024);
+    nodes: Buckets.Bucket_Array(Treemap_Node, 1024);
     root: *Treemap_Node;
     dirty := true;
 }
@@ -44,7 +51,7 @@ add_node :: (treemap: *Treemap, name: string, parent: *Treemap_Node) -> *Treemap
     fresh: Treemap_Node;
     fresh.name = name;
     fresh.parent = parent;
-    locator, node := Legacy_Buckets.bucket_array_add(*treemap.nodes, fresh);
+    locator, node := Buckets.bucket_array_add(*treemap.nodes, fresh);
     node.locator = locator;
     if parent array_add(*parent.children, node);
     else treemap.root = node;
@@ -60,7 +67,7 @@ free_treemap :: (treemap: *Treemap) {
             if bucket.occupied[slot] array_free(bucket.data[slot].children);
         }
     }
-    Legacy_Buckets.bucket_array_reset(*treemap.nodes);
+    Buckets.bucket_array_reset(*treemap.nodes);
     treemap.root = null;
     treemap.dirty = true;
     index: int = 0;
@@ -282,10 +289,3 @@ row_score :: (total: float64, largest: float64, smallest: float64, side: float64
     if a > b return a;
     return b;
 }
-// Hierarchy weights and independent squarified display rectangles.
-#scope_file;
-#import "Basic";
-#import "Math";
-Legacy_Buckets :: #import "legacy/Bucket_Array";
-#scope_export;
-

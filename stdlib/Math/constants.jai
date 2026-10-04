@@ -21,8 +21,8 @@ FLOAT32_NAN :: 0h7FBFFFFF;
 FLOAT16_MAX : float : 65504.0;
 PI64 :: 3.141592653589793;
 PI32 :: cast(float32) PI;
-PI :: 3.14159265358979323846;
+PI :: cast(float32) 3.1415927;
 TAU64 :: 6.28318530717958648;
 TAU32 :: cast(float32) TAU;
 // Numeric limits and maintained public constants.
-TAU :: 6.28318530717958647692;
+TAU :: cast(float32) 6.283185;
