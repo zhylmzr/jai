@@ -165,7 +165,3 @@ array_free :: (array: [..] $T) {
         free(array.data, a);
     }
 }
-array_find :: (array: [..] $T, value: T) -> bool {
-    found,index := _array_find_index(array,value);
-    return found;
-}

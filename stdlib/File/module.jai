@@ -2,15 +2,15 @@
 #import "Basic";
 Strings :: #import "String";
 
-file_length :: (file: File) -> s64 {
-    length, success := file_length_checked(file);
-    if !success return -1;
-    return length;
+file_length :: (file: File) -> (length: s64, success: bool) {
+    return file_length_checked(file);
 }
 
-file_read :: (file: File, buffer: *u8, byte_count: s64) -> bool {
-    success, count := file_read_checked(file, buffer, byte_count);
-    return success && count == byte_count;
+// Reads up to `bytes_to_read`; reaching the end of the file early still succeeds, with
+// the shorter `total_read`.
+file_read :: (file: File, vdata: *void, bytes_to_read: s64) -> (success: bool, total_read: s64) {
+    if bytes_to_read <= 0 || !vdata  return false, 0;
+    return file_read_checked(file, vdata, bytes_to_read);
 }
 
 read_entire_file :: (path: string, log_errors := true) -> (contents: string, success: bool) {
