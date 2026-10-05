@@ -103,6 +103,7 @@ Code_Argument :: struct {
 
 Code_Ident :: struct {
     #as using base: Code_Node;
+    base.kind = .IDENT;
 
     name:                 string;
     resolved_declaration: *Code_Declaration;
@@ -126,6 +127,7 @@ Code_Scope_Entry :: struct {
 
 Code_Block :: struct {
     #as using base: Code_Node;
+    base.kind = .BLOCK;
 
     parent: *Code_Block;
 
@@ -154,6 +156,7 @@ Code_Block :: struct {
 
 Code_Declaration :: struct {
     #as using entry: Code_Scope_Entry;
+    entry.kind = .DECLARATION;
 
     type_inst:  *Code_Type_Instantiation;
     expression: *Code_Node;
@@ -191,6 +194,7 @@ Code_Declaration :: struct {
 
 Code_Compound_Declaration :: struct {
     #as using entry: Code_Node;
+    entry.kind = .COMPOUND_DECLARATION;
 
     comma_separated_assignment: *Code_Comma_Separated_Arguments;
     declaration_properties:     *Code_Declaration;
@@ -201,6 +205,7 @@ Code_Compound_Declaration :: struct {
 
 Code_Literal :: struct {
     #as using base: Code_Node;
+    base.kind = .LITERAL;
 
     value_type: enum s16 {
         UNINITIALIZED :: 0;
@@ -269,6 +274,7 @@ Code_Pointer_Literal_Info :: struct {
 
 Code_Binary_Operator :: struct {
     #as using base: Code_Node;
+    base.kind = .BINARY_OPERATOR;
 
     operator_type: Operator_Type.loose;
     flags: Flags;
@@ -284,6 +290,7 @@ Code_Binary_Operator :: struct {
 
 Code_Unary_Operator :: struct {
     #as using base: Code_Node;
+    base.kind = .UNARY_OPERATOR;
 
     operator_type: Operator_Type.loose;
     subexpression: *Code_Node;
@@ -291,6 +298,7 @@ Code_Unary_Operator :: struct {
 
 Code_Cast :: struct {
     #as using base: Code_Node;
+    base.kind = .CAST;
 
     target_type: *Code_Type_Instantiation;
 
@@ -314,6 +322,7 @@ Code_Cast :: struct {
 
 Code_Procedure_Call :: struct {
     #as using base: Code_Node;
+    base.kind = .PROCEDURE_CALL;
 
     procedure_expression:          *Code_Node;
     resolved_procedure_expression: *Code_Node;
@@ -350,12 +359,14 @@ Code_Comma_Separated_Argument :: struct {
 
 Code_Comma_Separated_Arguments :: struct {
     #as using base: Code_Node;
+    base.kind = .COMMA_SEPARATED_ARGUMENTS;
 
     arguments: [] Code_Comma_Separated_Argument;
 }
 
 Code_Make_Varargs :: struct {
     #as using base: Code_Node;
+    base.kind = .MAKE_VARARGS;
 
     element_type: *Type_Info;
     expressions:  [] *Code_Node;
@@ -364,6 +375,7 @@ Code_Make_Varargs :: struct {
 
 Code_Procedure_Header :: struct {
     #as using base: Code_Node;
+    base.kind = .PROCEDURE_HEADER;
 
     constants_block: *Code_Block;
 
@@ -417,6 +429,7 @@ Code_Procedure_Header :: struct {
 
 Code_Procedure_Body :: struct {
     #as using base: Code_Node;
+    base.kind = .PROCEDURE_BODY;
 
     block:  *Code_Block;
     header: *Code_Procedure_Header;
@@ -428,6 +441,7 @@ Code_Procedure_Body :: struct {
 
 Code_Resolved_Overload :: struct {
     #as using base: Code_Node;
+    base.kind = .RESOLVED_OVERLOAD;
 
     result:            *Code_Node;
     source_expression: *Code_Node;
@@ -435,6 +449,7 @@ Code_Resolved_Overload :: struct {
 
 Code_Struct :: struct {
     #as using base: Code_Node;
+    base.kind = .STRUCT;
 
     modify_directives: [] *Code_Directive_Modify;
 
@@ -451,6 +466,7 @@ Code_Struct :: struct {
 
 Code_Enum :: struct {
     #as using base: Code_Node;
+    base.kind = .ENUM;
 
     internal_type_inst: *Code_Type_Instantiation;
     internal_type:      *Type_Info;
@@ -466,6 +482,7 @@ Code_Enum :: struct {
 
 Code_Type_Instantiation :: struct {
     #as using base: Code_Node;
+    base.kind = .TYPE_INSTANTIATION;
 
     result: *Type_Info;
 
@@ -492,12 +509,14 @@ Code_Type_Instantiation :: struct {
 
 Code_Type_Definition :: struct {
     #as using base: Code_Node;
+    base.kind = .TYPE_DEFINITION;
 
     info: *Type_Info;
 }
 
 Code_Type_Query :: struct {
     #as using base: Code_Node;
+    base.kind = .TYPE_QUERY;
 
     query_kind: enum u32 {
         SIZE_OF        :: 0;
@@ -510,6 +529,7 @@ Code_Type_Query :: struct {
 
 Code_Expression_Query :: struct {
     #as using base: Code_Node;
+    base.kind = .EXPRESSION_QUERY;
 
     query_kind: enum u32 {
         TYPE_OF     :: 0;
@@ -522,6 +542,7 @@ Code_Expression_Query :: struct {
 
 Code_If :: struct {
     #as using base: Code_Node;
+    base.kind = .IF;
 
     condition:  *Code_Node;
     then_block: *Code_Block;
@@ -543,6 +564,7 @@ Code_If :: struct {
 
 Code_Case :: struct {
     #as using base: Code_Node;
+    base.kind = .CASE;
 
     condition:  *Code_Node;
     then_block: *Code_Block;
@@ -553,6 +575,7 @@ Code_Case :: struct {
 
 Code_For :: struct {
     #as using base: Code_Node;
+    base.kind = .FOR;
 
     iteration_expression:       *Code_Node;
     iteration_expression_right: *Code_Node;
@@ -577,6 +600,7 @@ Code_For :: struct {
 
 Code_While :: struct {
     #as using base: Code_Node;
+    base.kind = .WHILE;
 
     condition: *Code_Node;
     block:     *Code_Block;
@@ -584,6 +608,7 @@ Code_While :: struct {
 
 Code_Loop_Control :: struct {
     #as using base: Code_Node;
+    base.kind = .LOOP_CONTROL;
 
     control_type: enum u8 {
         BREAK    :: 0;
@@ -596,6 +621,7 @@ Code_Loop_Control :: struct {
 
 Code_Return :: struct {
     #as using base: Code_Node;
+    base.kind = .RETURN;
 
     arguments_unsorted: [] Code_Argument;
     arguments_sorted:   [] *Code_Node;
@@ -610,6 +636,7 @@ Code_Return :: struct {
 
 Code_Defer :: struct {
     #as using base: Code_Node;
+    base.kind = .DEFER;
     block:         *Code_Block;
     is_backticked: bool;
 }
@@ -617,6 +644,7 @@ Code_Defer :: struct {
 // Opaque placeholder fields keep the size equal to the compiler's own node.
 Code_Using :: struct {
     #as using base: Code_Node;
+    base.kind = .USING;
     expression: *Code_Node;
 
     filter_type: enum u8 {
@@ -632,6 +660,7 @@ Code_Using :: struct {
 
 Code_Note :: struct {
     #as using base: Code_Node;
+    base.kind = .NOTE;
 
     text:       string;
     note_flags: u32;
@@ -639,6 +668,7 @@ Code_Note :: struct {
 
 Code_Asm :: struct {
     #as using base: Code_Node;
+    base.kind = .ASM;
 
     b1: *void;
     b2: [] *void;
@@ -647,10 +677,12 @@ Code_Asm :: struct {
 
 Code_Context :: struct {
     #as using base: Code_Node;
+    base.kind = .CONTEXT;
 }
 
 Code_Push_Context :: struct {
     #as using base: Code_Node;
+    base.kind = .PUSH_CONTEXT;
     to_push: *Code_Node;
     block:   *Code_Block;
 
@@ -662,6 +694,7 @@ Code_Push_Context :: struct {
 
 Code_Extract :: struct {
     #as using base: Code_Node;
+    base.kind = .EXTRACT;
 
     from:  *Code_Node;
     index: s64;
@@ -669,6 +702,7 @@ Code_Extract :: struct {
 
 Code_Placeholder :: struct {
     #as using base: Code_Node;
+    base.kind = .PLACEHOLDER;
 }
 
 OPERATOR_TYPE_MAX_ASCII_VALUE :: 127;
@@ -942,20 +976,24 @@ Message_Performance_Report :: struct {
 
 Code_Directive_Through :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_THROUGH;
 }
 
 Code_Directive_Place :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_PLACE;
     ident: *Code_Ident;
 }
 
 Code_Directive_Procedure_Name :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_PROCEDURE_NAME;
     argument: *Code_Node;
 }
 
 Code_Directive_Load :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_LOAD;
 
     short_name: string;
 
@@ -966,12 +1004,14 @@ Code_Directive_Load :: struct {
 
 Code_Directive_Bytes :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_BYTES;
 
     expression: *Code_Node;
 }
 
 Code_Directive_Code :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_CODE;
 
     expression: *Code_Node;
     code_flags: enum u32 {
@@ -983,21 +1023,25 @@ Code_Directive_Code :: struct {
 
 Code_Directive_Poke_Name :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_POKE_NAME;
     module_struct: *Code_Struct;
     name:          string;
 }
 
 Code_Directive_Add_Context :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_ADD_CONTEXT;
     expression: *Code_Node;
 }
 
 Code_Directive_Context_Type :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_CONTEXT_TYPE;
 }
 
 Code_Directive_Location :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_LOCATION;
 
     expression: *Code_Node;
 
@@ -1006,6 +1050,7 @@ Code_Directive_Location :: struct {
 
 Code_Directive_Library :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_LIBRARY;
 
     name: string;
     library_flags: enum u32 {
@@ -1018,12 +1063,14 @@ Code_Directive_Library :: struct {
 
 Code_Directive_Wildcard :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_WILDCARD;
 
     index: s32 = -1;
 }
 
 Code_Directive_Exists :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_EXISTS;
 
     query_expression: *Code_Node;
     sync_expression:  *Code_Node;
@@ -1031,6 +1078,7 @@ Code_Directive_Exists :: struct {
 
 Code_Directive_Insert :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_INSERT;
 
     expression:           *Code_Node;
     scope_redirection:    *Code_Node;
@@ -1045,6 +1093,7 @@ Code_Directive_Insert :: struct {
 
 Code_Directive_Run :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_RUN;
 
     procedure: *Code_Procedure_Header;
 
@@ -1060,6 +1109,7 @@ Code_Directive_Run :: struct {
 
 Code_Directive_Import :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_IMPORT;
     name: string;
 
     flags: enum u32 {
@@ -1074,11 +1124,13 @@ Code_Directive_Import :: struct {
 
 Code_Directive_Modify :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_MODIFY;
     block: *Code_Block;
 }
 
 Code_Directive_Scope :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_SCOPE;
 
     scope_type: enum u32 {
         EXPORT   :: 0;
@@ -1089,6 +1141,7 @@ Code_Directive_Scope :: struct {
 
 Code_Directive_Module_Parameters :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_MODULE_PARAMETERS;
 
     module_parameters:  *Code_Procedure_Header;
     program_parameters: *Code_Procedure_Header;
@@ -1098,6 +1151,7 @@ Code_Directive_Module_Parameters :: struct {
 
 Code_Directive_Bake :: struct {
     #as using base: Code_Node;
+    base.kind = .DIRECTIVE_BAKE;
 
     procedure_call: *Code_Procedure_Call;
 
