@@ -243,7 +243,7 @@ socket_init :: () -> bool {
     }
 }
 
-// Winsock error codes (all biased by WSABASEERR).
+// Winsock's WSA* errno values; each is its POSIX-style number offset by WSABASEERR.
 #if OS == .WINDOWS {
     WSABASEERR :: 10000;
     WSAEINTR :: (WSABASEERR+4);

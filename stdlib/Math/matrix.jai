@@ -212,33 +212,23 @@ make_matrix4 :: (values: ..float) -> Matrix4 #must #deprecated "Use a struct lit
     return result;
 }
 make_matrix_from_rows :: (xprime: Vector3, yprime: Vector3, zprime: Vector3, $T: Type) -> T #must {
-    result := identity_of(T);
-    result._11=xprime.x; result._12=xprime.y; result._13=xprime.z;
-    result._21=yprime.x; result._22=yprime.y; result._23=yprime.z;
-    result._31=zprime.x; result._32=zprime.y; result._33=zprime.z;
-    return result;
+    m := identity_of(T);
+    write_basis_block(*m, xprime, yprime, zprime, as_rows = true);
+    return m;
 }
 make_matrix_from_columns :: (xprime: Vector3, yprime: Vector3, zprime: Vector3, $T: Type) -> T #must {
-    result:=identity_of(T);
-    result._11=xprime.x; result._12=yprime.x; result._13=zprime.x;
-    result._21=xprime.y; result._22=yprime.y; result._23=zprime.y;
-    result._31=xprime.z; result._32=yprime.z; result._33=zprime.z;
-    return result;
+    m := identity_of(T);
+    write_basis_block(*m, xprime, yprime, zprime, as_rows = false);
+    return m;
 }
 make_matrix_from_rows :: (xprime: Vector3, yprime: Vector3, zprime: Vector3) -> Matrix4 #must {
-    result:=Matrix4_Identity;
-    result._11=xprime.x; result._12=xprime.y; result._13=xprime.z;
-    result._21=yprime.x; result._22=yprime.y; result._23=yprime.z;
-    result._31=zprime.x; result._32=zprime.y; result._33=zprime.z;
-    return result;
+    return make_matrix_from_rows(xprime, yprime, zprime, Matrix4);
 }
 make_matrix_from_columns :: (xprime: Vector3, yprime: Vector3, zprime: Vector3) -> Matrix4 #must {
-    result:=Matrix4_Identity;
-    result._11=xprime.x; result._12=yprime.x; result._13=zprime.x;
-    result._21=xprime.y; result._22=yprime.y; result._23=zprime.y;
-    result._31=xprime.z; result._32=yprime.z; result._33=zprime.z;
-    return result;
+    return make_matrix_from_columns(xprime, yprime, zprime, Matrix4);
 }
+
+#scope_file
 make_look_at_matrix :: (viewpoint: Vector3, look_at: Vector3, reference_up_vector: Vector3, $x_is_forward := true) -> Matrix4 {
     forward := normalize(look_at-viewpoint, fallback=.{z=1});
     side := normalize(cross(reference_up_vector,forward), fallback=.{y=1});
@@ -302,6 +292,7 @@ translate :: (using m: Matrix4, t: Vector3) -> Matrix4 #must { result := m; tran
 translate :: (using m: *Matrix4, t: Vector3) { _14 += t.x; _24 += t.y; _34 += t.z; }
 rotate :: (m: Matrix3, q: Quaternion) -> Matrix3 #must { return m * rotation_matrix(Matrix3,q); }
 rotate :: (m: Matrix4, q: Quaternion) -> Matrix4 #must { return m * rotation_matrix(Matrix4,q); }
+// Identity matrix whose upper-left 3x3 block holds the three vectors as rows (or columns).
 set_rotation :: (using m: *$T/interface AnyMatrix3, q: Quaternion) {
     normalized := normalize(q);
     x:=normalized.x; y:=normalized.y; z:=normalized.z; w:=normalized.w;
@@ -460,4 +451,12 @@ polar_decomp :: (M: Matrix3) -> (Q: Matrix3, S: Matrix3, det: float) {
     symmetric:=transpose(orthogonal)*M;
     symmetric=(symmetric+transpose(symmetric))*0.5;
     return orthogonal,symmetric,determinant_value;
+}
+write_basis_block :: (m: *$T, a: Vector3, b: Vector3, c: Vector3, as_rows: bool) {
+    basis: [3] Vector3 = ---;
+    basis[0], basis[1], basis[2] = a, b, c;
+    for i: 0..2  for j: 0..2 {
+        if as_rows  m.coef[i][j] = basis[i].component[j];
+        else        m.coef[j][i] = basis[i].component[j];
+    }
 }
