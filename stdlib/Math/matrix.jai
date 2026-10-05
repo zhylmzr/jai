@@ -15,15 +15,12 @@ AnyMatrix4x3 :: struct {
 }
 // Row-major matrices. Affine Matrix4x3 omits the fixed row [0,0,0,1].
 Matrix2 :: struct {
-    union {
-        coef: [2][2] float;
-        v: [2] Vector2;
-        floats: [4] float;
-        struct {
-            _11, _12: float;
-            _21, _22: float;
-        }
-    }
+    _11, _12: float;
+    _21, _22: float;
+    // Views of the same 4 floats (row-major); positional literals fill _11.. above.
+    #place _11; coef:   [2][2] float = ---;
+    #place _11; v:      [2] Vector2 = ---;
+    #place _11; floats: [4] float = ---;
     Row_Type :: Vector2;
     Column_Type :: Vector2;
     IsMatrixFromMathModule :: true;
@@ -39,16 +36,13 @@ multiply :: (m: Matrix2, n: Matrix2) -> Matrix2 {
 operator * :: (a: Matrix2, b: Matrix2) -> Matrix2 { return multiply(a,b); }
 operator * :: (m: Matrix3, v: Vector3) -> Vector3 { return multiply(m,v); }
 Matrix3 :: struct {
-    union {
-        coef: [3][3] float;
-        v: [3] Vector3;
-        floats: [9] float;
-        struct {
-            _11, _12, _13: float;
-            _21, _22, _23: float;
-            _31, _32, _33: float;
-        }
-    }
+    _11, _12, _13: float;
+    _21, _22, _23: float;
+    _31, _32, _33: float;
+    // Views of the same 9 floats (row-major); positional literals fill _11.. above.
+    #place _11; coef:   [3][3] float = ---;
+    #place _11; v:      [3] Vector3 = ---;
+    #place _11; floats: [9] float = ---;
     Row_Type :: Vector3;
     Column_Type :: Vector3;
     IsMatrixFromMathModule :: true;
@@ -64,17 +58,14 @@ multiply :: (m: Matrix4, v: Vector4) -> Vector4 { return .{m._11 * v.x + m._12 *
 operator * :: (m: Matrix4, v: Vector4) -> Vector4 { return multiply(m,v); }
 transform_vector :: (m: $T/interface AnyMatrix3, v: Vector3) -> Vector3 { return multiply(m,v); }
 Matrix4 :: struct {
-    union {
-        coef: [4][4] float;
-        v: [4] Vector4;
-        floats: [16] float;
-        struct {
-            _11, _12, _13, _14: float;
-            _21, _22, _23, _24: float;
-            _31, _32, _33, _34: float;
-            _41, _42, _43, _44: float;
-        }
-    }
+    _11, _12, _13, _14: float;
+    _21, _22, _23, _24: float;
+    _31, _32, _33, _34: float;
+    _41, _42, _43, _44: float;
+    // Views of the same 16 floats (row-major); positional literals fill _11.. above.
+    #place _11; coef:   [4][4] float = ---;
+    #place _11; v:      [4] Vector4 = ---;
+    #place _11; floats: [16] float = ---;
     Row_Type :: Vector4;
     Column_Type :: Vector4;
     IsMatrixFromMathModule :: true;
@@ -90,16 +81,13 @@ multiply :: (m: Matrix4x3, v: Vector4) -> Vector3 { return .{m._11 * v.x + m._12
 row :: (m: Matrix4, i: int) -> Vector4 { return m.v[i]; }
 column :: (m: Matrix4, i: int) -> Vector4 { return .{m.coef[0][i], m.coef[1][i], m.coef[2][i], m.coef[3][i]}; }
 Matrix4x3 :: struct {
-    union {
-        coef: [3][4] float;
-        v: [3] Vector4;
-        floats: [12] float;
-        struct {
-            _11, _12, _13, _14: float;
-            _21, _22, _23, _24: float;
-            _31, _32, _33, _34: float;
-        }
-    }
+    _11, _12, _13, _14: float;
+    _21, _22, _23, _24: float;
+    _31, _32, _33, _34: float;
+    // Views of the same 12 floats (row-major); positional literals fill _11.. above.
+    #place _11; coef:   [3][4] float = ---;
+    #place _11; v:      [3] Vector4 = ---;
+    #place _11; floats: [12] float = ---;
     Row_Type :: Vector4;
     Column_Type :: Vector3;
     IsMatrixFromMathModule :: true;

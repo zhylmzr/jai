@@ -69,6 +69,7 @@ Code_Node :: struct {
         DIRECTIVE_CONTEXT_TYPE      :: 56;
 
         RESOLVED_OVERLOAD           :: 57;
+        DIRECTIVE_OVERLAY           :: 58;
     }
 
     kind := Kind.UNINITIALIZED;
@@ -1074,6 +1075,15 @@ Code_Directive_Exists :: struct {
 
     query_expression: *Code_Node;
     sync_expression:  *Code_Node;
+}
+
+// `#overlay`: a declaration or `using` laid over a target expression.
+Code_Directive_Overlay :: struct {
+    #as using base: Code_Node;
+    base.kind = .DIRECTIVE_OVERLAY;
+
+    declaration_or_using: *Code_Node;
+    target_expression:    *Code_Node;
 }
 
 Code_Directive_Insert :: struct {
