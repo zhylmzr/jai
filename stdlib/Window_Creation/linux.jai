@@ -87,7 +87,7 @@ toggle_fullscreen :: ( win : Window , desire_fullscreen : bool , saved : * Saved
     _, _, measured_width, measured_height, measured := get_dimensions(win, false);
     return accepted != 0 && measured, measured_width, measured_height;
 }
-// Independently normalized ABI contract. No reference procedure bodies or binaries.
+// Linux windows through X11.
 #import "X11" ;
 window_minimized := false ;
 Saved_Window_Info :: struct {

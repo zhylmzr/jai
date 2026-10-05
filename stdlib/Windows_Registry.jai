@@ -22,7 +22,7 @@ KEY_CREATE_SUB_KEY :: 0x4;
 KEY_ENUMERATE_SUB_KEYS :: 0x8;
 KEY_EXECUTE :: KEY_READ;
 KEY_NOTIFY :: 0x0010;
-// Normalized API contracts; reference procedure bodies were discarded.
+// Reading and writing Windows registry values.
 KEY_QUERY_VALUE :: 0x1;
 KEY_READ :: 0x20019;
 KEY_SET_VALUE :: 0x2;
