@@ -125,14 +125,14 @@ string_to_float_type_T :: (_arg: string) -> result: $T, success: bool, remainder
     if negative value = -value;
     return value, true, advance(text, position);
 }
-string_to_float64 :: (_arg: string) -> result: float64, success: bool, remainder: string {
-    return string_to_float_type_T(_arg, T = float64);
+string_to_float64 :: (_s: string) -> result: float64, success: bool, remainder: string {
+    return string_to_float_type_T(_s, T = float64);
 }
 
 // Decimal significand plus an optional exponent. This intentionally does not
 // recognize hexadecimal floats, NaN/Inf spellings, or locale separators.
-string_to_float :: (_arg: string) -> result: float, success: bool, remainder: string {
-    return string_to_float_type_T(_arg, T = float);
+string_to_float :: (arg: string) -> result: float, success: bool, remainder: string {
+    return string_to_float_type_T(arg, T = float);
 }
 string_to_int :: (t: string, base := 10, $T := int) -> result: T, success: bool, remainder: string {
     if base < 2 || base > 36 return 0, false, t;

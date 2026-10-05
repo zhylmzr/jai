@@ -54,7 +54,8 @@ utf8_iter :: (s: *string, body: Code, flags: For_Flags) #expand {
 
 // Classic UTF-8 decoding tables (the ConvertUTF names), exported for callers that
 // decode by hand. Continuation-byte count for each leading byte:
-utf8_next_character :: (text: *string) -> u32, Unicode_Result {
+utf8_next_character :: (s: *string) -> code: u32, success: Unicode_Result {
+    text := s;
     code, consumed, status := character_utf8_to_utf32(text.data, text.count);
     if status == .CONVERSION_OK { text.data += consumed; text.count -= consumed; }
     return code, status;

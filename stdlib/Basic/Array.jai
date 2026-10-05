@@ -73,10 +73,10 @@ array_add :: (array: *[..] $T) -> *T #must {
     array.count += 1;
     return result;
 }
-array_add :: (array: *[..] $T, value: T) -> *T {
+array_add :: (array: *[..] $T, item: T) -> *T {
     array_reserve(array, array.count+1);
     result := array.data+array.count;
-    result.* = value;
+    result.* = item;
     array.count += 1;
     return result;
 }
@@ -90,13 +90,13 @@ array_add_if_unique :: (array: *[..] $T, item: T) -> bool, s64 {
     array_add(array, item);
     return true, index;
 }
-array_insert_at :: (array: *[..] $T, value: T, index: s64) {
+array_insert_at :: (array: *[..] $T, item: T, index: int) {
     assert(index >= 0 && index <= array.count);
     array_reserve(array, array.count+1);
     array.count += 1;
     i := array.count - 1;
     while i > index { array.*[i] = array.*[i-1]; i -= 1; }
-    array.*[index] = value;
+    array.*[index] = item;
 }
 array_unordered_remove_by_index :: (array_pointer: *[] $T, index: s64) {
     assert(index >= 0 && index < array_pointer.count);

@@ -17,7 +17,8 @@ character_utf32_to_utf8 :: (codepoint: u32, out: *string) -> Unicode_Result {
     out.count = n;
     return .CONVERSION_OK;
 }
-character_utf8_to_utf32 :: (data: *u8, count: int, $strict := false) -> u32, int, Unicode_Result {
+character_utf8_to_utf32 :: (s: *u8, source_length: s64, $strict := false) -> u32, int, Unicode_Result {
+    data := s; count := source_length;
     if count <= 0 return 0, 0, .SOURCE_EXHAUSTED;
     first := data[0]; length := 0; code: u32 = 0; minimum: u32 = 0;
     if first < 0x80 return first, 1, .CONVERSION_OK;
