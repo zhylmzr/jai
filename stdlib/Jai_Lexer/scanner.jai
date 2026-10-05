@@ -1,15 +1,19 @@
 set_input_from_string :: (lexer: *Lexer, input: string) {
-    if lexer.should_free_input free(lexer.input);
-    lexer.input = input;
-    lexer.input_cursor = 0;
-    lexer.should_free_input = false;
-    lexer.current_line_number = 1;
-    lexer.current_character_index = 1;
-    lexer.current_external_file_error_report_line_number = 1;
-    lexer.previous_token_line_number = 0;
-    lexer.num_incoming_tokens = 0;
-    lexer.token_array_cursor = 0;
+    // A buffer from set_input_from_file belongs to us; release it before dropping it.
+    if lexer.should_free_input {
+        free(lexer.input);
+        lexer.should_free_input = false;
+    }
+    lexer.input, lexer.input_cursor = input, 0;
+
+    lexer.token_array_cursor, lexer.num_incoming_tokens = 0, 0;
     lexer.reported_error = false;
+
+    // Lines and columns count from 1; no token has been produced yet.
+    lexer.previous_token_line_number = 0;
+    lexer.current_line_number = 1;
+    lexer.current_external_file_error_report_line_number = 1;
+    lexer.current_character_index = 1;
 }
 set_input_from_file :: (lexer: *Lexer, file_path: string) -> bool {
     source, success := File.read_entire_file(file_path, zero_terminated=true);
@@ -21,7 +25,7 @@ set_input_from_file :: (lexer: *Lexer, file_path: string) -> bool {
 
 
 #scope_module
-#import "Basic";
+
 #load "classify.jai";
 // Byte cursor and eight-slot lookahead ring. Token text belongs to the atom pool.
 peek_next_token :: (using lexer: *Lexer) -> *Token {
@@ -36,6 +40,7 @@ peek_token :: (lexer: *Lexer, lookahead_index: s32) -> *Token {
     slot := (lexer.token_array_cursor + lookahead_index) % MAX_CONCURRENT_TOKENS;
     return *lexer.tokens[slot];
 }
+// Points the lexer at new text (not copied, not owned) and rewinds all scanning state.
 eat_token :: (lexer: *Lexer) {
     if lexer.num_incoming_tokens <= 0 peek_next_token(lexer);
     token := *lexer.tokens[lexer.token_array_cursor];
@@ -60,8 +65,7 @@ compose_new_token :: (lexer: *Lexer) -> *Token {
         if next == #char "/" && look_byte(lexer, 1) == #char "/" { eat_until_newline(lexer); continue; }
         if next == #char "/" && look_byte(lexer, 1) == #char "*" { eat_character(lexer); eat_character(lexer); eat_input_due_to_block_comment(lexer); continue; }
         if next < 0 {
-            result := get_unused_token(lexer);
-            result.type = .END_OF_INPUT;
+            result := start_token(lexer, .END_OF_INPUT);
             set_end_of_token(lexer, result);
             return result;
         }
@@ -85,8 +89,7 @@ compose_new_token :: (lexer: *Lexer) -> *Token {
         }
         for entry: compound_tokens {
             if ahead_matches(lexer, entry.text) {
-                result := get_unused_token(lexer);
-                result.type = entry.kind;
+                result := start_token(lexer, entry.kind);
                 for byte: entry.text eat_character(lexer);
                 set_end_of_token(lexer, result);
                 return result;
@@ -97,11 +100,10 @@ compose_new_token :: (lexer: *Lexer) -> *Token {
     }
 }
 make_one_character_token :: (lexer: *Lexer, c: Token_Type) -> *Token {
-    result := get_unused_token(lexer);
-    result.type = c;
-    result.c0 -= 1;
-    set_end_of_token(lexer, result);
-    return result;
+    single := start_token(lexer, c);
+    single.c0 = lexer.current_character_index - 1;
+    set_end_of_token(lexer, single);
+    return single;
 }
 check_for_equals :: (lexer: *Lexer, c: Token_Type, augmented: Token_Type, eat := true, subtractor: s32 = 0) -> *Token {
     if eat eat_character(lexer);
@@ -155,11 +157,11 @@ parse_ident :: (lexer: *Lexer, result: *Token) -> string {
     return string.{count, lexer.scratch_buffer.data};
 }
 make_ident_or_keyword :: (lexer: *Lexer) -> *Token {
-    result := get_unused_token(lexer);
-    result.type = .IDENT;
+    result := start_token(lexer, .IDENT);
     cached_make_atom(lexer, parse_ident(lexer, result), result);
-    keyword := check_for_keyword(result);
-    if cast(s16) keyword != 0 result.type = keyword;
+    // Reserved words share the identifier spelling; retag them in place.
+    reserved := check_for_keyword(result);
+    if reserved != cast(Token_Type) 0  result.type = reserved;
     set_end_of_token(lexer, result);
     return result;
 }
@@ -170,8 +172,7 @@ parse_note :: (lexer: *Lexer) -> string {
     return .{lexer.input_cursor - begin, lexer.input.data + begin};
 }
 make_note :: (lexer: *Lexer) -> *Token {
-    result := get_unused_token(lexer);
-    result.type = .NOTE;
+    result := start_token(lexer, .NOTE);
     eat_character(lexer);
     if peek_next_character(lexer) == #char "@" {
         result.value_flags = cast(Value_Flags) Note_Flags.IS_SYSTEM_LEVEL;
@@ -185,8 +186,7 @@ accumulate_digit_wrapping :: (value: u64, base: u64, digit: u64) -> u64 #no_aoc 
     return value * base + digit;
 }
 make_number :: (lexer: *Lexer) -> *Token {
-    result := get_unused_token(lexer);
-    result.type = .NUMBER;
+    result := start_token(lexer, .NUMBER);
     result.value_flags = .NUMBER;
     beginning := lexer.input_cursor;
     base: u64 = 10;
@@ -235,18 +235,22 @@ make_number :: (lexer: *Lexer) -> *Token {
     return result;
 }
 make_hexfloat :: (lexer: *Lexer, result: *Token) -> *Token {
-    report_parse_error(lexer, "Hexadecimal floating point literals require a dedicated numeric adapter\n");
+    // Not decoded: flag the token and swallow the rest of the literal so scanning resumes cleanly.
     result.type = .ERROR;
-    while continues_identifier(peek_next_character(lexer)) || peek_next_character(lexer) == #char "." eat_character(lexer);
+    report_parse_error(lexer, "Hexadecimal floating point literals require a dedicated numeric adapter\n");
+    while true {
+        upcoming := peek_next_character(lexer);
+        if upcoming != #char "." && !continues_identifier(upcoming)  break;
+        eat_character(lexer);
+    }
     set_end_of_token(lexer, result);
     return result;
 }
 make_string_constant :: (lexer: *Lexer) -> *Token {
-    result := get_unused_token(lexer);
-    result.type = .STRING;
+    result := start_token(lexer, .STRING);
     eat_character(lexer);
     decoded: [..] u8;
-    defer array_free(*decoded);
+    defer array_free(decoded);
     while true {
         character := peek_next_character(lexer);
         if character < 0 || character == #char "\n" {
@@ -308,8 +312,7 @@ make_string_constant :: (lexer: *Lexer) -> *Token {
     return result;
 }
 parse_here_string :: (lexer: *Lexer) -> *Token {
-    result := get_unused_token(lexer);
-    result.type = .STRING;
+    result := start_token(lexer, .STRING);
     result.value_flags = .HERE_STRING;
     while peek_next_character(lexer) == #char " " || peek_next_character(lexer) == #char "\t" eat_character(lexer);
     delimiter_start := lexer.input_cursor;
@@ -351,6 +354,7 @@ parse_here_string :: (lexer: *Lexer) -> *Token {
     set_end_of_token(lexer, result);
     return result;
 }
+// Called after the character was consumed, so the token begins one column earlier.
 cached_make_atom :: (lexer: *Lexer, name: string, token_to_fill: *Token) {
     token_to_fill.ident_value.name = cast(Table_String) pooled_text(lexer, name);
     hash: u32;
@@ -386,6 +390,8 @@ unwind_one_character :: (lexer: *Lexer) {
         lexer.current_character_index -= 1;
     }
 }
+// Hands out the ring slot just past the pending lookahead, cleared and positioned at
+// the current source location. The caller fills in type, value and end position.
 get_hex_digit :: (lexer: *Lexer, type: Hex_Digit_Type) -> (value: u8, success: bool) {
     byte := peek_next_character(lexer);
     digit := digit_value(byte);
@@ -404,13 +410,15 @@ set_end_of_token :: (lexer: *Lexer, token: *Token) {
     token.c1 = lexer.current_character_index;
 }
 get_unused_token :: (lexer: *Lexer) -> *Token {
-    assert(lexer.num_incoming_tokens < MAX_CONCURRENT_TOKENS);
-    slot := (lexer.token_array_cursor + lexer.num_incoming_tokens) % MAX_CONCURRENT_TOKENS;
-    result := *lexer.tokens[slot];
-    result.* = .{};
-    result.l0 = lexer.current_line_number;
-    result.c0 = lexer.current_character_index;
-    return result;
+    assert(lexer.num_incoming_tokens < MAX_CONCURRENT_TOKENS, "Jai_Lexer: token lookahead ring overflowed");
+    ring_index := lexer.token_array_cursor + lexer.num_incoming_tokens;
+    if ring_index >= MAX_CONCURRENT_TOKENS  ring_index -= MAX_CONCURRENT_TOKENS;
+
+    fresh: Token;
+    fresh.l0 = lexer.current_line_number;
+    fresh.c0 = lexer.current_character_index;
+    lexer.tokens[ring_index] = fresh;
+    return *lexer.tokens[ring_index];
 }
 report_detail :: (lexer: *Lexer, format: string, arguments: .. Any) {
     log(format, ..arguments);
@@ -427,6 +435,12 @@ report_parse_error :: (lexer: *Lexer, token: *Token, format: string, arguments: 
 Pool_Module :: #import "Pool";
 Pool :: Pool_Module.Pool;
 File :: #import "File";
+start_token :: (lexer: *Lexer, type: Token_Type) -> *Token {
+    token := get_unused_token(lexer);
+    token.type = type;
+    return token;
+}
+#import "Basic";
 pooled_text :: (lexer: *Lexer, text: string) -> string {
     storage := cast(*u8) Pool_Module.get(*lexer.atom_pool, text.count + 1);
     memcpy(storage, text.data, text.count);
