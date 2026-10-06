@@ -111,8 +111,12 @@ push_allocator :: (allocator: Allocator) #expand #no_debug {
     `defer context.allocator = previous;
 }
 
+// Spelled out rather than forwarding to the overload above: a nested macro's `defer would
+// restore the allocator when this macro ends, not when the caller's scope does.
 push_allocator :: (proc: Allocator_Proc, data: *void) #expand #no_debug {
-    push_allocator(Allocator.{proc, data});
+    previous := context.allocator;
+    context.allocator = Allocator.{proc, data};
+    `defer context.allocator = previous;
 }
 
 align_forward :: (orig_size: s64, alignment: s64) -> s64 {
