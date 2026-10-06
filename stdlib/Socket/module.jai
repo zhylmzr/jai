@@ -32,7 +32,11 @@ bind :: (s: Socket, address: u32, port: u16) -> s32 {
     endpoint: sockaddr_in;
     endpoint.sin_family = AF_INET;
     endpoint.sin_port = htons(port);
-    endpoint.sin_addr.s_addr = address;
+    #if OS == .WINDOWS {
+        endpoint.sin_addr.S_un.S_addr = address;
+    } else {
+        endpoint.sin_addr.s_addr = address;
+    }
     #if OS == .MACOS || OS == .IOS endpoint.sin_len = cast(u8) size_of(sockaddr_in);
     return bind(s, cast(*sockaddr) *endpoint, size_of(sockaddr_in));
 }
@@ -96,7 +100,11 @@ append_address :: (builder: *String_Builder, address: [16] u8) {
 }
 to_string :: (addr: sockaddr_in) -> string {
     builder: String_Builder;
-    append_address(*builder, addr.sin_addr.s_addr);
+    #if OS == .WINDOWS {
+        append_address(*builder, addr.sin_addr.S_un.S_addr);
+    } else {
+        append_address(*builder, addr.sin_addr.s_addr);
+    }
     append(*builder, ":");
     append_decimal(*builder, ntohs(addr.sin_port));
     return builder_to_string(*builder);

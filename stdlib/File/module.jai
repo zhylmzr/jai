@@ -12,8 +12,8 @@ file_read :: (f: File, vdata: *void, bytes_to_read: s64) -> (success: bool, tota
     if bytes_to_read <= 0 || !vdata return false, 0;
     return file_read_checked(f, vdata, bytes_to_read);
 }
-read_entire_file :: (path: string, log_errors := true) -> (contents: string, success: bool) {
-    return read_entire_file_terminated(path, false, log_errors);
+read_entire_file :: (path: string, zero_terminated := false, log_errors := true) -> (contents: string, success: bool) {
+    return read_entire_file_terminated(path, zero_terminated, log_errors);
 }
 
 read_entire_file :: (f: File, zero_terminated := false) -> string, bool {
