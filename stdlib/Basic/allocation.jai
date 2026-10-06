@@ -83,7 +83,7 @@ free :: inline (s: string, allocator := context.allocator) {
 }
 
 create_heap :: (a: Allocator) -> Allocator {
-    caps, name := get_capabilities_info(a);
+    caps := get_capabilities_info(a);
     assert((caps & .CREATE_HEAP) != 0, "allocator does not support separate heaps");
     heap: Allocator = .{ a.proc, a.proc(.CREATE_HEAP, 0, 0, null, a.data) };
     #if MEMORY_DEBUGGER {
