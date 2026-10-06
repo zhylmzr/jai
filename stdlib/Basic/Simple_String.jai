@@ -1,8 +1,16 @@
-is_print :: (c: u8) -> bool { return c >= 32 && c <= 126; }
+is_print :: (c: u8) -> bool {
+    return c >= 32 && c <= 126;
+}
 
-is_space :: (c: u8) -> bool { return c == 32 || (c >= 9 && c <= 13); }
-is_alnum :: (c: u8) -> bool { return is_alpha(c) || is_digit(c) || c == #char "_"; }
-is_digit :: (c: u8) -> bool { return c >= #char "0" && c <= #char "9"; }
+is_space :: (c: u8) -> bool {
+    return c == 32 || (c >= 9 && c <= 13);
+}
+is_alnum :: (c: u8) -> bool {
+    return is_alpha(c) || is_digit(c) || c == #char "_";
+}
+is_digit :: (c: u8) -> bool {
+    return c >= #char "0" && c <= #char "9";
+}
 is_alpha :: (c: u8) -> bool {
     return (c >= #char "a" && c <= #char "z") || (c >= #char "A" && c <= #char "Z");
 }
@@ -61,7 +69,7 @@ to_c_string :: (s: string) -> *u8 {
 // Independently authored byte-string utilities. Classification is ASCII.
 to_string :: inline (s: *u8, length: s64) -> string {
     assert(length >= 0);
-    return string.{count = length, data = s};
+    return string.{ count = length, data = s };
 }
 
 to_integer :: (s: string) -> result: int, success: bool, remainder: string {
@@ -75,8 +83,10 @@ string_to_float_type_T :: (_arg: string) -> result: $T, success: bool, remainder
     position: s64 = 0;
     negative := false;
     if text.count > 0 {
-        if text[0] == #char "-" { negative = true; position += 1; }
-        else if text[0] == #char "+" position += 1;
+        if text[0] == #char "-" {
+            negative = true;
+            position += 1;
+        } else if text[0] == #char "+" position += 1;
     }
     value: T = 0;
     digits: s64 = 0;
@@ -103,8 +113,10 @@ string_to_float_type_T :: (_arg: string) -> result: $T, success: bool, remainder
         position += 1;
         exponent_negative := false;
         if position < text.count {
-            if text[position] == #char "-" { exponent_negative = true; position += 1; }
-            else if text[position] == #char "+" position += 1;
+            if text[position] == #char "-" {
+                exponent_negative = true;
+                position += 1;
+            } else if text[position] == #char "+" position += 1;
         }
         exponent_digits := position;
         exponent: s64 = 0;
@@ -119,7 +131,10 @@ string_to_float_type_T :: (_arg: string) -> result: $T, success: bool, remainder
             if exponent > 4000 return 0, false, _arg;
             multiplier: T = 10;
             if exponent_negative multiplier = 0.1;
-            while exponent > 0 { value *= multiplier; exponent -= 1; }
+            while exponent > 0 {
+                value *= multiplier;
+                exponent -= 1;
+            }
         }
     }
     if negative value = -value;
@@ -142,8 +157,10 @@ string_to_int :: (t: string, base := 10, $T := int) -> result: T, success: bool,
     position: s64 = 0;
     negative := false;
     if text.count > 0 {
-        if text[0] == #char "-" { negative = true; position += 1; }
-        else if text[0] == #char "+" position += 1;
+        if text[0] == #char "-" {
+            negative = true;
+            position += 1;
+        } else if text[0] == #char "+" position += 1;
     }
     if negative && !info.signed return 0, false, t;
     limit: u64 = 0xffff_ffff_ffff_ffff;

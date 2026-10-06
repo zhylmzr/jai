@@ -5,12 +5,12 @@ VIS_PROTOCOL_VERSION :: 2;
 // Memory visualization wire declarations; pointer values are sender-owned opaque addresses.
 
 Vis_Protocol_Tag :: enum u32 {
-    ERROR                  :: 0;
+    ERROR :: 0;
     RESET_AND_TELL_VERSION :: 1;
-    ADD_STACK_TRACE        :: 2;
-    ADD_PROCEDURE_INFO     :: 3;
-    ADD_STRING             :: 4;
-    UPDATE_USAGE           :: 5;
+    ADD_STACK_TRACE :: 2;
+    ADD_PROCEDURE_INFO :: 3;
+    ADD_STRING :: 4;
+    UPDATE_USAGE :: 5;
 }
 
 Alloc_And_Free_Traces :: struct {
@@ -19,34 +19,34 @@ Alloc_And_Free_Traces :: struct {
 }
 
 Packed_Stack_Trace_Procedure_Info :: struct {
-    tag:              Vis_Protocol_Tag;
-    name:             String_Index;
-    filename:         String_Index;
-    line_number:      s32;
+    tag: Vis_Protocol_Tag;
+    name: String_Index;
+    filename: String_Index;
+    line_number: s32;
     character_number: s32;
-    remote_address:   *void;
+    remote_address: *void;
 }
 
 String_Info :: struct {
-    tag:       Vis_Protocol_Tag;
-    index:     String_Index;
-    count:     s32;
+    tag: Vis_Protocol_Tag;
+    index: String_Index;
+    count: s32;
 }
 
 String_Index :: #type,isa s32;
 
 Memory_Debugger_Version_Info :: struct {
-    tag:       Vis_Protocol_Tag;
-    _unused:   u32;
-    version:   u64;
+    tag: Vis_Protocol_Tag;
+    _unused: u32;
+    version: u64;
     default_allocator_proc: Allocator_Proc;
 }
 
 Single_Stack_Trace_Info :: struct {
-    tag:       Vis_Protocol_Tag;
+    tag: Vis_Protocol_Tag;
     num_nodes: s32;
-    hash:      u64;
-    address:   *void;
+    hash: u64;
+    address: *void;
 }
 
 Packed_Packed_Stack_Trace :: struct {
@@ -55,8 +55,8 @@ Packed_Packed_Stack_Trace :: struct {
 }
 
 Summary_Info :: struct {
-    tag:                   Vis_Protocol_Tag;
-    num_live:              s32;
+    tag: Vis_Protocol_Tag;
+    num_live: s32;
     num_allocs_this_frame: s32;
     num_frees_this_frame: s32;
 }

@@ -16,8 +16,8 @@ MeowDefaultSeed: [128] u8 = u8.[
     0x70, 0x80, 0x1F, 0x2E, 0x28, 0x58, 0xEF, 0xC1,
     0x66, 0x36, 0x92, 0x0D, 0x87, 0x15, 0x74, 0xE6,
 ];
-MEOW_PAGESIZE       :: 4096;
-MEOW_PREFETCH       :: 4096;
+MEOW_PAGESIZE :: 4096;
+MEOW_PREFETCH :: 4096;
 MEOW_PREFETCH_LIMIT :: 0x3ff;
 
 // The first 256 hexadecimal digits of pi (0x3.243F6A88...).
@@ -27,6 +27,6 @@ MEOW_PREFETCH_LIMIT :: 0x3ff;
 // ARM64 and wasm, where callers (focus) select a portable fallback with
 // `#if CPU == .X64`, so only the shared declarations live here.
 
-MEOW_HASH_VERSION      :: 5;
+MEOW_HASH_VERSION :: 5;
 MEOW_HASH_VERSION_NAME :: "0.5/calico";
 

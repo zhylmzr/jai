@@ -1,8 +1,12 @@
 #import "POSIX";
 
-File :: struct { handle: s64; }
+File :: struct {
+    handle: s64;
+}
 
-is_valid :: (file: File) -> bool { return file.handle != 0; }
+is_valid :: (file: File) -> bool {
+    return file.handle != 0;
+}
 
 file_open :: (name: string, for_writing := false, keep_existing_content := false, log_errors := true) -> File, bool {
     mode := "rb";
@@ -12,7 +16,7 @@ file_open :: (name: string, for_writing := false, keep_existing_content := false
     }
     stream := fopen(temp_c_string(name), temp_c_string(mode));
     if !stream && log_errors log_error("Unable to open '%'", name);
-    return .{cast(s64) stream}, stream != null;
+    return .{ cast(s64) stream }, stream != null;
 }
 
 file_close :: (file: *File) -> bool {
@@ -43,7 +47,9 @@ file_write :: (file: *File, data: *void, length: s64) -> bool {
     return true;
 }
 
-file_set_position :: (f: File, pos: s64) -> bool { return file_seek(f, pos, .START); }
+file_set_position :: (f: File, pos: s64) -> bool {
+    return file_seek(f, pos, .START);
+}
 file_current_position :: (f: File) -> s64, bool {
     success, value := file_tell(f);
     return value, success;
@@ -65,8 +71,12 @@ file_length_checked :: (file: File) -> (length: s64, success: bool) {
     return size, measured && restored;
 }
 
-file_exists :: (path: string) -> bool { return access(temp_c_string(path), 0) == 0; }
-file_delete :: (filename: string) -> bool { return unlink(temp_c_string(filename)) == 0; }
+file_exists :: (path: string) -> bool {
+    return access(temp_c_string(path), 0) == 0;
+}
+file_delete :: (filename: string) -> bool {
+    return unlink(temp_c_string(filename)) == 0;
+}
 file_move :: (name_old: string, name_new: string) -> bool {
     return rename(temp_c_string(name_old), temp_c_string(name_new)) == 0;
 }
@@ -80,15 +90,27 @@ delete_directory :: (dirname: string) -> bool {
     while true {
         set_errno(cast(OS_Error_Code) 0);
         entry := readdir(stream);
-        if !entry { if errno() != 0 success = false; break; }
+        if !entry {
+            if errno() != 0 success = false;
+            break;
+        }
         name := to_string(entry.d_name.data);
         if name == "." || name == ".." continue;
         path := Strings.join(dirname, "/", name);
         state: stat_t;
-        if lstat(temp_c_string(path), *state) != 0 { success = false; break; }
+        if lstat(temp_c_string(path), *state) != 0 {
+            success = false;
+            break;
+        }
         if S_ISDIR(state.st_mode) {
-            if !delete_directory(path) { success = false; break; }
-        } else if !file_delete(path) { success = false; break; }
+            if !delete_directory(path) {
+                success = false;
+                break;
+            }
+        } else if !file_delete(path) {
+            success = false;
+            break;
+        }
     }
     if closedir(stream) != 0 success = false;
     if !success return false;
@@ -112,6 +134,8 @@ get_absolute_path_unix :: (relative_path: string) -> string, success: bool {
 }
 
 #scope_file
-native_handle :: (file: File) -> *FILE { return cast(*FILE) file.handle; }
+native_handle :: (file: File) -> *FILE {
+    return cast(*FILE) file.handle;
+}
 native_libc :: #system_library "c";
 c_free :: (memory: *void) #foreign native_libc "free";

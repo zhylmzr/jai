@@ -38,7 +38,7 @@ alloc_string :: (count: int, allocator := context.allocator) -> string {
     if count == 0 return "";
     memory := alloc(count, allocator);
     if !memory return "";
-    return .{count, cast(*u8) memory};
+    return .{ count, cast(*u8) memory };
 }
 
 talloc_string :: (count: int) -> string {
@@ -80,7 +80,7 @@ free :: inline (s: string, allocator := context.allocator) {
 create_heap :: (a: Allocator) -> Allocator {
     caps, name := get_capabilities_info(a);
     assert(caps & .CREATE_HEAP, "allocator does not support separate heaps");
-    heap: Allocator = .{a.proc, a.proc(.CREATE_HEAP, 0, 0, null, a.data)};
+    heap: Allocator = .{ a.proc, a.proc(.CREATE_HEAP, 0, 0, null, a.data) };
     #if MEMORY_DEBUGGER {
         Memory_Debugger.check_create_heap(heap);
     }
@@ -115,7 +115,7 @@ push_allocator :: (allocator: Allocator) #expand #no_debug {
 // restore the allocator when this macro ends, not when the caller's scope does.
 push_allocator :: (proc: Allocator_Proc, data: *void) #expand #no_debug {
     previous := context.allocator;
-    context.allocator = Allocator.{proc, data};
+    context.allocator = Allocator.{ proc, data };
     `defer context.allocator = previous;
 }
 
@@ -132,14 +132,16 @@ Temporary_Storage_State :: struct {
     total_bytes_occupied: s64;
 }
 
-temp :: Allocator.{temporary_allocator_proc, null};
+temp :: Allocator.{ temporary_allocator_proc, null };
 __temporary_allocator :: temp;
 temporary_allocator :: temp;
 
 talloc :: inline (size: s64) -> *void {
     return temporary_allocator_proc(.ALLOCATE, size, 0, null, null);
 }
-temporary_alloc :: inline (size: s64) -> *void { return talloc(size); }
+temporary_alloc :: inline (size: s64) -> *void {
+    return talloc(size);
+}
 init_temporary_storage :: (ts: *Temporary_Storage, size: s64 = 16384, starting_storage: *u8 = null, allocator := context.allocator) -> bool {
     if size < 0 return false;
     ts.* = .{};
@@ -166,7 +168,7 @@ get_temporary_storage_mark :: inline () -> Temporary_Storage_State {
     storage := context.temporary_storage;
     if !storage return .{};
     arena := temporary_arena(storage);
-    return .{arena.overflow_pages, arena.current_page_bytes_occupied, storage.total_bytes_occupied};
+    return .{ arena.overflow_pages, arena.current_page_bytes_occupied, storage.total_bytes_occupied };
 }
 
 set_temporary_storage_mark :: inline (state: Temporary_Storage_State, loc := #caller_location) {
