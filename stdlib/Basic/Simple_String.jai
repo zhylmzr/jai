@@ -6,18 +6,22 @@ is_space :: (c: u8) -> bool {
     return c == 32 || (c >= 9 && c <= 13);
 }
 is_alnum :: (c: u8) -> bool {
-    return is_alpha(c) || is_digit(c) || c == #char "_";
+    if c == #char "_" return true;
+    return is_digit(c) || is_alpha(c);
 }
 is_digit :: (c: u8) -> bool {
-    return c >= #char "0" && c <= #char "9";
+    return #char "0" <= c && c <= #char "9";
 }
+// Identifier characters: letters, digits and the underscore.
 is_alpha :: (c: u8) -> bool {
-    return (c >= #char "a" && c <= #char "z") || (c >= #char "A" && c <= #char "Z");
+    folded := c | 0x20;
+    return #char "a" <= folded && folded <= #char "z";
 }
 to_lower :: (c: u8) -> u8 {
     if c >= #char "A" && c <= #char "Z" return c + 32;
     return c;
 }
+// Setting bit 5 folds ASCII upper case onto lower case; no other byte lands in a..z.
 to_upper :: (c: u8) -> u8 {
     if c >= #char "a" && c <= #char "z" return c - 32;
     return c;
