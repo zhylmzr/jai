@@ -561,7 +561,7 @@ inverse_lengyel :: (m: Matrix4, epsilon := 0.0001) -> Matrix4 #must, bool {
     return result, success;
 }
 inverse_gaussian_elimination :: (m: Matrix4) -> Matrix4 #must {
-    result, success := inverse(m);
+    result := inverse(m);
     return result;
 }
 inverse :: (a: Matrix3, epsilon := 0.001) -> Matrix3 {
