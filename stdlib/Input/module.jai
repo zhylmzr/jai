@@ -143,7 +143,10 @@ Window_Move_Record :: struct {
 window_resizes_this_frame: [..] Window_Resize_Record;
 window_minimized := false;
 input_application_has_focus := false;
+input_system_initialized := false;
+
 init_input_system :: () {
+    input_system_initialized = true;
     input_application_has_focus = true;
     for *state: input_button_states state.* = .NONE;
     for *state: unscoped_button_states state.* = .NONE;
@@ -176,6 +179,12 @@ input_per_frame_event_and_flag_update :: () {
 }
 
 update_window_events :: () {
+    // Programs written for the official Input module never call init_input_system; without the
+    // native adapter installed, no window events are pumped (on macOS the window never appears).
+    if !input_system_initialized {
+        input_system_initialized = true;
+        init_input_system();
+    }
     input_per_frame_event_and_flag_update();
     if input_event_source != null input_event_source();
     window_resizes_this_frame.count = 0;
