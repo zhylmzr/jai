@@ -8,7 +8,7 @@ float_to_half_fast3 :: (_f: float32) -> Float16 {
     fraction:=bits & 0x7fffff;
     if exponent==255 {
         if fraction==0 return cast(Float16) (sign | 0x7c00);
-        payload:=cast(u16) (fraction >> 13) | 0x0200;
+        payload:=(cast(u16) (fraction >> 13)) | 0x0200;
         return cast(Float16) (sign | 0x7c00 | payload);
     }
     half_exponent:=exponent-112;
@@ -18,8 +18,8 @@ float_to_half_fast3 :: (_f: float32) -> Float16 {
         significand:=fraction | 0x800000;
         shift:=14-half_exponent;
         retained:=significand >> cast(u32) shift;
-        discarded:=significand & ((cast(u32) 1 << cast(u32) shift)-1);
-        halfway:=cast(u32) 1 << cast(u32) (shift-1);
+        discarded:=significand & (((cast(u32) 1) << cast(u32) shift)-1);
+        halfway:=(cast(u32) 1) << cast(u32) (shift-1);
         if discarded>halfway || (discarded==halfway && (retained&1)!=0) retained+=1;
         return cast(Float16) (sign | cast(u16) retained);
     }
@@ -29,7 +29,7 @@ float_to_half_fast3 :: (_f: float32) -> Float16 {
         retained+=1;
         if retained==1024 { retained=0; half_exponent+=1; }
     }
-    return cast(Float16) (sign | cast(u16) (half_exponent << 10) | cast(u16) retained);
+    return cast(Float16) (sign | (cast(u16) (half_exponent << 10)) | cast(u16) retained);
 }
 float16_to_float32 :: half_to_float_fast4;
 float32_to_float16 :: float_to_half_fast3;

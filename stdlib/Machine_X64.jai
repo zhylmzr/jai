@@ -342,15 +342,15 @@ get_cpu_info :: () -> Cpu_X86 {
 
 check_feature :: (leaves: [x86_Feature_Leaf.NUMBER] u32, flag: x86_Feature_Flag) -> bool {
     index:=cast(u16) flag;
-    return (leaves[index/32] & (cast(u32) 1 << cast(u32) (index%32))) != 0;
+    return (leaves[index/32] & ((cast(u32) 1) << cast(u32) (index%32))) != 0;
 }
 enable_feature :: (leaves: *[x86_Feature_Leaf.NUMBER] u32, flag: x86_Feature_Flag) {
     index:=cast(u16) flag;
-    leaves.*[index/32] |= cast(u32) 1 << cast(u32) (index%32);
+    leaves.*[index/32] |= (cast(u32) 1) << cast(u32) (index%32);
 }
 disable_feature :: (leaves: *[x86_Feature_Leaf.NUMBER] u32, flag: x86_Feature_Flag) {
     index:=cast(u16) flag;
-    leaves.*[index/32] &= ~(cast(u32) 1 << cast(u32) (index%32));
+    leaves.*[index/32] &= ~((cast(u32) 1) << cast(u32) (index%32));
 }
 X86_Features :: struct { leaves: [x86_Feature_Leaf.NUMBER] u32; }
 Machine_Options_X86 :: struct { features: X86_Features; }
