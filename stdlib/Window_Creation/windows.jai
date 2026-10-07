@@ -8,6 +8,7 @@ get_dimensions :: (hwnd: HWND, right_handed: bool) -> (x: s32, y: s32, width: s3
     if right_handed origin.y += client_height;
     return origin.x, origin.y, client_width, client_height, true;
 }
+
 get_mouse_pointer_position :: (hwnd: HWND, right_handed: bool) -> (x: int, y: int, success: bool) {
     point: POINT;
     if GetCursorPos(*point) == 0 return 0, 0, false;
@@ -19,15 +20,18 @@ get_mouse_pointer_position :: (hwnd: HWND, right_handed: bool) -> (x: int, y: in
     }
     return point.x, point.y, true;
 }
+
 get_mouse_pointer_position :: (right_handed := false) -> x: int, y: int, success: bool {
     active := Native_GetActiveWindow();
     if !active return 0, 0, false;
     return get_mouse_pointer_position(active, right_handed);
 }
+
 #scope_module
 #import "Basic";
 #import "Windows";
 #import "Windows_Utf8";
+
 #scope_file
 toggle_fullscreen :: (hwnd: HWND, desire_fullscreen: bool, saved: *Saved_Window_Info) -> (succcess: bool, width: s32, height: s32) {
     if !hwnd || !saved return false, 0, 0;
@@ -54,6 +58,7 @@ toggle_fullscreen :: (hwnd: HWND, desire_fullscreen: bool, saved: *Saved_Window_
     if GetClientRect(hwnd, *client) == 0 return false, 0, 0;
     return true, client.right - client.left, client.bottom - client.top;
 }
+
 // Windows windows through Win32.
 create_window :: (width: int, height: int, window_name: string, window_x := -1, window_y := -1, parent: Window_Type = null, background_color_rgb := DEFAULT_WINDOW_CREATION_COLOR, wanted_msaa := DEFAULT_MSAA) -> HWND {
     if width <= 0 || height <= 0 || width > 0x7fffffff || height > 0x7fffffff return null;
@@ -79,17 +84,20 @@ create_window :: (width: int, height: int, window_name: string, window_x := -1, 
     if handle ShowWindow(handle, SW_SHOW);
     return handle;
 }
+
 Saved_Window_Info :: struct {
     rect: RECT;
     style: s32;
     ex_style: s32;
 }
+
 WINDOWED_STYLE: u32 : WS_OVERLAPPEDWINDOW;
 FULLSCREEN_STYLE: u32 : WS_VISIBLE | WS_POPUP;
 SECONDARY_WINDOW_STYLE: u32 : WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME;
 #scope_file
 window_class_initted := false;
 WINDOW_CLASS_NAME :: "Default Window Class";
+
 windows_windowproc_exists :: () -> *void {
     fields := cast(*Type_Info_Struct) type_info(#Context);
     member, offset := get_field_with_offset(fields, "_windows_windowproc");
@@ -97,6 +105,7 @@ windows_windowproc_exists :: () -> *void {
     slot := cast(**void) (cast(*u8) *context + offset);
     return slot.*;
 }
+
 #scope_export
 init_window_class :: (background_color_rgb: [3] float) {
     if window_class_initted return;
@@ -125,14 +134,17 @@ init_window_class :: (background_color_rgb: [3] float) {
     }
     window_class_initted = true;
 }
+
 MAKEINTRESOURCEW :: (i: u32) -> *u16 {
     encoded := cast(u64) i;
     return cast(*u16) encoded;
 }
+
 MAKEINTRESOURCEA :: (i: u32) -> *u8 {
     encoded := cast(u64) i;
     return cast(*u8) encoded;
 }
+
 user32 :: #system_library "user32";
 
 

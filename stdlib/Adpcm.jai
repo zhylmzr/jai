@@ -3,8 +3,10 @@ Adpcm_Info :: struct {
     nBlockAlign: s32;
     wSamplesPerBlock: s32;
 };
+
 // Independent IMA/DVI ADPCM decoder for WAVE channel packets.
 ADPCM_CHANNELS_MAX :: 9;
+
 IMA_ADPCM_decode :: (info: Adpcm_Info, input_block: [] u8, dest_buffer: [] u8) -> s32 {
     channels := info.nChannels;
     align := info.nBlockAlign;
@@ -107,3 +109,4 @@ step_table: [89] s32 : .[
     10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385,
     24623, 27086, 29794, 32767
 ];
+

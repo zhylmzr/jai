@@ -99,6 +99,7 @@ deinit :: (array: *Bit_Array) {
 }
 
 Basic :: #import "Basic";
+
 assert :: Basic.assert;
 
 bit_mask :: inline (i: int) -> s64 {

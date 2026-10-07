@@ -10,6 +10,7 @@ RadixSort :: struct {
     valid_ranks: bool;
     allocator: Allocator;
 }
+
 resize :: (using radix: *RadixSort, new_size: u32) {
     if ranks.count == new_size return;
     if !allocator.proc allocator = context.allocator;
@@ -21,9 +22,11 @@ resize :: (using radix: *RadixSort, new_size: u32) {
     ranks2 = scratch;
     valid_ranks = false;
 }
+
 reset :: (using radix: *RadixSort) {
     valid_ranks = false;
 }
+
 free_resources :: (using radix: *RadixSort) {
     if ranks.data free(ranks.data, allocator = allocator);
     if ranks2.data free(ranks2.data, allocator = allocator);
@@ -31,28 +34,36 @@ free_resources :: (using radix: *RadixSort) {
     ranks2 = .{};
     valid_ranks = false;
 }
+
 operator [] :: (using radix: RadixSort, i: int) -> u32 {
     assert(i >= 0 && i < ranks.count);
     return ranks[i];
 }
+
 sort :: (using radix: *RadixSort, input: *u32, count: u32) {
     _merge_ranks(radix, input, count);
 }
+
 sort :: (using radix: *RadixSort, input: *u64, count: u32) {
     _merge_ranks(radix, input, count);
 }
+
 sort :: (using radix: *RadixSort, input: *float, count: u32) {
     _merge_ranks(radix, input, count);
 }
+
 sort :: (using radix: *RadixSort, input: [] u32) {
     sort(radix, input.data, cast(u32) input.count);
 }
+
 sort :: (using radix: *RadixSort, input: [] u64) {
     sort(radix, input.data, cast(u32) input.count);
 }
+
 sort :: (using radix: *RadixSort, input: [] float) {
     sort(radix, input.data, cast(u32) input.count);
 }
+
 reorder :: (input: *[..] $T, radix: RadixSort) {
     assert(input.count == radix.ranks.count && radix.valid_ranks);
     result: [..] T;
@@ -62,10 +73,12 @@ reorder :: (input: *[..] $T, radix: RadixSort) {
     array_reset(input);
     input.* = result;
 }
+
 rank :: (using radix: *RadixSort, i: int) -> u32 {
     assert(i >= 0 && i < ranks.count);
     return ranks[i];
 }
+
 radix_tests :: () {
     data := u32.[8, 3, 3, 0, 9];
     sorter: RadixSort;
@@ -84,6 +97,7 @@ _take_left :: (a: $T, b: T) -> bool {
     }
     return a <= b;
 }
+
 _merge_ranks :: (radix: *RadixSort, input: *$T, count: u32) {
     if input == null || count == 0 return;
     resize(radix, count);

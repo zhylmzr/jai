@@ -5,37 +5,45 @@ is_print :: (c: u8) -> bool {
 is_space :: (c: u8) -> bool {
     return c == 32 || (c >= 9 && c <= 13);
 }
+
 is_alnum :: (c: u8) -> bool {
     if c == #char "_" return true;
     return is_digit(c) || is_alpha(c);
 }
+
 is_digit :: (c: u8) -> bool {
     return #char "0" <= c && c <= #char "9";
 }
+
 // Identifier characters: letters, digits and the underscore.
 is_alpha :: (c: u8) -> bool {
     folded := c | 0x20;
     return #char "a" <= folded && folded <= #char "z";
 }
+
 to_lower :: (c: u8) -> u8 {
     if c >= #char "A" && c <= #char "Z" return c + 32;
     return c;
 }
+
 // Setting bit 5 folds ASCII upper case onto lower case; no other byte lands in a..z.
 to_upper :: (c: u8) -> u8 {
     if c >= #char "a" && c <= #char "z" return c - 32;
     return c;
 }
+
 advance :: inline (value: *string, count: s64 = 1) {
     assert(count >= 0 && count <= value.count);
     value.data += count;
     value.count -= count;
 }
+
 advance :: inline (s: string, amount: s64 = 1) -> string #must {
     result := s;
     advance(*result, amount);
     return result;
 }
+
 eat_spaces :: (_s: string) -> string {
     result := _s;
     while result.count > 0 {
@@ -50,6 +58,7 @@ copy_string :: (s: string) -> string {
     if s.count > 0 && result.data memcpy(result.data, s.data, s.count);
     return result;
 }
+
 copy_temporary_string :: inline (s: string) -> string {
     result := talloc_string(s.count);
     if s.count > 0 && result.data memcpy(result.data, s.data, s.count);
@@ -63,6 +72,7 @@ temp_c_string :: (s: string) -> *u8 {
     result[s.count] = 0;
     return result;
 }
+
 to_c_string :: (s: string) -> *u8 {
     result := cast(*u8) alloc(s.count + 1);
     if !result return null;
@@ -70,6 +80,7 @@ to_c_string :: (s: string) -> *u8 {
     result[s.count] = 0;
     return result;
 }
+
 // Independently authored byte-string utilities. Classification is ASCII.
 to_string :: inline (s: *u8, length: s64) -> string {
     assert(length >= 0);
@@ -154,10 +165,12 @@ string_to_float64_new :: (text: string) -> success: bool, result: float64, remai
 string_to_float64 :: (_s: string) -> result: float64, success: bool, remainder: string {
     return string_to_float_type_T(_s, T = float64);
 }
+
 // The same parse with the success flag first: `ok, value, rest := string_to_float64_new(s);`.
 string_to_float :: (arg: string) -> result: float, success: bool, remainder: string {
     return string_to_float_type_T(arg, T = float);
 }
+
 string_to_int :: (t: string, base := 10, $T := int) -> result: T, success: bool, remainder: string {
     if base < 2 || base > 36 return 0, false, t;
     info := cast(*Type_Info_Integer) type_info(T);

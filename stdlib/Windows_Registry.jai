@@ -34,7 +34,9 @@ RRF_RT_QWORD :: 0x00000048;
 RRF_RT_REG_DWORD :: 0x00000010;
 RRF_RT_REG_SZ :: 0x00000002;
 advapi :: #system_library "advapi32";
+
 Windows :: #import "Windows";
+
 HKEY :: Windows.HKEY;
 DWORD :: Windows.DWORD;
 FILETIME :: Windows.FILETIME;

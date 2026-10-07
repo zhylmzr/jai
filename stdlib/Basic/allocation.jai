@@ -144,9 +144,11 @@ temporary_allocator :: temp;
 talloc :: inline (size: s64) -> *void {
     return temporary_allocator_proc(.ALLOCATE, size, 0, null, null);
 }
+
 temporary_alloc :: inline (size: s64) -> *void {
     return talloc(size);
 }
+
 init_temporary_storage :: (ts: *Temporary_Storage, size: s64 = 16384, starting_storage: *u8 = null, allocator := context.allocator) -> bool {
     if size < 0 return false;
     ts.* = .{};
@@ -265,6 +267,7 @@ Temporary_Arena :: struct {
     original_data: *u8;
     original_size: s64;
 }
+
 #assert size_of(Temporary_Arena) <= size_of(type_of(Temporary_Storage.implementation_data));
 
 Temporary_Page :: struct {
@@ -272,6 +275,7 @@ Temporary_Page :: struct {
     allocator: Allocator;
     size: s64;
 }
+
 ALIGNED_OVERFLOW_PAGE_ALLOCATION :: 32;
 
 // Temporary_Storage (Runtime_Support) has only the public fields plus an opaque

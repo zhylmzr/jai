@@ -46,6 +46,7 @@ utf8_to_wide_new :: (utf8: string) -> (result_data: *u16, success: bool, result_
 }
 
 Basic :: #import "Basic";
+
 kernel32 :: #system_library "kernel32";
 CP_UTF8 :: 65001;
 WideCharToMultiByte :: (CodePage: u32, dwFlags: u32, lpWideCharStr: *u16, cchWideChar: s32, lpMultiByteStr: *u8, cbMultiByte: s32, lpDefaultChar: *u8, lpUsedDefaultChar: *s32) -> s32 #foreign kernel32;

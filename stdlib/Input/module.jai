@@ -1,5 +1,6 @@
 // Platform adapters enqueue events; this module owns frame lifetime and state.
 #module_parameters (ENABLE_NATIVE_INPUT_ADAPTERS := true);
+
 #import "Basic";
 #import "Window_Type";
 
@@ -13,7 +14,9 @@ Input_Event_Type :: enum {
     TOUCH :: 7;
     UNINITIALIZED :: 8;
 }
+
 Event_Type :: Input_Event_Type;
+
 Key_Code :: enum {
     ESCAPE :: 0;
     MOUSE_BUTTON_LEFT :: 1;
@@ -79,13 +82,16 @@ Key_Code :: enum {
     TOUCH;
     UNKNOWN :: 306;
 }
+
 GAMEPAD_BUTTON_COUNT :: 32;
+
 Key_Current_State :: enum_flags u32 {
     NONE :: 0;
     DOWN :: 1;
     START :: 4;
     END :: 8;
 }
+
 Window_Event :: struct {
     Modifier_Flags :: union {
         struct {
@@ -113,14 +119,18 @@ Window_Event :: struct {
     }
     touch_index: s32;
 }
+
 Event :: Window_Event;
 Routed_Input_Event :: struct {
     window: Window_Type;
     event: Event;
 }
+
 WHEEL_DELTA :: 120; // Wheel units per notch, as in the original Input module.
+
 NUM_BUTTON_STATES :: 307;
 events_this_frame: [..] Event;
+
 // Borrowed frame views: payload ownership remains in events_this_frame.
 routed_events_this_frame: [..] Routed_Input_Event;
 unrouted_events_this_frame: [..] Event;
@@ -133,6 +143,7 @@ Window_Resize_Record :: struct {
     width: s32;
     height: s32;
 }
+
 Window_Move_Record :: struct {
     window: Window_Type;
     x: s32;
@@ -141,8 +152,10 @@ Window_Move_Record :: struct {
 
 // Adapters run on the owner thread; drag-and-drop buffers transfer ownership.
 window_resizes_this_frame: [..] Window_Resize_Record;
+
 window_minimized := false;
 input_application_has_focus := false;
+
 input_system_initialized := false;
 
 init_input_system :: () {
@@ -163,6 +176,7 @@ init_input_system :: () {
 set_custom_cursor_handling :: (is_custom: bool) {
     custom_cursor_handling = is_custom;
 }
+
 input_per_frame_event_and_flag_update :: () {
     routed_events_this_frame.count = 0;
     unrouted_events_this_frame.count = 0;
@@ -198,24 +212,30 @@ update_window_events :: () {
     for pending: pending_events publish_pending_event(pending);
     pending_events.count = 0;
 }
+
 queue_input_event :: (event: Event) {
     array_add(*pending_events, .{ event = event });
 }
+
 queue_input_event :: (window: Window_Type, event: Event) {
     array_add(*pending_events, .{ event = event, window = window, associated = true });
 }
+
 // For sources sampled after update_window_events, including Gamepad.
 publish_input_event :: (event: Event) {
     publish_pending_event(.{ event = event });
 }
+
 publish_input_event :: (window: Window_Type, event: Event) {
     publish_pending_event(.{ event = event, window = window, associated = true });
 }
+
 queue_mouse_delta :: (x: int, y: int, z: int = 0) {
     pending_mouse_x += x;
     pending_mouse_y += y;
     pending_mouse_z += z;
 }
+
 queue_window_move :: (window: Window_Type, x: s32, y: s32) {
     for *record: pending_moves {
         if record.window == window {
@@ -226,6 +246,7 @@ queue_window_move :: (window: Window_Type, x: s32, y: s32) {
     }
     array_add(*pending_moves, .{ window, x, y });
 }
+
 queue_window_resize :: (window: Window_Type, width: s32, height: s32) {
     for *record: pending_resizes {
         if record.window == window {
@@ -236,10 +257,12 @@ queue_window_resize :: (window: Window_Type, width: s32, height: s32) {
     }
     array_add(*pending_resizes, .{ window, width, height });
 }
+
 // Original-API spelling of queue_window_resize: coalesces per window until the next update.
 add_resize_record :: (hwnd: Window_Type, width: s32, height: s32) {
     queue_window_resize(hwnd, width, height);
 }
+
 // Set by hosts that learn a window is minimized; kept for source compatibility with the original Input module.
 set_input_focus :: (focused: bool) {
     unscoped_input_focus = focused;
@@ -249,24 +272,28 @@ set_input_focus :: (focused: bool) {
     }
     refresh_application_focus();
 }
+
 set_input_focus :: (window: Window_Type, focused: bool) {
     index := ensure_input_window(window);
     window_input_states[index].focused = focused;
     if !focused release_focus_buttons(window, true);
     refresh_application_focus();
 }
+
 // Unknown windows have no observed focus or held state.
 window_has_input_focus :: (window: Window_Type) -> bool {
     index := find_input_window(window);
     if index < 0 return false;
     return window_input_states[index].focused;
 }
+
 get_window_key_state :: (window: Window_Type, key: Key_Code) -> Key_Current_State {
     if cast(u32) key >= NUM_BUTTON_STATES return .NONE;
     index := find_input_window(window);
     if index < 0 return .NONE;
     return window_input_states[index].buttons[cast(u32) key];
 }
+
 window_key_is_down :: (window: Window_Type, key: Key_Code) -> bool {
     return (get_window_key_state(window, key) & .DOWN) != 0;
 }
@@ -276,19 +303,23 @@ get_window_moves :: () -> [] Window_Move_Record {
     Swap(*pending_moves, *moves_to_free);
     return moves_to_free;
 }
+
 get_window_resizes :: () -> [] Window_Resize_Record {
     return window_resizes_this_frame;
 }
+
 input_event_source: () = null;
 input_initialize_source: () = null;
 input_pointer_source: (window: Window_Type, client_area: bool) -> float, float = null;
 input_pointer_query_source: (window: Window_Type, client_area: bool) -> float, float, bool = null;
+
 get_input_pointer_position :: () -> float, float, bool {
     if input_pointer_query_source != null return input_pointer_query_source(INVALID_WINDOW, false);
     if input_pointer_source == null return 0, 0, false;
     x, y := input_pointer_source(INVALID_WINDOW, false);
     return x, y, true;
 }
+
 get_input_pointer_position :: (window: Window_Type, client_area := false) -> float, float {
     if input_pointer_query_source != null {
         x, y, success := input_pointer_query_source(window, client_area);
@@ -305,15 +336,19 @@ Window_Input_State :: struct {
     focused := false;
     buttons: [NUM_BUTTON_STATES] Key_Current_State;
 }
+
 window_input_states: [..] Window_Input_State;
 unscoped_input_focus := false;
+
 unscoped_button_states: [NUM_BUTTON_STATES] Key_Current_State;
 Pending_Input_Event :: struct {
     event: Event;
     window: Window_Type;
     associated := false;
 }
+
 pending_events: [..] Pending_Input_Event;
+
 #if ENABLE_NATIVE_INPUT_ADAPTERS {
     #if OS == .WINDOWS {
         #load "windows.jai";
@@ -323,6 +358,7 @@ pending_events: [..] Pending_Input_Event;
         #load "macos.jai";
     }
 }
+
 pending_moves: [..] Window_Move_Record;
 moves_to_free: [..] Window_Move_Record;
 pending_resizes: [..] Window_Resize_Record;
@@ -334,6 +370,7 @@ find_input_window :: (window: Window_Type) -> s64 {
     for record, index: window_input_states if record.window == window return index;
     return -1;
 }
+
 ensure_input_window :: (window: Window_Type) -> s64 {
     index := find_input_window(window);
     if index >= 0 return index;
@@ -342,6 +379,7 @@ ensure_input_window :: (window: Window_Type) -> s64 {
     array_add(*window_input_states, record);
     return window_input_states.count - 1;
 }
+
 refresh_application_focus :: () {
     input_application_has_focus = unscoped_input_focus;
     for record: window_input_states if record.focused {
@@ -349,22 +387,26 @@ refresh_application_focus :: () {
         return;
     }
 }
+
 key_has_any_owner_down :: (key: u32) -> bool {
     if (unscoped_button_states[key] & .DOWN) != 0 return true;
     for record: window_input_states if (record.buttons[key] & .DOWN) != 0 return true;
     return false;
 }
+
 update_owner_key_state :: (state: *Key_Current_State, pressed: bool) {
     if pressed {
         if (state.* & .DOWN) == 0 state.* |= .START;
         state.* |= .DOWN;
     } else state.* = (state.* | .END) & ~Key_Current_State.DOWN;
 }
+
 key_has_scoped_source :: (key: u32) -> bool {
     for record: window_input_states if (record.buttons[key] & .DOWN) != 0 return true;
     for pending: pending_events if pending.associated && pending.event.type == .KEYBOARD && cast(u32) pending.event.key_code == key return true;
     return false;
 }
+
 queued_window_key_down :: (window: Window_Type, key: u32) -> bool {
     index := find_input_window(window);
     down := false;
@@ -375,6 +417,7 @@ queued_window_key_down :: (window: Window_Type, key: u32) -> bool {
     }
     return down;
 }
+
 release_focus_buttons :: (window: Window_Type, scoped: bool) {
     if scoped {
         for key: 0..NUM_BUTTON_STATES - 1 {
@@ -403,6 +446,7 @@ release_focus_buttons :: (window: Window_Type, scoped: bool) {
         queue_input_event(event);
     }
 }
+
 // Strict decoder shared by XIM and AppKit text streams.
 publish_pending_event :: (pending: Pending_Input_Event) {
     event := pending.event;
@@ -425,6 +469,7 @@ publish_pending_event :: (pending: Pending_Input_Event) {
     if pending.associated array_add(*routed_events_this_frame, .{ pending.window, event });
     else array_add(*unrouted_events_this_frame, event);
 }
+
 queue_utf8_text :: (window: Window_Type, bytes: [] u8, repeat := false) {
     offset: s64 = 0;
     while offset < bytes.count {
@@ -468,6 +513,7 @@ queue_utf8_text :: (window: Window_Type, bytes: [] u8, repeat := false) {
         queue_input_event(window, event);
     }
 }
+
 install_native_input_adapter :: () {
     #if ENABLE_NATIVE_INPUT_ADAPTERS {
         #if OS == .WINDOWS {
@@ -482,3 +528,4 @@ install_native_input_adapter :: () {
         }
     }
 }
+

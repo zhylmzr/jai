@@ -84,6 +84,7 @@ file_write :: (file: *File, builder: *String_Builder, do_reset := true) -> bool 
 }
 
 STORE_MAPPED_FILENAMES :: false;
+
 USE_MAP_FILE :: (OS == .WINDOWS);
 Map_File_Info :: struct {
     data: string;
