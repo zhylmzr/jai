@@ -12,6 +12,36 @@ file_read :: (f: File, vdata: *void, bytes_to_read: s64) -> (success: bool, tota
     if bytes_to_read <= 0 || !vdata return false, 0;
     return file_read_checked(f, vdata, bytes_to_read);
 }
+
+#scope_file
+file_read_line :: (file: File) -> line: string, ok: bool {
+    bytes: [..] u8;
+    byte: u8;
+    got_any := false;
+    while true {
+        success, received := file_read_checked(file, *byte, 1);
+        if !success || received == 0 break;
+        got_any = true;
+        if byte == #char "\n" break;
+        array_add(*bytes, byte);
+    }
+    return finish_line(bytes), got_any;
+}
+
+// `file_read_line` for the process's standard input: waits for a whole line (a prompt written with
+// `print` is already out), and reports the end of input as `ok = false`.
+read_stdin_line :: () -> line: string, ok: bool {
+    bytes: [..] u8;
+    byte: u8;
+    got_any := false;
+    while read_stdin_byte(*byte) {
+        got_any = true;
+        if byte == #char "\n" break;
+        array_add(*bytes, byte);
+    }
+    return finish_line(bytes), got_any;
+}
+
 read_entire_file :: (path: string, zero_terminated := false, log_errors := true) -> (contents: string, success: bool) {
     return read_entire_file_terminated(path, zero_terminated, log_errors);
 }
@@ -34,6 +64,9 @@ read_entire_file :: (f: File, zero_terminated := false) -> string, bool {
     return .{ length, bytes }, true;
 }
 
+// Reads up to the next newline (which is dropped, with a carriage return before it). The text is
+// allocated with the context allocator. `ok` is false at the end of input when nothing was read,
+// so a last line without a newline still comes back.
 read_entire_file_terminated :: (name: string, zero_terminated := false, log_errors := true) -> string, bool {
     input, opened := file_open(name, log_errors = log_errors);
     if !opened return "", false;
@@ -165,3 +198,8 @@ Seek_Type :: enum {
     END :: 2;
 }
 
+finish_line :: (bytes: [..] u8) -> string {
+    count := bytes.count;
+    if count > 0 && bytes[count - 1] == #char "\r" count -= 1;
+    return .{ count, bytes.data };
+}

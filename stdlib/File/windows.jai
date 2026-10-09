@@ -68,6 +68,12 @@ file_write :: (file: *File, data: *void, length: s64) -> bool {
     return true;
 }
 
+read_stdin_byte :: (byte: *u8) -> bool {
+    received: u32;
+    return Windows.ReadFile(Windows.GetStdHandle(-10), byte, 1, *received, null) != 0 && received == 1;
+}
+
+#scope_file
 file_set_position :: (f: File, pos: s64) -> bool {
     return file_seek(f, pos, .START);
 }
@@ -215,7 +221,7 @@ get_path_os_saved_games :: () -> string {
     return native_known_directory(identifier);
 }
 
-#scope_file
+// One byte of standard input; false at the end of input.
 native_handle :: (file: File) -> HANDLE {
     return file.handle;
 }
