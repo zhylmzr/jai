@@ -21,7 +21,7 @@ File_Change_Event :: enum_flags {
 File_Change :: struct {
     full_path: string;
     events: File_Change_Event;
-    time_of_last_change := 0.0;
+    time_of_last_change: float64;
 }
 
 File_Watcher :: struct(User_Data: Type = void) {
@@ -131,7 +131,7 @@ add_change :: (watcher: *File_Watcher, full_path: string, events: File_Change_Ev
         entry.full_path = owned_path(full_path, watcher.allocator);
     }
     entry.events |= interesting;
-    entry.time_of_last_change = xx seconds_since_init();
+    entry.time_of_last_change = seconds_since_init();
 }
 
 init :: (watcher: *$T/File_Watcher, callback: T.File_Watcher_Callback, user_data: *T.User_Data = null, events_to_watch: File_Change_Event = .ALL_EVENTS, merge_window_seconds: float = 0.1, watch_recursively := true, verbose := false, event_buffer_size: s32 = DEFAULT_BUFFER_SIZE) -> success: bool {
