@@ -171,6 +171,7 @@ get_process_result :: (process: *Process, timeout_ms := -1) -> success: bool, Pr
         if remaining_time(start, timeout_ms) == 0 return true, process.saved_result;
         P.usleep(1000);
     }
+    return false, process.saved_result;
 }
 
 kill_process :: (process: *Process) -> bool {

@@ -22,8 +22,9 @@ copy_file :: (source: string, dest: string) -> bool {
         read_ok, received := file_read_checked(input, buffer.data, buffer.count);
         if !read_ok return false;
         if received > 0 && !file_write(*output, buffer.data, received) return false;
-        if received < buffer.count return true;
+        if received < buffer.count break;
     }
+    return true;
 }
 
 copy_directory :: (source: string, dest: string) {
