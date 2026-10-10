@@ -91,6 +91,7 @@ array_reserve :: (array: *Resizable_Array, desired_items: s64, element_size: s64
     array.allocated = next;
 }
 
+// Appends a zeroed element to a resizable array and returns a pointer to it.
 maybe_grow :: (array: *Resizable_Array, element_size: s64) {
     array_reserve(array, array.count + 1, element_size);
 }
@@ -106,6 +107,7 @@ array_add :: (array: *[..] $T) -> *T #must {
     return result;
 }
 
+// Appends `item` to a resizable array and returns a pointer to the stored copy.
 array_add :: (array: *[..] $T, item: T) -> *T {
     array_reserve(array, array.count + 1);
     result := array.data + array.count;
@@ -114,6 +116,7 @@ array_add :: (array: *[..] $T, item: T) -> *T {
     return result;
 }
 
+// Appends every value of `to_append`, in order.
 array_add :: (array: *[..] $T, to_append: ..T) {
     for item: to_append array_add(array, item);
 }

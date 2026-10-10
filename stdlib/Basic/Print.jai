@@ -1208,8 +1208,22 @@ print_to_builder :: (builder: *String_Builder, format_string: string, args: ..An
     return __format_to_builder(builder, format_string, args);
 }
 
+// Formats into a string builder, appending after what it already holds.
+// Returns false when the arguments do not match the format string.
 print :: print_to_builder;
 
+// Writes the formatted text to standard output and returns how many bytes were written,
+// or -1 when the arguments do not match the format string.
+//
+// Each `%` in `format_string` prints the next argument.
+//
+// ```
+// print("% + % = %\n", 1, 2, 1 + 2);
+// ```
+//
+// - format_string: the text to print, with `%` where an argument goes
+// - args: the values to print, in order
+// - to_standard_error: write to standard error instead of standard output
 print :: (format_string: string, args: ..Any, to_standard_error := false) -> bytes_printed: s64 {
     builder: String_Builder;
     init_string_builder(*builder);
@@ -1220,6 +1234,8 @@ print :: (format_string: string, args: ..Any, to_standard_error := false) -> byt
     return count;
 }
 
+// Formats like [print] but returns the text as a new string allocated with the
+// current allocator. Free it with [free] when done.
 sprint :: (format_string: string, args: ..Any) -> string #must {
     builder: String_Builder;
     init_string_builder(*builder);
@@ -1229,6 +1245,8 @@ sprint :: (format_string: string, args: ..Any) -> string #must {
     return result;
 }
 
+// Formats like [print] but returns the text in temporary storage, so it needs no
+// individual free and lasts until the temporary storage is reset.
 tprint :: (format_string: string, args: ..Any) -> string #must {
     builder: String_Builder;
     init_string_builder(*builder);

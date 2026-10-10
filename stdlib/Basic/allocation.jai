@@ -51,6 +51,7 @@ talloc_string :: (count: int) -> string {
 }
 
 // Allocator selection remains ordinary Jai source and follows the active context.
+// Returns `size` bytes of memory from `allocator`. Release it with [free].
 alloc :: (size: s64, allocator := context.allocator) -> *void {
     if size < 0 || !allocator.proc return null;
     memory := allocator.proc(.ALLOCATE, size, 0, null, allocator.data);
@@ -60,6 +61,7 @@ alloc :: (size: s64, allocator := context.allocator) -> *void {
     return memory;
 }
 
+// Gives memory from [alloc] back to `allocator`.
 realloc :: (memory: *void, size: s64, old_size: s64, allocator := context.allocator) -> *void {
     if size < 0 || old_size < 0 || !allocator.proc return null;
     replacement := allocator.proc(.RESIZE, size, old_size, memory, allocator.data);
