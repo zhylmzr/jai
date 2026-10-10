@@ -464,8 +464,7 @@ x_draw_string :: (dpy: *Display, d: Drawable, x: s32, y: s32, msg: string) {
 
 x_textwidth :: (font: *XFontStruct, msg: string) -> s32 {
     count := cast(s32) msg.count;
-    measured := XTextWidth(font, msg.data, count);
-    return measured;
+    return XTextWidth(font, msg.data, count);
 }
 
 x_lock_window_size :: (dpy: *Display, w: Window, width: s32, height: s32) {

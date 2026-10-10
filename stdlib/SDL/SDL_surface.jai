@@ -31,8 +31,7 @@ SDL_CreateRGBSurfaceWithFormatFrom :: (pixels: *void, width: int, height: int, d
 SDL_LoadBMP :: (path: *u8) -> *SDL_Surface {
     input := SDL_RWFromFile(path, "rb");
     if !input return null;
-    bitmap := SDL_LoadBMP_RW(input, 1);
-    return bitmap;
+    return SDL_LoadBMP_RW(input, 1);
 }
 
 SDL_ShowSimpleMessageBox :: (flags: u32, title: *u8, msg: *u8, parent: *SDL_Window) -> int #foreign SDL2;
