@@ -184,8 +184,8 @@ returned_through_hidden_pointer :: (result: *CType) -> bool {
 escape_string_literal :: (s: string) -> string {
     builder: String_Builder;
     append(*builder, "\"");
-    for 0..s.count - 1 {
-        c := s[it];
+    for s {
+        c := it;
         if c == #char "\"" append(*builder, "\\\"");
         else if c == #char "\\" append(*builder, "\\\\");
         else if c == #char "\n" append(*builder, "\\n");
@@ -201,8 +201,8 @@ escape_string_literal :: (s: string) -> string {
 float_to_text :: (value: float64) -> string {
     text := tprint("%", value);
     has_marker := false;
-    for 0..text.count - 1 {
-        c := text[it];
+    for text {
+        c := it;
         if c == #char "." || c == #char "e" || c == #char "E" || c == #char "n" || c == #char "i" has_marker = true;
     }
     if !has_marker text = join(text, ".0");
@@ -607,8 +607,8 @@ objc_returns_in_memory :: (type: *CType) -> bool {
 // `setX:y:` -> `setX_y_`
 objc_selector_field :: (selector: string) -> string {
     builder: String_Builder;
-    for 0..selector.count - 1 {
-        c := selector[it];
+    for selector {
+        c := it;
         append(*builder, ifx c == #char ":" then cast(u8) #char "_" else c);
     }
     return avoid_reserved_names(builder_to_string(*builder));

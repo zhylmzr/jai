@@ -233,9 +233,9 @@ seconds_since_init :: () -> float64 {
     store_in_integer :: (str: string) -> s32 {
         assert(str.count <= 4);
         out: s32;
-        for 0..str.count - 1 {
-            shift := cast(u32) ((str.count - it - 1) * 8);
-            out |= cast,no_check(s32) ((cast(u32) str[it]) << shift);
+        for str {
+            shift := cast(u32) ((str.count - it_index - 1) * 8);
+            out |= cast,no_check(s32) ((cast(u32) it) << shift);
         }
         return out;
     }

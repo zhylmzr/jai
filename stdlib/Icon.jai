@@ -64,8 +64,8 @@ desktop_entry_text :: (name: string, executable_path: string, icon_path: string)
 // Writes `<executable_path>.desktop` next to the executable and returns its path ("" on failure).
 write_desktop_entry :: (executable_path: string, icon_path: string) -> string {
     name := executable_path;
-    for index: 0..executable_path.count - 1 {
-        if executable_path[index] == #char "/" || executable_path[index] == #char "\\" name = slice(executable_path, index + 1, executable_path.count - index - 1);
+    for *executable_path {
+        if it.* == #char "/" || it.* == #char "\\" name = slice(executable_path, it_index + 1, executable_path.count - it_index - 1);
     }
     path := tprint("%.desktop", executable_path);
     if !write_entire_file(path, desktop_entry_text(name, executable_path, icon_path)) return "";

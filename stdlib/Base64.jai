@@ -47,7 +47,7 @@ base64_encode_with_alphabet :: (input: string, alphabet: string, padding: bool) 
 }
 
 base64_index_of :: (c: u8, alphabet: string) -> int, bool {
-    for i: 0..alphabet.count - 1 if alphabet[i] == c return i, true;
+    for alphabet if it == c return it_index, true;
     return -1, false;
 }
 

@@ -102,8 +102,8 @@ stripped_name :: (name: string) -> string {
 // A copy of `name` with every byte an identifier cannot hold turned into `_`.
 make_valid_identifier :: (name: string) -> string {
     builder: String_Builder;
-    for i: 0..name.count - 1 {
-        byte := name[i];
+    for name {
+        byte := it;
         append(*builder, ifx is_identifier_byte(byte) then byte else cast(u8) #char "_");
     }
     return builder_to_string(*builder);
@@ -647,8 +647,8 @@ add_plain_member :: (s: *Struct, name: string, type: *CType) {
 
 sanitize_for_identifier :: (text: string) -> string {
     builder: String_Builder;
-    for 0..text.count - 1 {
-        c := text[it];
+    for text {
+        c := it;
         if c == #char "*" append(*builder, "P");
         else if is_identifier_byte(c) append(*builder, c);
     }
@@ -677,8 +677,8 @@ make_placeholder_struct :: (name: string, comment: string) -> *CType {
 
 looks_like_valid_identifier :: (name: string) -> bool {
     if !name return false;
-    for 0..name.count - 1 {
-        c := name[it];
+    for name {
+        c := it;
         if c == #char ":" || c == #char "<" || c == #char " " return false;
     }
     return true;
@@ -770,9 +770,9 @@ fill_template_arguments :: (ty: Clang_Type, result: *CType, ctx: Cursor) -> bool
 // The text of the `index`th top-level argument in `Name<a, b<c>, d>`.
 template_argument_text :: (spelling: string, index: s64) -> string {
     start := -1;
-    for 0..spelling.count - 1 {
-        if spelling[it] == #char "<" {
-            start = it + 1;
+    for spelling {
+        if it == #char "<" {
+            start = it_index + 1;
             break;
         }
     }
@@ -2142,7 +2142,7 @@ convert_number_literal :: (text: string) -> string, bool {
     // Octal literals: a leading 0 followed by digits.
     if body.count > 1 && body[0] == #char "0" {
         value: s64;
-        for 0..body.count - 1 value = value * 8 + (body[it] - #char "0");
+        for body value = value * 8 + (it - #char "0");
         return tprint("%", value), true;
     }
     return body, true;

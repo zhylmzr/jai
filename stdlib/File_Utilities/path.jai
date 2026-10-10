@@ -41,11 +41,11 @@ parse_path :: (_s: string, reduce := true) -> Path {
     result.words.allocator = temp;
     cursor: int;
     // A colon before the first separator identifies a drive or scheme prefix.
-    for i: 0.._s.count - 1 {
-        if path_separator(_s[i]) break;
-        if _s[i] == #char ":" {
-            result.header_string = Strings.slice(_s, 0, i + 1);
-            cursor = i + 1;
+    for *_s {
+        if path_separator(it.*) break;
+        if it.* == #char ":" {
+            result.header_string = Strings.slice(_s, 0, it_index + 1);
+            cursor = it_index + 1;
             break;
         }
     }
