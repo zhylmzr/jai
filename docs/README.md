@@ -107,6 +107,7 @@ The LLVM backend, C ABI and linking.
 - [Iprof profiler module](stdlib/iprof.md)
 - [Math, random numbers and color/float helpers](stdlib/math-and-random.md)
 - [Memory, allocators and hashing](stdlib/memory-and-allocators.md)
+- [meow_hash: AES-based 128-bit hash for x64](stdlib/meow-hash.md)
 - [Native and platform bindings](stdlib/native-bindings.md)
 - [Program_Print](stdlib/program-print.md)
 - [Strings, Unicode and text files](stdlib/strings-and-text.md)

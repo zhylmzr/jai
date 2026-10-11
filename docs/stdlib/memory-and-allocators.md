@@ -52,7 +52,7 @@ main :: () {
 - Heap ownership changes go in `Default_Allocator/module.jai`; temporary-storage lifetime changes in `Basic/allocation.jai`. Keep `Temporary_Storage` in sync with `prelude/runtime-storage.jai` and `Runtime_Support`.
 - Alignment policy: `CACHE_LINE`/`WIDE_SLACK` and `obtain_block`/`regrow_block`/`release_block` in `Default_Allocator/module.jai`. Raising the guarantee (say to 128) means raising both constants and widening the skip field (bits 0-1 hold up to 48/16); bits 0-3 of plain entries must stay clear, which relies on malloc's 16-byte alignment.
 - Tests: `tests/stdlib/allocation-memory.jai`, `default-allocator.jai`, `over-aligned-allocation.jai` (also built natively by `native.rs` and on Windows by `tools/windows_cross.py`), `pool-standard-behavior.jai`, `storage-*-contract.jai`, `memory-debugger-*.jai`, `bit-operations.jai`.
-- Gotchas: `crc64` follows the maintained ECMA contract; use `crc64_we` for the older convention. `stdlib/meow_hash` holds only the version constants and default seed; callers pick a fallback hash, since the real one needs x64 AES instructions.
+- Gotchas: `crc64` follows the maintained ECMA contract; use `crc64_we` for the older convention. `stdlib/meow_hash` has the version constants, the default seed and, on x64 only, a Meow-style AES hash; see [meow_hash](meow-hash.md). Other CPUs pick their own fallback.
 
 ## Configuration
 
