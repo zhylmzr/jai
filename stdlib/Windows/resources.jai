@@ -4,7 +4,7 @@ MAKEINTRESOURCE :: (x: s32) -> *u16 {
 }
 
 find_windows_kit_root :: (version: string) -> string {
-    name, name_ok, name_bytes := Utf8.utf8_to_wide(version);
+    name, name_ok := Utf8.utf8_to_wide(version);
     if !name_ok return "";
     defer Basic.free(name);
     key: HKEY;
@@ -68,7 +68,7 @@ set_icon_by_data :: (exe_filename: string, icon_data: string, resource_id: s32 =
         memcpy(target, source, 12);
         write_le16(target + 12, cast(u16) (resource_id + index));
     }
-    filename, converted, allocated := Utf8.utf8_to_wide(exe_filename);
+    filename, converted := Utf8.utf8_to_wide(exe_filename);
     if !converted return false;
     defer Basic.free(filename);
     update := sdk_begin_update(filename, cast(BOOL) delete_existing_resources);
@@ -111,7 +111,7 @@ add_manifest_to_executable :: (exe_filename: string, options: Manifest_Options, 
     manifest := generate_manifest(options);
     if manifest.count == 0 return false;
     defer Basic.free(manifest.data);
-    filename, converted, allocated := Utf8.utf8_to_wide(exe_filename);
+    filename, converted := Utf8.utf8_to_wide(exe_filename);
     if !converted return false;
     defer Basic.free(filename);
     update := sdk_begin_update(filename, .FALSE);
