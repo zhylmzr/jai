@@ -66,6 +66,47 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
     return true;
 }
 
+init_named_pipe_pair :: (pipe: *Process.Pipe, is_input: bool) -> bool, Windows.HANDLE {
+    invalid := cast(Windows.HANDLE) -1;
+    serial := Atomics.atomic_add(*named_pipe_serial, 1);
+    name := os_utf8_to_wide(tprint("\\\\.\\pipe\\jai-process-%-%", Windows.GetCurrentProcessId(), serial));
+
+    // Only the child's end is inheritable.
+    attributes: Windows.SECURITY_ATTRIBUTES;
+    attributes.nLength = size_of(Windows.SECURITY_ATTRIBUTES);
+
+    direction := Windows.PIPE_ACCESS_INBOUND;
+    child_access := Windows.GENERIC_WRITE;
+    if is_input {
+        direction = Windows.PIPE_ACCESS_OUTBOUND;
+        child_access = Windows.GENERIC_READ;
+    }
+    mode := Windows.PIPE_TYPE_BYTE | Windows.PIPE_READMODE_BYTE | Windows.PIPE_WAIT | Windows.PIPE_REJECT_REMOTE_CLIENTS;
+    parent := Windows.CreateNamedPipeW(name, direction | Windows.FILE_FLAG_OVERLAPPED | Windows.FILE_FLAG_FIRST_PIPE_INSTANCE, mode, 1, 65536, 65536, 0, *attributes);
+    if parent == invalid return false, invalid;
+
+    attributes.bInheritHandle = 1;
+    child := Windows.CreateFileW(name, child_access, 0, *attributes, Windows.OPEN_EXISTING, Windows.FILE_ATTRIBUTE_NORMAL, null);
+    if child == invalid {
+        Windows.CloseHandle(parent);
+        return false, invalid;
+    }
+
+    event := Windows.CreateEventW(null, 1, 0, null);
+    if !event {
+        Windows.CloseHandle(parent);
+        Windows.CloseHandle(child);
+        return false, invalid;
+    }
+    // Release whatever the slot held before so no earlier handle or record leaks.
+    deinit(pipe);
+    pipe.overlapped = New(Windows.OVERLAPPED);
+    pipe.overlapped.hEvent = event;
+    pipe.handle = parent;
+    pipe.eof = false;
+    return true, child;
+}
+
 write_to_process :: (process: *Process, data: [] u8) -> success: bool, bytes_written: int {
     amount: u32;
     success := Windows.WriteFile(process.input.handle, data.data, cast(u32) min(data.count, 0x7fff_ffff), *amount, null) != 0;
@@ -124,8 +165,21 @@ deinit :: (pipe: *Process.Pipe) {
     if pipe.handle && pipe.handle != cast(Windows.HANDLE) -1 Windows.CloseHandle(pipe.handle);
     pipe.handle = cast(Windows.HANDLE) -1;
     pipe.eof = true;
+    if pipe.overlapped {
+        if pipe.overlapped.hEvent Windows.CloseHandle(pipe.overlapped.hEvent);
+        free(pipe.overlapped);
+        pipe.overlapped = null;
+    }
 }
 
+// Creates a pipe whose parent end supports overlapped I/O and returns the child end, ready to be
+// inherited as a standard handle.
+//
+// The parent end lands in `pipe.handle`, and `pipe.overlapped` points to an OVERLAPPED record
+// whose manual-reset event a caller can wait on after starting an asynchronous read or write.
+// `is_input` names the direction from the child's point of view: true gives the child a
+// readable end (we write to `pipe`), false a writable one (we read from `pipe`). The caller owns
+// the returned handle and closes it once the child has started; `deinit(pipe)` releases the rest.
 deinit :: (process: *Process) {
     close_pipe_ends(process);
     if process.launched {
@@ -140,6 +194,8 @@ deinit :: (process: *Process) {
     }
     process.* = .{};
 }
+
+named_pipe_serial: s64;
 
 process_monotonic_ms :: () -> s64 {
     counter: s64;
