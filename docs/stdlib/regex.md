@@ -58,7 +58,21 @@ Results are views into `text`; arrays and replaced strings are allocated with `c
 
 1. A lazy DFA (`dfa.jai`) runs forward to find where the leftmost-first match ends. A reverse DFA then runs back from there to find where it starts. States are built on demand and cached. Looks (`^`, `$`, `\b`) are settled when a transition is computed, since both neighbouring bytes are known then.
 2. Captures come from the span the DFAs found, by the first of three matchers that applies. A pattern that is one-pass (`onepass.jai`) uses its table. Otherwise a bounded backtracker (`nfa.jai`) runs, or the Pike VM when the span is too long for the backtracker's visited bitset (2M bits).
-3. The Pike VM also takes over when a DFA passes `DEFAULT_STATE_LIMIT` (10,000 states; from then on, that engine uses the Pike VM). It also takes over when a Unicode `\b` meets a non-ASCII byte, which the DFA can't classify: those transitions are a `QUIT` state.
+3. The Pike VM also takes over when a DFA passes `DEFAULT_STATE_LIMIT` (10,000 states; from then on, that engine uses the Pike VM).
+4. When every match has the same length (`fixed_length`, from the program), the start is `end - length` and the reverse DFA is skipped.
+
+**Unicode `\b` in the DFA**: the base column of a non-ASCII byte holds `QUIT`. On one, the search decodes the character and steps through one of `CHARACTER_COLUMNS` (4) extra copies of the columns (`dfa_step_character`). Bit 0 of the copy says a word character starts at this byte, bit 1 that one ends with it. The context `CONTEXT_CHARACTER_WORD` is a word only to Unicode looks, so `(?-u:\b)` in the same pattern still sees non-ASCII bytes as non-word.
+
+**Skipping ahead** (`dfa_skip`, `skip_to`): each unanchored start state gets a `Skip`, computed lazily, or by `dfa_build_all` for a `Static` engine. While the DFA sits in that state, a Byte_Search call jumps to the next place a match could begin:
+
+| Kind | Searches for | Chosen when |
+| --- | --- | --- |
+| `BYTES` | 1-3 bytes (`find`, `find_any`) | one position has a rare set of at most 3 bytes |
+| `SET` | a byte set (`find(*Byte_Set)`) | one position is rare enough, with more bytes |
+| `PAIR` / `TRIPLE` | sets at fixed distances (`find_pair`, `find_triple`) | no single position is rare (`SINGLE_SHARE`), and adding a position cuts the expected stops enough |
+| `REQUIRED` | a rare byte every match contains, then a walk back over the bytes allowed before it | every position near the start is common (`SKIP_SHARE_LIMIT`) |
+
+"Rare" comes from `BYTE_SHARE`, a rough table of how often each byte occurs in text. Without looks, the sets come from the *fingerprint*: the bytes each of the first `FINGERPRINT_DEPTH` (8) positions of a match can have, up to the shortest match. A candidate must fit every fingerprint position (`fits_checks`) before the DFA sees it. When the program is a single chain (one byte-reading instruction per position, ending in a match: `the`, `(?i)hello`), the fingerprint is the pattern, so a fitting candidate *is* the match and the DFA does not run (`Skip.exact`). With looks, the only safe sets are the bytes that leave the start state. `REQUIRED` keeps a fence so each required byte is walked back from once, which keeps the search linear.
 
 **One-pass captures** (`onepass.jai`): a pattern is one-pass when, matching anchored at a known start, each byte leaves at most one way forward. `onepass_build` finds out when the program is compiled: each state is the entry of a stretch of the program that waits for a byte, its epsilon closure is walked in priority order (once per instruction, like the Pike VM), and two byte-consuming instructions that accept the same byte class make the pattern not one-pass. A MATCH cuts off everything of lower priority, which keeps leftmost-first. Each table edge stores the next state and the capture slots to set. `onepass_search` walks the known span once and fails if it does not end exactly at `e`. Looks are conditions on the edge (`^ $ \b`, multi-line, CRLF, Unicode `\b` included) and are checked against the text when the edge is taken. A pattern is refused when a look could change which instruction wins: a look-guarded MATCH followed by anything, or a look-guarded instruction reached twice. It is also refused over `ONEPASS_STATE_LIMIT` (1,000) states. Unicode classes often are not one-pass: `(\w+)\s(\w+)` has `\w` and `\s` characters that share a UTF-8 lead byte, so the byte automaton cannot tell them apart; `(?-u)` classes and ASCII-only classes are fine. `Regex.is_one_pass` reports it.
 
@@ -85,6 +99,7 @@ A number that does not fit its type makes the call return `false`. Groups that m
 - **A new look**: add it to `Look`, then `look_holds` (`nfa.jai`), `look_holds_between` (`dfa.jai`), and the byte-class boundaries in `compute_byte_classes`.
 - **Type inference**: `infer_kind` and `number_shape` in `generate.jai`. The emitted code is in `groups_members`, `groups_fill` and `into_fill`. That code is plain Jai text, so print it while debugging.
 - **One-pass**: the rules for refusing a pattern are in `explore` and `fill_state` (`onepass.jai`). A new `Look` needs no change there (the edge keeps a bit per `Look`, and `looks_hold` calls `look_holds`). To allow more patterns, make a state's closure smarter about when two leaves cannot both apply. Never accept a pattern that has a conflict: the result would depend on which path was tried first. A wrong table shows up as a mismatch in the differential test or the `fill_slots` assert.
+- **Skips**: the choice is in `dfa_skip`; its thresholds are the constants above it (`SINGLE_SHARE`, `SKIP_SHARE_LIMIT`, `FINGERPRINT_DEPTH`). A skip may only move to positions where no match can start: if unsure, return the skip with `state = UNKNOWN`. `Skip.exact` must stay false unless the fingerprint alone decides the match.
 - **Engines**: any change must keep `tests/differential.jai` passing. For a deeper check, generate a larger corpus with a new seed and compare. To exercise the fallbacks, temporarily set `DEFAULT_STATE_LIMIT` to 3, which forces the Pike VM path.
 - **Unicode version**: see [Regex Unicode tables](../tools/regex-unicode-tables.md).
 
@@ -114,10 +129,25 @@ cargo build --release --manifest-path tools/regex_oracle/Cargo.toml
 python3 tools/gen_regex_corpus.py --oracle tools/regex_oracle/target/release/regex-oracle
 ```
 
-Throughput (`-O2`, Apple M5, 16 MB of mixed ASCII and Unicode text): about 450-1,000 MB/s for DFA-bound patterns such as `\w+@\w+\.com`, `\p{Greek}+` or a literal, 1.4 GB/s for a literal with no match, about 600 MB/s for typed `captures_all` of dates, and about 50 MB/s for `\b\w+\b` (Pike VM at non-ASCII bytes). That is the speed of Rust's dense DFA without its prefilters, and well below the SIMD prefilters in Rust `regex`, PCRE2 and Hyperscan on sparse matches. The [regex benchmark](../tools/regex-benchmark.md) compares eight engines and records the numbers in `benchmarks/results/regex.md`.
+Throughput (`-O2`, Apple M5, 16 MB of mixed ASCII and Unicode text, `Regex.Static`, MB/s), against Rust `regex`:
+
+| Pattern | Jai | Rust |
+| --- | ---: | ---: |
+| `[0-9]{4}-[0-9]{2}-[0-9]{2}` | 15,000-18,000 | 17,000-20,000 |
+| `\w+@\w+\.com` | 12,000-13,500 | 22,600 |
+| `\p{Greek}+` | 3,400 | 2,150 |
+| `zzz` (no match) | 88,000-95,000 | 53,000 |
+| `(?i)HELLO` | 14,000 | 12,600 |
+| `\b\w+\b` | 96 | 136 |
+| `Sherlock\|Holmes\|...` | 10,700 | 11,700 |
+| `the` | 4,600 | 5,600 |
+| `[a-zA-Z]+ing` | 920 | 730 |
+
+Dense matches (`the`, `\b\w+\b`) are bound by the cost per match. The [regex benchmark](../tools/regex-benchmark.md) compares eight engines and records the numbers in `benchmarks/results/regex.md`.
 
 ## Dependencies
 
 - `Basic`, `String`, `Hash_Table`, `Sort` and `Compiler` (for `compiler_report`).
+- [Byte_Search](byte-search.md) for the skips.
 - The Unicode tables in `unicode_data.jai`, generated from UCD 17 by `tools/gen_regex_unicode.py`.
 - Test-only: Rust's `regex` crate in `tools/regex_oracle`.
