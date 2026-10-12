@@ -58,7 +58,6 @@ process_changes :: (using watcher: *File_Watcher) -> changed: bool, needs_wait: 
     if !initialized return false, false, 0;
     fresh: [..] Snapshot_Entry;
     fresh.allocator = allocator;
-
     for root: roots {
         if !scan_directory(root, watch_recursively, *fresh) {
             scan_failed = true;
@@ -66,33 +65,25 @@ process_changes :: (using watcher: *File_Watcher) -> changed: bool, needs_wait: 
             return false, false, 0;
         }
     }
-
     scan_failed = false;
-
     for entry: fresh {
         found := false;
-
         for old: snapshot {
             if old.path != entry.path continue;
             found = true;
             if old.size != entry.size || old.modtime != entry.modtime add_change(watcher, entry.path, .MODIFIED);
             break;
         }
-
         if !found add_change(watcher, entry.path, .ADDED);
     }
-
     for old: snapshot {
         found := false;
-
         for entry: fresh if old.path == entry.path {
             found = true;
             break;
         }
-
         if !found add_change(watcher, old.path, .REMOVED);
     }
-
     release_snapshot(*snapshot, allocator);
     snapshot = fresh;
     return emit_changes(watcher);
@@ -104,27 +95,22 @@ emit_changes :: (using watcher: *$T/File_Watcher) -> changed: bool, needs_wait: 
     wait: float64 = 0;
     pending := false;
     index: int;
-
     while index < changes.count {
         age := now - changes[index].time_of_last_change;
         remaining := cast(float64) merge_window_seconds - age;
-
         if remaining > 0 {
             if !pending || remaining < wait wait = remaining;
             pending = true;
             index += 1;
             continue;
         }
-
         change := changes[index];
-
         changes[index] = changes[changes.count - 1];
         changes.count -= 1;
         callback(watcher, *change, user_data);
         free(change.full_path, allocator);
         emitted = true;
     }
-
     return emitted, pending, wait;
 }
 
@@ -135,27 +121,22 @@ add_change :: (watcher: *File_Watcher, full_path: string, events: File_Change_Ev
     if interesting == 0 return;
 
     entry: *File_Change;
-
     for *watcher.changes if it.full_path == full_path {
         entry = it;
         break;
     }
-
     if !entry {
         entry = array_add(*watcher.changes);
         entry.full_path = owned_path(full_path, watcher.allocator);
     }
-
     entry.events |= interesting;
     entry.time_of_last_change = seconds_since_init();
 }
 
 init :: (watcher: *$T/File_Watcher, callback: T.File_Watcher_Callback, user_data: *T.User_Data = null, events_to_watch: File_Change_Event = .ALL_EVENTS, merge_window_seconds: float = 0.1, watch_recursively := true, verbose := false, event_buffer_size: s32 = DEFAULT_BUFFER_SIZE) -> success: bool {
     if !watcher || !callback || watcher.initialized || event_buffer_size <= 0 || merge_window_seconds < 0 return false;
-
     // Every list the watcher grows later lives in the allocator that was current at init.
     owner := context.allocator;
-
     watcher.allocator = owner;
     watcher.changes.allocator, watcher.snapshot.allocator, watcher.roots.allocator = owner, owner, owner;
 
@@ -172,17 +153,14 @@ init :: (watcher: *$T/File_Watcher, callback: T.File_Watcher_Callback, user_data
 
 add_directories :: (using watcher: *$T/File_Watcher, dir_paths: ..string) -> bool {
     if !initialized return false;
-
     for path: dir_paths {
         absolute, success := Watch_File.get_absolute_path(path);
         if !success return false;
         seen := false;
-
         for root: roots if root == absolute {
             seen = true;
             break;
         }
-
         if seen continue;
         entries: [..] Snapshot_Entry;
         entries.allocator = allocator;
@@ -190,12 +168,10 @@ add_directories :: (using watcher: *$T/File_Watcher, dir_paths: ..string) -> boo
             release_snapshot(*entries, allocator);
             return false;
         }
-
         array_add(*roots, owned_path(absolute, allocator));
         for entry: entries array_add(*snapshot, entry);
         array_free(entries);
     }
-
     return true;
 }
 
@@ -246,14 +222,10 @@ scan_directory :: (path: string, recursive: bool, entries: *[..] Snapshot_Entry)
             state.failed = true;
             return;
         }
-
         entry: Snapshot_Entry = .{ owned_path(info.full_name, state.allocator), modtime, size };
-
         array_add(state.entries, entry);
     }
-
     ok := Files.visit_files(path, recursive, *state, visitor, true, true, true, false);
-
     return ok && !state.failed;
 }
 

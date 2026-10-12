@@ -38,12 +38,10 @@ initialize_opengl_renderer :: (procs: *GL.GL_Procedures) -> bool {
 
 shutdown_opengl_renderer :: () {
     if !gl_api return;
-
     for shader: gl_built_in_shaders() {
         if shader.gl_handle gl_api.glDeleteProgram(shader.gl_handle);
         shader.gl_handle = 0;
     }
-
     if gl_vertex_buffer gl_api.glDeleteBuffers(1, *gl_vertex_buffer);
     if gl_vertex_array gl_api.glDeleteVertexArrays(1, *gl_vertex_array);
     if gl_main_framebuffer gl_api.glDeleteFramebuffers(1, *gl_main_framebuffer);
@@ -64,21 +62,18 @@ gl_init_resources :: () -> bool {
     if !gl_vertex_array || !gl_vertex_buffer return false;
     shaders := gl_built_in_shaders();
     bodies := string.[SHADER_COLOR, SHADER_COLOR, SHADER_TEXT, SHADER_SPRITE_RIGHT_HANDED, SHADER_SPRITE_LEFT_HANDED, SHADER_ROUNDED_RECT, SHADER_GRADIENT];
-
     // The two color shaders differ only in blending, so they share one program.
     for shader, i: shaders {
         if i == 1 {
             shader.gl_handle = shaders[0].gl_handle;
             continue;
         }
-
         shader.gl_handle = gl_build_program(bodies[i]);
         if !shader.gl_handle {
             shutdown_opengl_renderer();
             return false;
         }
     }
-
     shaders_set_defaults();
     return true;
 }
@@ -98,7 +93,6 @@ gl_backend_init :: (info: *Window_Info) {
     } else if the_gl_context {
         gl_attach_window(info);
     }
-
     context.simp.current_window_info = info.*;
 }
 
@@ -111,7 +105,6 @@ gl_backend_init :: (info: *Window_Info) {
         gl_mac_attach_view(info.window);
         GL.gl_load(*GL.gl);
         gl_api = *GL.gl;
-
         if !gl_init_resources() {
             gl_api = null;
         }
@@ -119,21 +112,17 @@ gl_backend_init :: (info: *Window_Info) {
 
     gl_mac_attach_view :: (window: Window_Type) {
         view := AppKit.NSWindow.contentView(window);
-
         assert(view != null, "A Simp window needs a content view with OpenGL support (as made by Window_Creation)");
         if !view return;
         AppKit.NSView.setWantsBestResolutionOpenGLSurface(view, ObjC.YES);
-
         // An NSOpenGLView owns a context of its own; replace it with ours so only one is attached.
         view_class := ObjC.object_getClass(cast(ObjC.id) view);
         setter := ObjC.sel_registerName(cast(*u8) "setOpenGLContext:\0");
-
         if ObjC.class_respondsToSelector(view_class, setter) != 0 {
             set_context: (receiver: *void, selector: ObjC.SEL, value: *AppKit.NSOpenGLContext) #c_call;
             set_context = cast(type_of(set_context)) ObjC.objc_msgSend;
             set_context(cast(*void) view, ObjC.sel_registerName(cast(*u8) "setOpenGLContext:\0"), the_gl_context);
         }
-
         AppKit.NSOpenGLContext.setView(the_gl_context, view);
         AppKit.NSOpenGLContext.update(the_gl_context);
         AppKit.NSOpenGLContext.makeCurrentContext(the_gl_context);
@@ -149,13 +138,11 @@ gl_backend_init :: (info: *Window_Info) {
         the_gl_context = created;
         the_gl_fbc = configuration;
         info.msaa = chosen_msaa;
-
         // The context is made current on a GLX wrapper window, before any glGen*.
         info.specific.glx_window = X11.glXCreateWindow(X11.x_global_display, the_gl_fbc, info.window, null);
         X11.glXMakeCurrent(X11.x_global_display, info.specific.glx_window, the_gl_context);
         GL.gl_load(*GL.gl);
         gl_api = *GL.gl;
-
         if !gl_init_resources() {
             gl_api = null;
         }
@@ -175,7 +162,6 @@ gl_backend_init :: (info: *Window_Info) {
         info.specific.hdc = device;
         GL.gl_load(*GL.gl);
         gl_api = *GL.gl;
-
         if !gl_init_resources() {
             gl_api = null;
         }
@@ -186,7 +172,6 @@ gl_backend_init :: (info: *Window_Info) {
         device := Win.GetDC(info.window);
         descriptor: Win.PIXELFORMATDESCRIPTOR;
         format := Win.GetPixelFormat(the_hdc_for_pixel_format_cloning);
-
         assert(Win.DescribePixelFormat(the_hdc_for_pixel_format_cloning, format, size_of(Win.PIXELFORMATDESCRIPTOR), *descriptor) != 0);
         Win.SetPixelFormat(device, format, *descriptor);
         info.specific.hdc = device;
@@ -206,21 +191,17 @@ gl_make_window_current :: (info: *Window_Info) {
         assert(opengl_make_window_current(info.window), "Could not make the window's graphics context current");
         return;
     }
-
     if !the_gl_context return;
-
     #if OS == .WINDOWS {
         success := Win.wglMakeCurrent(info.specific.hdc, the_gl_context);
         assert(success != 0, "wglMakeCurrent failed");
     } else #if OS == .LINUX {
         X11.XLockDisplay(X11.x_global_display);
         success := X11.glXMakeCurrent(X11.x_global_display, info.specific.glx_window, the_gl_context);
-
         X11.XUnlockDisplay(X11.x_global_display);
         assert(success != 0, "glXMakeCurrent failed");
     } else #if OS == .MACOS {
         view := AppKit.NSWindow.contentView(info.window);
-
         assert(view != null);
         if !view return;
         AppKit.NSOpenGLContext.setView(the_gl_context, view);
@@ -235,7 +216,6 @@ gl_set_render_target :: (info: *Window_Info) {
         backend_init(info);
         info.backend_initted_for_this_window = true;
     }
-
     if !gl_api return;
     gl_api.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0);
     gl_api.glViewport(0, 0, cast(u32) info.window_width, cast(u32) info.window_height);
@@ -257,10 +237,8 @@ gl_flush :: () {
 
 gl_resize_render_target :: (info: Window_Info) {
     if !gl_api return;
-
     if context.simp.current_window_info.window == info.window && !context.simp.texture_render_target {
         gl_api.glViewport(0, 0, cast(u32) info.window_width, cast(u32) info.window_height);
-
         #if OS == .MACOS {
             if the_gl_context AppKit.NSOpenGLContext.update(the_gl_context);
         }
@@ -273,17 +251,14 @@ gl_swap_buffers :: (window: Window_Type, vsync: bool) {
         log_error("Simp: Attempt to swap_buffers on a window that was never used as a render target!\n");
         return;
     }
-
     assert(the_gl_context != null, "Install Simp.window_present_sink to present windows of a host-managed OpenGL context");
     if !the_gl_context return;
     wanted_interval: s32 = ifx vsync then 1 else 0;
-
     #if OS == .WINDOWS {
         if gl_swap_interval != wanted_interval && gl_api.wglSwapIntervalEXT {
             gl_api.wglSwapIntervalEXT(wanted_interval);
             gl_swap_interval = wanted_interval;
         }
-
         Win.SwapBuffers(info.specific.hdc);
     } else #if OS == .LINUX {
         if gl_swap_interval != wanted_interval {
@@ -291,7 +266,6 @@ gl_swap_buffers :: (window: Window_Type, vsync: bool) {
             else if gl_api.glXSwapIntervalMESA gl_api.glXSwapIntervalMESA(wanted_interval);
             gl_swap_interval = wanted_interval;
         }
-
         X11.glXSwapBuffers(X11.x_global_display, info.specific.glx_window);
     } else #if OS == .MACOS {
         // Buffer swapping belongs to the context, whose drawable is one window at a time.
@@ -301,13 +275,11 @@ gl_swap_buffers :: (window: Window_Type, vsync: bool) {
             AppKit.NSOpenGLContext.setView(the_gl_context, view);
             AppKit.NSOpenGLContext.makeCurrentContext(the_gl_context);
         }
-
         if gl_swap_interval != wanted_interval {
             value: s32 = wanted_interval;
             AppKit.NSOpenGLContext.setValues(the_gl_context, *value, .NSOpenGLContextParameterSwapInterval);
             gl_swap_interval = wanted_interval;
         }
-
         AppKit.NSOpenGLContext.flushBuffer(the_gl_context);
     } else {
         assert(false, "Install Simp.window_present_sink to present windows on this platform");
@@ -329,7 +301,6 @@ gl_use_shader :: (shader: *Shader) {
     assert(gl_api != null && shader != null && shader.gl_handle != 0, "Shader has no native program");
     if !gl_api || !shader || !shader.gl_handle return;
     gl_api.glUseProgram(shader.gl_handle);
-
     if shader.alpha_blend {
         gl_api.glEnable(GL.GL_BLEND);
         gl_api.glBlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE_MINUS_SRC_ALPHA);
@@ -339,7 +310,6 @@ gl_use_shader :: (shader: *Shader) {
 gl_find_shader_locations :: (s: *Shader) {
     if !gl_api || !s.gl_handle return;
     p := s.gl_handle;
-
     s.position_loc = gl_attribute(p, "vert_position");
     s.color_scale_loc = gl_attribute(p, "vert_color");
     s.normal_loc = gl_attribute(p, "vert_normal");
@@ -369,22 +339,18 @@ backend_set_texture :: (shader: *Shader, texture: *Texture) {
 
 gl_apply_scissor :: () {
     if !gl_api || !context.simp return;
-
     if !context.simp.specific.scissor_enabled {
         gl_api.glDisable(GL.GL_SCISSOR_TEST);
         return;
     }
-
     rect := context.simp.specific.scissor;
     target := context.simp.texture_render_target;
     height := ifx target then target.height else context.simp.current_window_info.window_height;
-
     // Window rows count up from the bottom; a texture is stored top row first, so for
     // textures the right-handed system is the one that has to be mirrored.
     left_handed := context.simp.coordinate_system == .LEFT_HANDED;
     mirror := ifx target then !left_handed else left_handed;
     y := rect.y;
-
     if mirror y = cast(float) height - rect.w;
     gl_api.glEnable(GL.GL_SCISSOR_TEST);
     gl_api.glScissor(cast(s32) rect.x, cast(s32) y, cast(u32) max(rect.z - rect.x, 0.0), cast(u32) max(rect.w - rect.y, 0.0));
@@ -397,16 +363,13 @@ gl_vertex_format :: (shader: *Shader) {
     stride := size_of(Immediate_Vertex);
     locations := GLint.[shader.position_loc, shader.color_scale_loc, shader.uv_0_loc, shader.rect_center_loc, shader.rect_size_loc, shader.rect_corner_radius_loc, shader.rect_edge_softness_loc];
     floats := s32.[2, 4, 2, 2, 2, 1, 1];
-
     // The members are all floats, so each starts where the previous one ends.
     offset: s64 = 0;
-
     for location, i: locations {
         if location >= 0 {
             gl_api.glEnableVertexAttribArray(cast(u32) location);
             gl_api.glVertexAttribPointer(cast(u32) location, floats[i], GL.GL_FLOAT, false, cast(u32) stride, cast(*void) offset);
         }
-
         offset += floats[i] * size_of(float);
     }
 }
@@ -464,7 +427,6 @@ gl_texture_format :: (format: Texture_Format, srgb := false) -> u32, u32, u32 {
     if format == .D32F return GL.GL_DEPTH_COMPONENT32F, GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT;
     if format == .D32FS8 return GL.GL_DEPTH32F_STENCIL8, GL.GL_DEPTH_STENCIL, GL.GL_FLOAT_32_UNSIGNED_INT_24_8_REV;
     internal := gl_compressed_format(format, srgb);
-
     return internal, 0, 0;
 }
 
@@ -484,63 +446,51 @@ gl_upload_texture :: (texture: *Texture, bitmap: *Bitmap) -> bool {
     if !gl_api return false;
     srgb := (bitmap.flags & .IS_SRGB) != 0;
     internal, external, type := gl_texture_format(bitmap.format, srgb);
-
     if !internal return false;
     compressed := external == 0;
     created := texture.gl_handle == 0;
-
     if created gl_api.glGenTextures(1, *texture.gl_handle);
     if !texture.gl_handle return false;
     gl_api.glActiveTexture(GL.GL_TEXTURE0);
     gl_api.glBindTexture(GL.GL_TEXTURE_2D, texture.gl_handle);
-
     if created {
         // With wrapping, bilinear filtering would pull texels from the opposite edge into the border.
         gl_api.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, cast(s32) GL.GL_CLAMP_TO_EDGE);
         gl_api.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, cast(s32) GL.GL_CLAMP_TO_EDGE);
         magnify := ifx texture.nearest then GL.GL_NEAREST else GL.GL_LINEAR;
         minify := magnify;
-
         if bitmap.mipmap_count > 1 minify = ifx texture.nearest then GL.GL_NEAREST_MIPMAP_NEAREST else GL.GL_LINEAR_MIPMAP_LINEAR;
         gl_api.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, cast(s32) magnify);
         gl_api.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, cast(s32) minify);
     }
-
     gl_api.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAX_LEVEL, bitmap.mipmap_count - 1);
     gl_api.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1);
     bpp := get_image_bytes_per_texel(bitmap.format);
     w := bitmap.width;
     h := bitmap.height;
     offset: int;
-
     for level: 0..bitmap.mipmap_count - 1 {
         bytes, row := get_image_size(bitmap.format, w, h);
-
         if level == 0 {
             row = bitmap.stride;
             bytes = row * h;
             if compressed bytes = get_image_size(bitmap.format, w, h);
         }
-
         if offset + bytes > bitmap.data.count {
             gl_api.glPixelStorei(GL.GL_UNPACK_ROW_LENGTH, 0);
             return false;
         }
-
         pixels := bitmap.data.data + offset;
-
         if compressed {
             gl_api.glCompressedTexImage2D(GL.GL_TEXTURE_2D, cast(s32) level, internal, cast(u32) w, cast(u32) h, 0, cast(u32) bytes, pixels);
         } else {
             gl_api.glPixelStorei(GL.GL_UNPACK_ROW_LENGTH, cast(s32) (row / bpp));
             gl_api.glTexImage2D(GL.GL_TEXTURE_2D, cast(s32) level, cast(s32) internal, cast(u32) w, cast(u32) h, 0, external, type, pixels);
         }
-
         offset += bytes;
         w = max(w / 2, 1);
         h = max(h / 2, 1);
     }
-
     gl_api.glPixelStorei(GL.GL_UNPACK_ROW_LENGTH, 0);
     return gl_api.glGetError() == GL.GL_NO_ERROR;
 }
@@ -557,7 +507,6 @@ gl_create_render_target :: (texture: *Texture) -> bool {
     if !internal || !external return false;
     previous_texture: s32;
     previous_framebuffer: s32;
-
     gl_api.glActiveTexture(GL.GL_TEXTURE0);
     gl_api.glGetIntegerv(GL.GL_TEXTURE_BINDING_2D, *previous_texture);
     gl_api.glGetIntegerv(GL.GL_FRAMEBUFFER_BINDING, *previous_framebuffer);
@@ -573,7 +522,6 @@ gl_create_render_target :: (texture: *Texture) -> bool {
     gl_api.glBindFramebuffer(GL.GL_FRAMEBUFFER, texture.framebuffer);
     gl_api.glFramebufferTexture2D(GL.GL_FRAMEBUFFER, GL.GL_COLOR_ATTACHMENT0, GL.GL_TEXTURE_2D, texture.gl_handle, 0);
     success := gl_api.glCheckFramebufferStatus(GL.GL_FRAMEBUFFER) == GL.GL_FRAMEBUFFER_COMPLETE;
-
     gl_api.glBindFramebuffer(GL.GL_FRAMEBUFFER, cast(u32) previous_framebuffer);
     gl_api.glBindTexture(GL.GL_TEXTURE_2D, cast(u32) previous_texture);
     if !success gl_delete_texture(texture);
@@ -582,12 +530,10 @@ gl_create_render_target :: (texture: *Texture) -> bool {
 
 gl_delete_texture :: (texture: *Texture) {
     if !gl_api return;
-
     if texture.framebuffer {
         gl_api.glDeleteFramebuffers(1, *texture.framebuffer);
         texture.framebuffer = 0;
     }
-
     if texture.gl_handle {
         gl_api.glDeleteTextures(1, *texture.gl_handle);
         texture.gl_handle = 0;
@@ -605,7 +551,6 @@ gl_compile :: (kind: u32, prefix: string, body: string) -> u32 {
     if !shader return 0;
     sources: [2] *u8;
     lengths: [2] s32;
-
     sources[0] = prefix.data;
     lengths[0] = cast(s32) prefix.count;
     sources[1] = body.data;
@@ -613,18 +558,14 @@ gl_compile :: (kind: u32, prefix: string, body: string) -> u32 {
     gl_api.glShaderSource(shader, 2, sources.data, lengths.data);
     gl_api.glCompileShader(shader);
     status: s32;
-
     gl_api.glGetShaderiv(shader, GL.GL_COMPILE_STATUS, *status);
-
     if !status {
         log_data: [LOG_BUFFER_SIZE] u8;
-
         gl_api.glGetShaderInfoLog(shader, log_data.count, null, log_data.data);
         log_error("Simp shader failed to compile: %\n", to_string(log_data.data));
         gl_api.glDeleteShader(shader);
         return 0;
     }
-
     return shader;
 }
 
@@ -641,18 +582,14 @@ gl_build_program :: (body: string) -> u32 {
     gl_api.glAttachShader(program, pixel);
     gl_api.glLinkProgram(program);
     linked: s32;
-
     gl_api.glGetProgramiv(program, GL.GL_LINK_STATUS, *linked);
-
     if !linked {
         log_data: [LOG_BUFFER_SIZE] u8;
-
         gl_api.glGetProgramInfoLog(program, log_data.count, null, log_data.data);
         log_error("Simp shader failed to link: %\n", to_string(log_data.data));
         gl_api.glDeleteProgram(program);
         return 0;
     }
-
     return program;
 }
 

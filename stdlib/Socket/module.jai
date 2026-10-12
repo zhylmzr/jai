@@ -12,7 +12,6 @@ bind :: (s: Socket, address: string, port: u16, family: type_of(sockaddr_in.sin_
     terminated := to_c_string(address);
     if terminated == null return -1;
     defer free(terminated);
-
     if family == AF_INET {
         endpoint: sockaddr_in;
         endpoint.sin_family = family;
@@ -21,7 +20,6 @@ bind :: (s: Socket, address: string, port: u16, family: type_of(sockaddr_in.sin_
         if inet_pton(AF_INET, terminated, *endpoint.sin_addr) != 1 return -1;
         return bind(s, cast(*sockaddr) *endpoint, size_of(sockaddr_in));
     }
-
     if family == AF_INET6 {
         endpoint: sockaddr_in6;
         endpoint.sin6_family = family;
@@ -30,7 +28,6 @@ bind :: (s: Socket, address: string, port: u16, family: type_of(sockaddr_in.sin_
         if inet_pton(AF_INET6, terminated, *endpoint.sin6_addr) != 1 return -1;
         return bind(s, cast(*sockaddr) *endpoint, size_of(sockaddr_in6));
     }
-
     return -1;
 }
 
@@ -38,13 +35,11 @@ bind :: (s: Socket, address: u32, port: u16) -> s32 {
     endpoint: sockaddr_in;
     endpoint.sin_family = AF_INET;
     endpoint.sin_port = htons(port);
-
     #if OS == .WINDOWS {
         endpoint.sin_addr.S_un.S_addr = address;
     } else {
         endpoint.sin_addr.s_addr = address;
     }
-
     #if OS == .MACOS || OS == .IOS endpoint.sin_len = cast(u8) size_of(sockaddr_in);
     return bind(s, cast(*sockaddr) *endpoint, size_of(sockaddr_in));
 }
@@ -62,7 +57,6 @@ accept_v6 :: (s: Socket) -> Socket, sockaddr_in6 {
     address: sockaddr_in6;
     length := cast(type_of_socket_length) size_of(sockaddr_in6);
     accepted := accept(s, cast(*sockaddr) *address, *length);
-
     return accepted, address;
 }
 
@@ -70,15 +64,12 @@ accept :: (s: Socket) -> Socket, sockaddr_in {
     address: sockaddr_in;
     length := cast(type_of_socket_length) size_of(sockaddr_in);
     accepted := accept(s, cast(*sockaddr) *address, *length);
-
     return accepted, address;
 }
 
 append_address :: (builder: *String_Builder, address: u32) {
     bytes: [4] u8;
-
     memcpy(*bytes, *address, 4);
-
     for byte, i: bytes {
         if i != 0 append(builder, ".");
         append_decimal(builder, byte);
@@ -91,23 +82,18 @@ append_address :: (builder: *String_Builder, address: [16] u8) {
     longest_start: s64 = -1;
     longest_count: s64 = 1;
     i: s64 = 0;
-
     while i < 8 {
         if words[i] != 0 {
             i += 1;
             continue;
         }
-
         begin := i;
-
         while i < 8 && words[i] == 0 i += 1;
-
         if i - begin > longest_count {
             longest_start = begin;
             longest_count = i - begin;
         }
     }
-
     i = 0;
     while i < 8 {
         if i == longest_start {
@@ -128,7 +114,6 @@ ipv4_bits :: (addr: sockaddr_in) -> u32 {
 
 to_string :: (addr: sockaddr_in) -> string {
     text: String_Builder;
-
     append_address(*text, ipv4_bits(addr));
     print_to_builder(*text, ":%", ntohs(addr.sin_port));
     return builder_to_string(*text);
@@ -136,10 +121,8 @@ to_string :: (addr: sockaddr_in) -> string {
 
 to_string :: (addr: sockaddr_in6) -> string {
     bytes: [16] u8;
-
     memcpy(*bytes, *addr.sin6_addr, 16);
     builder: String_Builder;
-
     append(*builder, "[");
     append_address(*builder, bytes);
     append(*builder, "]:");
@@ -154,7 +137,6 @@ set_keepalive :: (s: Socket, keepalive: bool, idle_seconds_before_keepalive: s32
     if keepalive enabled = 1;
     if setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, cast(*u8) *enabled, 4) != 0 return false;
     if !keepalive return true;
-
     #if OS == .WINDOWS {
         if idle_seconds_before_keepalive != 0 {
             if setsockopt(s, cast(s32) IPPROTO.TCP, TCP_KEEPIDLE, cast(*u8) *idle_seconds_before_keepalive, 4) != 0 return false;
@@ -165,25 +147,21 @@ set_keepalive :: (s: Socket, keepalive: bool, idle_seconds_before_keepalive: s32
     } else {
         #if OS == .MACOS || OS == .IOS idle_option :: TCP_KEEPALIVE;
         else idle_option :: 4;
-
         if idle_seconds_before_keepalive != 0 {
             if setsockopt(s, cast(s32) IPPROTO.TCP, idle_option, *idle_seconds_before_keepalive, 4) != 0 return false;
         }
-
         if keepalive_interval_seconds != 0 {
             #if OS == .MACOS || OS == .IOS interval_option :: 0x101;
             else interval_option :: 5;
             if setsockopt(s, cast(s32) IPPROTO.TCP, interval_option, *keepalive_interval_seconds, 4) != 0 return false;
         }
     }
-
     if num_keepalive_attempts != 0 {
         #if OS == .MACOS || OS == .IOS count_option :: 0x102;
         else #if OS == .WINDOWS count_option :: 16;
         else count_option :: 6;
         if setsockopt(s, cast(s32) IPPROTO.TCP, count_option, cast(*u8) *num_keepalive_attempts, 4) != 0 return false;
     }
-
     return true;
 }
 
@@ -217,7 +195,6 @@ socket_init :: () -> bool {
     htons :: (hostshort: u16) -> u16 {
         bytes: [2] u8 = .[cast,trunc(u8) (hostshort >> 8), cast,trunc(u8) hostshort];
         result: u16;
-
         memcpy(*result, *bytes, 2);
         return result;
     }
@@ -225,7 +202,6 @@ socket_init :: () -> bool {
     htonl :: (hostlong: u32) -> u32 {
         bytes: [4] u8 = .[cast,trunc(u8) (hostlong >> 24), cast,trunc(u8) (hostlong >> 16), cast,trunc(u8) (hostlong >> 8), cast,trunc(u8) hostlong];
         result: u32;
-
         memcpy(*result, *bytes, 4);
         return result;
     }
@@ -438,14 +414,12 @@ append_decimal :: (builder: *String_Builder, value: u32) {
     digits: [10] u8;
     count: s64 = 0;
     remaining := value;
-
     while true {
         digits[count] = cast(u8) (48 + remaining % 10);
         count += 1;
         remaining /= 10;
         if remaining == 0 break;
     }
-
     while count > 0 {
         count -= 1;
         append(builder, digits[count]);
@@ -455,9 +429,7 @@ append_decimal :: (builder: *String_Builder, value: u32) {
 append_hex :: (builder: *String_Builder, value: u16) {
     digits :: "0123456789abcdef";
     shift: s64 = 12;
-
     while shift > 0 && (value >> shift) == 0 shift -= 4;
-
     while shift >= 0 {
         append(builder, digits[(value >> shift) & 15]);
         shift -= 4;

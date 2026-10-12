@@ -62,30 +62,24 @@ get_waveformatex_header :: (file_data: string) -> (format: Waveformatex, samples
     format: Waveformatex;
     samples: string;
     extra: Wave_Extra_Info;
-
     if file_data.count < 12 return format, samples, false, extra;
     if !wav_id(file_data, 0, "RIFF") || !wav_id(file_data, 8, "WAVE") return format, samples, false, extra;
 
     declared := cast(s64) wav_u32(file_data.data + 4) + 8;
     if declared < 12 return format, samples, false, extra;
     limit := file_data.count;
-
     // Accommodate a RIFF length which includes a missing final file tail.
     if declared < limit limit = declared;
     pos: s64 = 12;
     have_format := false;
     have_data := false;
-
     while pos <= limit - 8 {
         length := cast(s64) wav_u32(file_data.data + pos + 4);
         body := pos + 8;
-
         if length > limit - body return format, samples, false, extra;
-
         if wav_id(file_data, pos, "fmt ") {
             if length < 16 return format, samples, false, extra;
             p := file_data.data + body;
-
             format.wFormatTag = cast,no_check(s16) wav_u16(p);
             format.nChannels = cast,no_check(s16) wav_u16(p + 2);
             format.nSamplesPerSec = cast,no_check(s32) wav_u32(p + 4);
@@ -94,7 +88,6 @@ get_waveformatex_header :: (file_data: string) -> (format: Waveformatex, samples
             format.wBitsPerSample = cast,no_check(s16) wav_u16(p + 14);
             if length >= 18 format.cbSize = cast,no_check(s16) wav_u16(p + 16);
             if format.nChannels <= 0 || format.nSamplesPerSec <= 0 || format.nBlockAlign <= 0 return format, samples, false, extra;
-
             if format.wFormatTag == WAVE_FORMAT_DVI_ADPCM {
                 if length < 20 || format.cbSize < 2 return format, samples, false, extra;
                 extra.wSamplesPerBlock = cast(s32) wav_u16(p + 18);
@@ -102,7 +95,6 @@ get_waveformatex_header :: (file_data: string) -> (format: Waveformatex, samples
             } else if format.wFormatTag != WAVE_FORMAT_PCM {
                 return format, samples, false, extra;
             }
-
             have_format = true;
         } else if wav_id(file_data, pos, "data") {
             if !have_data {
@@ -114,15 +106,12 @@ get_waveformatex_header :: (file_data: string) -> (format: Waveformatex, samples
             if length < 4 return format, samples, false, extra;
             extra.wSamplesAccordingToFactChunk = cast,no_check(s32) wav_u32(file_data.data + body);
         }
-
         pos = body + length;
-
         if (length & 1) != 0 {
             if pos == limit break;
             pos += 1;
         }
     }
-
     return format, samples, have_format && have_data, extra;
 }
 

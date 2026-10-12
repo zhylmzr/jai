@@ -38,7 +38,6 @@ on_compiler_message :: (plugin: *Metaprogram_Plugin, message: *Message) {
         state.statistics = cast(*Message_Performance_Report) message;
         return;
     }
-
     if message.kind != .COMPLETE return;
 
     if state.statistics == null {
@@ -47,13 +46,11 @@ on_compiler_message :: (plugin: *Metaprogram_Plugin, message: *Message) {
     }
 
     out: String_Builder;
-
     write_timings(*out, state.statistics);
     write_bytecode(*out, state.statistics);
     write_runs(*out, state.statistics);
     write_polymorphs(*out, state.statistics);
     text := builder_to_string(*out);
-
     write_string(text);
     free(text);
 }
@@ -70,7 +67,6 @@ row :: (out: *String_Builder, label: string, value: Any) {
         append(out, " ");
         padding -= 1;
     }
-
     print_to_builder(out, "%\n", value);
 }
 
@@ -83,7 +79,6 @@ write_timings :: (out: *String_Builder, stats: *Message_Performance_Report) {
 
 write_bytecode :: (out: *String_Builder, stats: *Message_Performance_Report) {
     counts := stats.bytecode_report;
-
     heading(out, "Bytecode");
     row(out, "calls", counts.num_calls_total);
     row(out, "calls inlined", counts.num_calls_inlined);
@@ -106,7 +101,6 @@ busiest_first :: (a: Polymorph_Record, b: Polymorph_Record) -> s64 {
 
 write_runs :: (out: *String_Builder, stats: *Message_Performance_Report) {
     heading(out, "#run directives");
-
     if !stats.run_directive_report.reported {
         append(out, "  (not collected)\n");
         return;
@@ -114,7 +108,6 @@ write_runs :: (out: *String_Builder, stats: *Message_Performance_Report) {
 
     // Sort copies: the records belong to the compiler.
     ordered: [..] Run_Record;
-
     defer array_free(ordered);
     array_add(*ordered, ..stats.run_directive_report.records);
     quick_sort(ordered, slowest_first);
@@ -126,38 +119,31 @@ write_runs :: (out: *String_Builder, stats: *Message_Performance_Report) {
 
 write_polymorphs :: (out: *String_Builder, stats: *Message_Performance_Report) {
     report := *stats.polymorph_report;
-
     heading(out, "Polymorphs");
     row(out, "solves invoked", report.num_solves_invoked);
     row(out, "solves used", report.num_solves_used);
-
     if !report.reported {
         append(out, "  (per-procedure detail not collected)\n");
         return;
     }
 
     ordered: [..] Polymorph_Record;
-
     defer array_free(ordered);
     array_add(*ordered, ..report.records);
     quick_sort(ordered, busiest_first);
 
     instantiations, by_constants, by_bytecode: s64;
-
     for record: ordered {
         name := ifx record.source then record.source.name else "?";
-
         print_to_builder(out, "\n  % at %\n", name, source_position(record.source));
         print_to_builder(out, "    call sites: %; deduplicated: % by constants, % by bytecode\n",
                          record.num_call_sites, record.num_deduplications_by_constants, record.num_deduplications_by_bytecode);
         print_to_builder(out, "    distinct instantiations: %\n", record.distinct_polymorphs.count);
-
         for record.distinct_polymorphs {
             append(out, "      (");
             write_constants(out, it.polymorphed);
             print_to_builder(out, ") from %:%\n", it.location.fully_pathed_filename, it.location.line_number);
         }
-
         instantiations += record.distinct_polymorphs.count;
         by_constants += record.num_deduplications_by_constants;
         by_bytecode += record.num_deduplications_by_bytecode;
@@ -179,11 +165,9 @@ source_position :: (node: *Code_Node) -> string {
 write_constants :: (out: *String_Builder, header: *Code_Procedure_Header) {
     if !header || !header.constants_block return;
     separator := "";
-
     for entry: header.constants_block.members {
         if entry.kind != .DECLARATION continue;
         declaration := cast(*Code_Declaration) entry;
-
         print_to_builder(out, "%1%2=", separator, declaration.name);
         separator = ", ";
         if !Program_Print.print_expression(out, declaration.expression) append(out, "?");

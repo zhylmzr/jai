@@ -8,7 +8,6 @@ os_utf8_to_wide :: (text: string) -> *u16 {
         if empty empty.* = 0;
         return empty;
     }
-
     source, success, bytes := Encoding_Utf8.utf8_to_wide(text);
     if !success return null;
     defer free(source);
@@ -22,7 +21,6 @@ os_wide_to_utf8 :: (data: *u16, length: s32 = -1, temporary := true) -> string {
     if !success return "";
     if !temporary return source;
     result := copy_temporary_string(source);
-
     free(source);
     return result;
 }

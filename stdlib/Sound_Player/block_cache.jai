@@ -57,7 +57,6 @@ open_vorbis_cache :: (data: *Sound_Data) -> *Block_Cache {
         stb_vorbis_close(handle);
         return null;
     }
-
     cache := New(Block_Cache);
     cache.codec = .VORBIS;
     cache.sound = data;
@@ -98,7 +97,6 @@ keep_blocks_near_cursor :: (stream: *Sound_Stream) {
     reach := cast(s64) (max(SECONDS_KEPT_DECODED, player.config.seconds_to_fill_ahead) * cache.rate) + 1;
     loop_start, loop_end := loop_region(stream);
     cursor := cast(s64) stream.play_cursor;
-
     if cursor < 0 cursor = loop_start; // In the pause before a repeat.
 
     want_frames(cache, cursor, cursor + reach);
@@ -112,7 +110,6 @@ keep_blocks_near_cursor :: (stream: *Sound_Stream) {
             index += 1;
             continue;
         }
-
         if cache.last_hit == block cache.last_hit = null;
         drop_block(block);
         array_unordered_remove_by_index(*cache.blocks, index);
@@ -123,31 +120,25 @@ keep_blocks_near_cursor :: (stream: *Sound_Stream) {
 block_holding :: (cache: *Block_Cache, frame: s64) -> *Decoded_Block {
     hit := cache.last_hit;
     if hit && frame >= hit.first && frame < hit.first + hit.frames return hit;
-
     for cache.blocks {
         if it.ready && frame >= it.first && frame < it.first + it.frames {
             cache.last_hit = it;
             return it;
         }
     }
-
     return null;
 }
 
 // Worker side: decodes the oldest queued block. Returns false when the queue was empty.
 decode_one_queued_block :: () -> bool {
     lock(*player.lock);
-
     if !decode_queue.count {
         unlock(*player.lock);
         return false;
     }
-
     block := decode_queue[0];
-
     array_ordered_remove_by_index(*decode_queue, 0);
     abandoned := block.owner.parked_stream != null;
-
     unlock(*player.lock);
 
     if !abandoned fill_block(block);
@@ -168,12 +159,10 @@ cancel_queued_decodes :: () {
 
 open_vorbis_handle :: (data: *Sound_Data) -> *stb_vorbis {
     status: s32;
-
     if data.filename_to_stream_from.count > 0 {
         path := temp_c_string(data.filename_to_stream_from);
         return stb_vorbis_open_filename(path, *status, null);
     }
-
     if data.buffer.count == 0 || data.buffer.count > S32_MAX return null;
     return stb_vorbis_open_memory(data.buffer.data, cast(s32) data.buffer.count, *status, null);
 }
@@ -183,12 +172,10 @@ want_frames :: (cache: *Block_Cache, from: s64, to: s64) {
     first := (max(from, 0) / cache.block_frames) * cache.block_frames;
     while first < to {
         block: *Decoded_Block;
-
         for cache.blocks if it.first == first {
             block = it;
             break;
         }
-
         if !block block = request_block(cache, first);
         block.wanted = true;
         first += cache.block_frames;
@@ -211,19 +198,16 @@ request_block :: (cache: *Block_Cache, first: s64) -> *Decoded_Block {
         fill_block(block);
         block.ready = true;
     }
-
     return block;
 }
 
 // A queued block finished (or was cancelled). Frees a parked stream once its last block lands.
 land_block :: (block: *Decoded_Block) {
     cache := block.owner;
-
     block.ready = true;
     cache.in_flight -= 1;
     if cache.in_flight > 0 || !cache.parked_stream return;
     stream := cache.parked_stream;
-
     close_block_cache(cache);
     streams_waiting_on_decodes -= 1;
     give_back(stream);
@@ -236,9 +220,7 @@ drop_block :: (block: *Decoded_Block) {
 
 fill_block :: (block: *Decoded_Block) {
     cache := block.owner;
-
     block.frames = 0;
-
     if cache.codec == {
         case .VORBIS; block.frames = decode_vorbis_range(cache, block.first, block.pcm);
         case .IMA_ADPCM; block.frames = decode_adpcm_range(cache, block.first, block.pcm);
@@ -253,11 +235,9 @@ decode_vorbis_range :: (cache: *Block_Cache, first: s64, out: *s16) -> s64 {
     while got < wanted {
         values_left := (wanted - got) * cache.channels;
         count := stb_vorbis_get_samples_short_interleaved(cache.vorbis, cast(s32) cache.channels, out + got * cache.channels, cast(s32) values_left);
-
         if count <= 0 break;
         got += count;
     }
-
     return got;
 }
 
@@ -271,7 +251,6 @@ decode_adpcm_range :: (cache: *Block_Cache, first: s64, out: *s16) -> s64 {
     packet_count := (cache.length + packet_frames - 1) / packet_frames;
     payload_bytes := packet_count * packet_bytes;
     buffer_end := sound.buffer.data + sound.buffer.count;
-
     if payload >= sound.buffer.data && payload < buffer_end payload_bytes = min(payload_bytes, buffer_end - payload);
 
     info: Adpcm_Info;
@@ -282,7 +261,6 @@ decode_adpcm_range :: (cache: *Block_Cache, first: s64, out: *s16) -> s64 {
     capacity := cache.block_frames * cache.channels * size_of(s16);
     written := 0;
     packet := first / packet_frames;
-
     for 0..ADPCM_PACKETS_PER_BLOCK - 1 {
         offset := (packet + it) * packet_bytes;
         if offset + packet_bytes > payload_bytes break;
@@ -296,8 +274,6 @@ decode_adpcm_range :: (cache: *Block_Cache, first: s64, out: *s16) -> s64 {
         if produced <= 0 break;
         written += produced;
     }
-
     frames := written / (cache.channels * size_of(s16));
-
     return min(frames, max(0, cache.length - first));
 }

@@ -55,7 +55,6 @@ array_resize :: (array: *[] $T, new_count: s64, $initialize := true) {
     assert(new_count >= 0);
     old := array.*;
     replacement, base := NewArray(new_count, T, initialize);
-
     for i: 0..min(old.count, new_count) - 1 replacement[i] = old[i];
     free(old.data);
     array.* = replacement;
@@ -64,7 +63,6 @@ array_resize :: (array: *[] $T, new_count: s64, $initialize := true) {
 array_resize :: (array: *[..] $T, new_count: s64, $initialize := true) {
     assert(new_count >= 0);
     array_reserve(array, new_count);
-
     #if initialize {
         #if initializer_of(T) == null {
             if new_count > array.count memset(array.data + array.count, 0, (new_count - array.count) * size_of(T));
@@ -72,7 +70,6 @@ array_resize :: (array: *[..] $T, new_count: s64, $initialize := true) {
             for i: array.count..new_count - 1 Initialize(array.data + i);
         }
     }
-
     array.count = new_count;
 }
 
@@ -86,7 +83,6 @@ array_reserve :: (array: *Resizable_Array, desired_items: s64, element_size: s64
     if !array.allocator.proc array.allocator = context.allocator;
     next := max(desired_items, max(8, array.allocated + array.allocated / 2));
     block := alloc(next * element_size, array.allocator);
-
     assert(block != null, "array allocation failed");
     if !block return;
     if array.count > 0 memcpy(block, array.data, array.count * element_size);
@@ -107,7 +103,6 @@ init_range :: (ptr: *$T, begin: s64, end: s64) {
 array_add :: (array: *[..] $T) -> *T #must {
     array_reserve(array, array.count + 1);
     result := array.data + array.count;
-
     Initialize(result);
     array.count += 1;
     return result;
@@ -139,12 +134,10 @@ array_add_if_unique :: (array: *[..] $T, item: T) -> bool, s64 {
 array_insert_at :: (array: *[..] $T, item: T, index: int) {
     assert(index >= 0 && index <= array.count, "array_insert_at: index % is outside 0..%", index, array.count);
     array_add(array, item);
-
     // Bubble the new element from the end down to its slot.
     slot := array.count - 1;
     while slot > index {
         held := array.*[slot - 1];
-
         array.*[slot - 1] = array.*[slot];
         array.*[slot] = held;
         slot -= 1;
@@ -168,7 +161,6 @@ array_unordered_remove_by_index :: (array_pointer: *[..] $T, index: s64) {
 array_unordered_remove_by_value :: (array: *[] $T, item: T, $stop_after_first := false) -> s64 {
     removed: s64;
     i: s64;
-
     while i < array.count {
         if array.*[i] == item {
             array_unordered_remove_by_index(array, i);
@@ -176,7 +168,6 @@ array_unordered_remove_by_value :: (array: *[] $T, item: T, $stop_after_first :=
             #if stop_after_first return removed;
         } else i += 1;
     }
-
     return removed;
 }
 
@@ -197,7 +188,6 @@ array_ordered_remove_by_value :: (array_pointer: *[] $T, item: T) -> bool {
         array_ordered_remove_by_index(array_pointer, it_index);
         return true;
     }
-
     return false;
 }
 

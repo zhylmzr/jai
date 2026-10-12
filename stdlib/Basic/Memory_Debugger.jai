@@ -64,7 +64,6 @@ init :: () {
 
 deinit :: (report: *Leak_Report) {
     previous := context.inside_memory_debugger;
-
     context.inside_memory_debugger = true;
     defer context.inside_memory_debugger = previous;
     MD_Tables.deinit(*report.leak_combiner_table);
@@ -82,7 +81,6 @@ deinit_memory_debugger :: () {
         md_state.storage_allocator.proc(.FREE, 0, size_of(MD_Heap), heap, md_state.storage_allocator.data);
         heap = next;
     }
-
     md_heaps = null;
     md_deinit(*md_state);
 }
@@ -98,7 +96,6 @@ _check_create_heap :: (a: Allocator) {
     if !_md_begin(a) return;
     defer _md_end();
     heap := md_raw_new(*md_state, MD_Heap);
-
     assert(heap != null, "memory debugger heap registry allocation failed");
     if !heap return;
     heap.allocator = a;
@@ -155,7 +152,6 @@ add_allocation_this_frame :: (a: *Allocation, size: s64) {
         _md_diagnose(.UNKNOWN_MEMORY, "add_allocation_this_frame", a.pointer);
         return;
     }
-
     md_note_frame(*md_state, record, size);
     a.visualization_update_cycle = md_state.frame_cycle;
 }
@@ -169,7 +165,6 @@ add_free_this_frame :: (a: *Allocation, size: s64) {
         _md_diagnose(.UNKNOWN_MEMORY, "add_free_this_frame", a.pointer);
         return;
     }
-
     md_note_free_frame(*md_state, record, size);
     a.visualization_update_cycle = md_state.frame_cycle;
 }
@@ -178,7 +173,6 @@ this_allocation_does_not_propagate_leak_ownership :: (memory: *void) {
     if !_md_begin(.{}) return;
     defer _md_end();
     record := md_find(*md_state, memory);
-
     assert(record != null && record.allocation.is_live, "ownership annotation requires a live tracked allocation");
     if record && record.allocation.is_live record.allocation.propagates_leak_ownership = false;
 }
@@ -191,7 +185,6 @@ this_allocation_is_not_a_leak :: (memory: *void) {
     if !_md_begin(.{}) return;
     defer _md_end();
     record := md_find(*md_state, memory);
-
     assert(record != null && record.allocation.is_live, "leak annotation requires a live tracked allocation");
     if record && record.allocation.is_live record.ignored = true;
 }
@@ -205,12 +198,10 @@ allocations_before_this_call_will_not_be_considered_leaks :: () {
 _md_trace_hash :: (trace: *Packed_Stack_Trace) -> u64 {
     h: u64 = 0xcbf2_9ce4_8422_2325;
     if !trace return h;
-
     for i: 0..trace.nodes.count - 1 {
         h = (h ^ cast(u64) trace.nodes[i].info) * 0x0100_0000_01b3;
         h = (h ^ cast(u64) trace.nodes[i].line_number) * 0x0100_0000_01b3;
     }
-
     return h;
 }
 
@@ -222,15 +213,12 @@ make_leak_report :: (options: Leak_Report_Options = .{}, for_visualizer := false
     report.leak_combiner_table.allocator = md_state.storage_allocator;
     live_count: s64;
     cursor := md_state.records;
-
     while cursor {
         if cursor.allocation.is_live live_count += 1;
         cursor = cursor.next;
     }
-
     rows := cast(*MD_Report_Row) MD_Pool.get(*report.pool, live_count * size_of(MD_Report_Row));
     count: s64;
-
     cursor = md_state.records;
     while cursor {
         if cursor.allocation.is_live {
@@ -239,10 +227,8 @@ make_leak_report :: (options: Leak_Report_Options = .{}, for_visualizer := false
             rows[count].marked = !for_visualizer && !md_is_leak(*md_state, cursor);
             count += 1;
         }
-
         cursor = cursor.next;
     }
-
     if !for_visualizer && options.scan_global_memory_to_remove_leaks {
         runtime := MD_Compiler.get_runtime_info();
         if !runtime.global_data_info {
@@ -250,81 +236,66 @@ make_leak_report :: (options: Leak_Report_Options = .{}, for_visualizer := false
             Runtime_Support.debug_break();
             return report;
         }
-
         for *segment: runtime.global_data_info.segment_info _md_mark_referenced(rows, count, segment.data.data, segment.data.count);
     }
-
     // Propagate reachability from explicitly ignored allocations and globals.
     changed := true;
     while changed {
         changed = false;
-
         for i: 0..count - 1 {
             if !rows[i].marked || !rows[i].record.allocation.propagates_leak_ownership continue;
             allocation := *rows[i].record.allocation;
             if _md_mark_referenced(rows, count, allocation.pointer, allocation.size) changed = true;
         }
     }
-
     for i: 0..count - 1 {
         if rows[i].marked {
             report.marked_as_non_leak_allocations += 1;
             report.marked_as_non_leak_bytes += rows[i].record.allocation.size;
         }
     }
-
     if options.scan_leaks_to_combine {
         // Prefer true graph roots, then retain one root per remaining cycle.
         for parent: 0..count - 1 {
             if rows[parent].marked || !rows[parent].record.allocation.propagates_leak_ownership continue;
             allocation := *rows[parent].record.allocation;
-
             for child: 0..count - 1 {
                 if child == parent || rows[child].marked continue;
                 if _md_points_at(allocation.pointer, allocation.size, rows[child].record.allocation.pointer) rows[child].incoming += 1;
             }
         }
-
         for i: 0..count - 1 {
             if rows[i].marked || rows[i].incoming != 0 continue;
             rows[i].visited = true;
             _md_combine(*report, rows, count, i);
         }
-
         for i: 0..count - 1 {
             if rows[i].marked || rows[i].visited continue;
             rows[i].visited = true;
             _md_combine(*report, rows, count, i);
         }
     }
-
     pointers := cast(**Leak_Summary) MD_Pool.get(*report.pool, count * size_of(*Leak_Summary));
     summary_count: s64;
-
     // Summaries by trace hash (open addressing, slots hold summary index + 1).
     slot_count := 16;
-
     while slot_count < count * 2 slot_count *= 2;
     slots := cast(*s64) MD_Pool.get(*report.pool, slot_count * size_of(s64));
     for i: 0..slot_count - 1 slots[i] = 0;
-
     for i: 0..count - 1 {
         if rows[i].marked || rows[i].parent >= 0 continue;
         allocation := *rows[i].record.allocation;
         trace := _md_copy_trace(*report.pool, allocation.alloc_site_trace);
         summary: *Leak_Summary;
         slot := cast(s64) (_md_trace_hash(trace) & cast(u64) (slot_count - 1));
-
         while slots[slot] {
             candidate := pointers[slots[slot] - 1];
             if md_trace_matches(candidate.alloc_site_trace, trace) {
                 summary = candidate;
                 break;
             }
-
             slot = (slot + 1) & (slot_count - 1);
         }
-
         if !summary {
             slots[slot] = summary_count + 1;
             summary = cast(*Leak_Summary) MD_Pool.get(*report.pool, size_of(Leak_Summary));
@@ -334,18 +305,15 @@ make_leak_report :: (options: Leak_Report_Options = .{}, for_visualizer := false
             pointers[summary_count] = summary;
             summary_count += 1;
         } else if summary.allocator_proc != allocation.allocator.proc summary.allocator_proc = null;
-
         summary.count += 1;
         summary.bytes += allocation.size;
         summary.child_count += rows[i].child_count;
         summary.child_bytes += rows[i].child_bytes;
-
         if rows[i].record.frame_cycle == md_state.frame_cycle {
             summary.allocations_since_last_visualizer_update += rows[i].record.frame_allocations;
             summary.bytes_allocated_since_last_visualizer_update += rows[i].record.frame_bytes;
         }
     }
-
     report.sorted_summaries = .{ summary_count, pointers };
     for procedure: options.group_by_these_calls _md_group(*report, procedure);
     _md_sort_summaries(report.sorted_summaries);
@@ -361,12 +329,10 @@ log_leak_report :: (report: Leak_Report, options: Leak_Report_Options = .{}) {
     for site: report.sorted_summaries {
         site_bytes := site.bytes + site.child_bytes;
         site_allocations := site.count + site.child_count;
-
         shown_bytes += site_bytes;
         shown_allocations += site_allocations;
 
         log("\n----- % in % -----\n", _md_quantity(site_bytes, "byte"), _md_quantity(site_allocations, "allocation"));
-
         if site.child_count {
             log("    (% in % at the allocation site itself; the rest is memory it still points to)\n",
                 _md_quantity(site.bytes, "byte"), _md_quantity(site.count, "allocation"));
@@ -374,7 +340,6 @@ log_leak_report :: (report: Leak_Report, options: Leak_Report_Options = .{}) {
 
         shared_from_root, shared_from_leaf := -1, -1;
         merged := site.group_info;
-
         if merged {
             log("    (% merged at call to % from module %)\n",
                 _md_quantity(merged.sub_summaries.count, "stack trace"), merged.procedure.procedure_name, merged.procedure.module_name);
@@ -430,12 +395,10 @@ md_owner_thread_index: u32;
 _md_begin :: (allocator: Allocator) -> bool {
     if context.inside_memory_debugger return false;
     context.inside_memory_debugger = true;
-
     if _md_ignore_allocator(allocator) {
         context.inside_memory_debugger = false;
         return false;
     }
-
     _md_acquire();
     _md_prepare_state();
     return true;
@@ -443,12 +406,10 @@ _md_begin :: (allocator: Allocator) -> bool {
 
 _md_ignore_allocator :: (allocator: Allocator) -> bool {
     if allocator.proc == temporary_allocator_proc return true;
-
     if allocator.proc {
         caps, name := get_capabilities_info(allocator);
         if caps & .HINT_I_AM_A_FAST_BUMP_ALLOCATOR return true;
     }
-
     return false;
 }
 
@@ -457,9 +418,7 @@ _md_acquire :: () {
         acquired, previous := compare_and_swap(*md_owner_context, cast(*void) null, cast(*void) *context);
         if acquired break;
     }
-
     indexed, previous := compare_and_swap(*md_owner_thread_index, cast(u32) 0, context.thread_index);
-
     context.__basic_memory_debugger_lock_owned = true;
 }
 
@@ -483,7 +442,6 @@ _md_compat_begin :: (allocator: Allocator) -> u8 {
         if !_md_begin(allocator) return 0;
         return 1;
     }
-
     // A copied Context flag can outlive the original critical section. Reuse
     // only the active gate owned by this real context and thread index.
     if context.__basic_memory_debugger_lock_owned {
@@ -493,7 +451,6 @@ _md_compat_begin :: (allocator: Allocator) -> u8 {
             if same_thread return 2;
         }
     }
-
     context.__basic_memory_debugger_lock_owned = false;
     if _md_ignore_allocator(allocator) return 0;
     _md_acquire();
@@ -516,7 +473,6 @@ _md_diagnose :: (status: MD_Status, operation: string, memory: *void) {
             if node.info log_error("  allocated by % at %:%\n", node.info.name, node.info.location.fully_pathed_filename, node.line_number);
         }
     }
-
     log_stack_trace(context.stack_trace);
     Runtime_Support.debug_break();
 }
@@ -525,32 +481,27 @@ _md_points_at :: (memory: *void, bytes: s64, target: *void) -> bool {
     offset: s64;
     while offset <= bytes - size_of(*void) {
         candidate: *void;
-
         memcpy(*candidate, cast(*u8) memory + offset, size_of(*void));
         if candidate == target return true;
         offset += size_of(*void);
     }
-
     return false;
 }
 
 _md_mark_referenced :: (rows: *MD_Report_Row, count: s64, memory: *void, bytes: s64) -> bool {
     changed := false;
-
     for i: 0..count - 1 {
         if !rows[i].marked && _md_points_at(memory, bytes, rows[i].record.allocation.pointer) {
             rows[i].marked = true;
             changed = true;
         }
     }
-
     return changed;
 }
 
 _md_combine :: (report: *Leak_Report, rows: *MD_Report_Row, count: s64, parent: s64) {
     allocation := *rows[parent].record.allocation;
     if !allocation.propagates_leak_ownership return;
-
     for child: 0..count - 1 {
         if rows[child].marked || rows[child].visited || rows[child].parent >= 0 continue;
         if !_md_points_at(allocation.pointer, allocation.size, rows[child].record.allocation.pointer) continue;
@@ -560,7 +511,6 @@ _md_combine :: (report: *Leak_Report, rows: *MD_Report_Row, count: s64, parent: 
         rows[parent].child_count += 1 + rows[child].child_count;
         rows[parent].child_bytes += rows[child].record.allocation.size + rows[child].child_bytes;
     }
-
     value: Leak_Combiner_Record;
     value.child_count = rows[parent].child_count;
     value.child_bytes = rows[parent].child_bytes;
@@ -582,25 +532,20 @@ _md_procedure_matches :: (target: Procedure_To_Elide, node: Stack_Trace_Node) ->
     if target.module_name.count == 0 return true;
     path := node.info.location.fully_pathed_filename;
     start: s64;
-
     while start < path.count {
         end := start;
         while end < path.count && path[end] != #char "/" && path[end] != cast(u8) 0x5c end += 1;
         width := end - start;
         if width == target.module_name.count || (width == target.module_name.count + 4 && path[end - 4] == #char "." && path[end - 3] == #char "j" && path[end - 2] == #char "a" && path[end - 1] == #char "i") {
             match := true;
-
             for i: 0..target.module_name.count - 1 if path[start + i] != target.module_name[i] {
                 match = false;
                 break;
             }
-
             if match return true;
         }
-
         start = end + 1;
     }
-
     return false;
 }
 
@@ -623,7 +568,6 @@ _md_group :: (report: *Leak_Report, target: Procedure_To_Elide) {
     group.group_info = info;
     retained: s64;
     grouped: s64;
-
     for summary: report.sorted_summaries {
         if _md_has_call(summary, target) {
             info.sub_summaries[grouped] = summary;
@@ -639,10 +583,8 @@ _md_group :: (report: *Leak_Report, target: Procedure_To_Elide) {
             retained += 1;
         }
     }
-
     report.sorted_summaries[retained] = group;
     report.sorted_summaries.count = retained + 1;
-
     // Common physical trace prefixes/suffixes are computed from real nodes.
     first := info.sub_summaries[0].alloc_site_trace;
     if first {
@@ -655,7 +597,6 @@ _md_group :: (report: *Leak_Report, target: Procedure_To_Elide) {
                 info.leaf_nodes_in_common = 0;
                 break;
             }
-
             same_leaf: s64;
             while same_leaf < info.leaf_nodes_in_common && same_leaf < other.nodes.count && first.nodes[same_leaf].info == other.nodes[same_leaf].info same_leaf += 1;
             info.leaf_nodes_in_common = same_leaf;
@@ -670,12 +611,10 @@ _md_sort_summaries :: (summaries: [] *Leak_Summary) {
     for i: 1..summaries.count - 1 {
         saved := summaries[i];
         position := i;
-
         while position > 0 && summaries[position - 1].bytes + summaries[position - 1].child_bytes < saved.bytes + saved.child_bytes {
             summaries[position] = summaries[position - 1];
             position -= 1;
         }
-
         summaries[position] = saved;
     }
 }
@@ -697,24 +636,19 @@ _md_trim_trace :: (options: Leak_Report_Options, trace: *Packed_Stack_Trace) -> 
             last -= 1;
             continue;
         }
-
         skip := false;
-
         for options.roots_to_skip if _md_procedure_matches(it, node) {
             skip = true;
             break;
         }
-
         if !skip break;
         last -= 1;
     }
-
     i := last;
     while i >= 0 {
         for leaf: options.known_allocation_leaves if _md_procedure_matches(leaf, trace.nodes[i]) return i, last;
         i -= 1;
     }
-
     return 0, last;
 }
 
@@ -722,20 +656,16 @@ _md_log_trace :: (trace: *Packed_Stack_Trace, first_in: s64, last_in: s64, from_
     first := first_in;
     last := last_in;
     ellipses_start := from_leaf;
-
     if ellipses_start <= first && ellipses_start > 0 first = ellipses_start - 1;
 
     longest := 0;
-
     for i: first..last {
         node := trace.nodes[i];
         if node.info longest = max(longest, node.info.name.count);
     }
-
     longest = min(longest + 1, 44);
 
     ellipses_end := -1;
-
     if from_root >= 0 {
         ellipses_end = trace.nodes.count - 1 - from_root;
         if first >= ellipses_start first = max(0, ellipses_start - 1);
@@ -743,66 +673,53 @@ _md_log_trace :: (trace: *Packed_Stack_Trace, first_in: s64, last_in: s64, from_
     }
 
     SPACES :: "                                            ";
-
     for i: first..last {
         node := trace.nodes[i];
         if !node.info continue;
-
         if i >= ellipses_start && i <= ellipses_end {
             if i == ellipses_start log("...\n");
             continue;
         }
-
         padding := SPACES;
         padding.count = max(0, longest - node.info.name.count);
 
         // A grouped trace can reach one frame from several line numbers; list them all.
         lines: [..] s64;
         lines.allocator = __temporary_allocator;
-
         if group_info {
             initial := node.line_number;
-
             for sub: group_info.sub_summaries {
                 other_trace := sub.alloc_site_trace;
                 j := i;
-
                 if i > ellipses_end {
                     below := trace.nodes.count - 1 - i;
                     j = other_trace.nodes.count - 1 - below;
                     if j <= ellipses_start continue;
                 }
-
                 other := other_trace.nodes[j];
                 if other.line_number != initial {
                     if !lines array_add(*lines, initial);
                     array_add_if_unique(*lines, other.line_number);
                 }
             }
-
             // Insertion sort; the list is tiny.
             for a: 1..lines.count - 1 {
                 v := lines[a];
                 b := a;
-
                 while b > 0 && lines[b - 1] > v {
                     lines[b] = lines[b - 1];
                     b -= 1;
                 }
-
                 lines[b] = v;
             }
         }
-
         if lines {
             builder: String_Builder;
             builder.allocator = __temporary_allocator;
-
             for lines {
                 if it_index != 0 append(*builder, ", ");
                 print_to_builder(*builder, "%", it);
             }
-
             log("%1% %:(%)\n", node.info.name, padding, node.info.location.fully_pathed_filename, builder_to_string(*builder));
         } else {
             log("%1% %:%\n", node.info.name, padding, node.info.location.fully_pathed_filename, node.line_number);
@@ -812,36 +729,29 @@ _md_log_trace :: (trace: *Packed_Stack_Trace, first_in: s64, last_in: s64, from_
 
 _md_log_summary :: (summary: *Leak_Summary, options: Leak_Report_Options, prefix: string) {
     log_warning("%% allocations, % bytes (% child allocations, % child bytes)\n", prefix, summary.count, summary.bytes, summary.child_count, summary.child_bytes);
-
     if summary.group_info {
         log_warning("%grouped by %\n", prefix, summary.group_info.procedure.procedure_name);
         for child: summary.group_info.sub_summaries _md_log_summary(child, options, prefix);
         return;
     }
-
     if !summary.alloc_site_trace return;
     first: s64;
     last := summary.alloc_site_trace.nodes.count;
-
     for target: options.known_allocation_leaves {
         for node, index: summary.alloc_site_trace.nodes if _md_procedure_matches(target, node) {
             first = max(first, index + 1);
             break;
         }
     }
-
     while last > first {
         skip := false;
-
         for target: options.roots_to_skip if _md_procedure_matches(target, summary.alloc_site_trace.nodes[last - 1]) {
             skip = true;
             break;
         }
-
         if !skip break;
         last -= 1;
     }
-
     for i: first..last - 1 {
         node := summary.alloc_site_trace.nodes[i];
         if node.info log_warning("%  % at %:%\n", prefix, node.info.name, node.info.location.fully_pathed_filename, node.line_number);
@@ -850,7 +760,6 @@ _md_log_summary :: (summary: *Leak_Summary, options: Leak_Report_Options, prefix
 
 _md_append_summary :: (builder: *String_Builder, summary: *Leak_Summary) {
     print_to_builder(builder, "  % allocations, % bytes (% child allocations, % child bytes)\n", summary.count, summary.bytes, summary.child_count, summary.child_bytes);
-
     if summary.group_info {
         print_to_builder(builder, "  grouped by %\n", summary.group_info.procedure.procedure_name);
         for child: summary.group_info.sub_summaries _md_append_summary(builder, child);

@@ -7,22 +7,18 @@ D3DCompile :: (shader: string, source_name: string, pDefines: [] string, pInclud
     status := D3DCompile(shader.data, cast(SIZE_T) shader.count,
         ShaderMemory.temp_c_string(source_name), macros, pInclude,
         ShaderMemory.temp_c_string(entry_point), ShaderMemory.temp_c_string(target), Flags1, Flags2, *code, *diagnostics);
-
     defer _d3d_release(code);
     defer _d3d_release(diagnostics);
     output := _d3d_blob_string(code, false);
     messages := _d3d_blob_string(diagnostics, true);
-
     if code != null && output.data == null && ID3D10Blob_GetBufferSize(code) > 0 {
         if messages.count > 0 ShaderMemory.free(messages);
         return "", ShaderMemory.copy_string("Unable to copy shader compiler output"), cast(HRESULT) 0x8007000e;
     }
-
     if diagnostics != null && messages.data == null && ID3D10Blob_GetBufferSize(diagnostics) > 1 {
         if output.count > 0 ShaderMemory.free(output);
         return "", "", cast(HRESULT) 0x8007000e;
     }
-
     return output, messages, status;
 }
 
@@ -36,7 +32,6 @@ D3DCompileFromFile :: (file_name: string, pDefines: [] string, pInclude: *ID3DIn
     messages: *ID3DBlob;
     status := D3DCompileFromFile(cast(*s16) wide, macros, pInclude,
         ShaderMemory.temp_c_string(entry_point), ShaderMemory.temp_c_string(target), Flags1, Flags2, *code, *messages);
-
     return code, messages, status;
 }
 
@@ -54,7 +49,6 @@ _d3d_release :: (object: *void) {
 _d3d_blob_string :: (blob: *ID3DBlob, trim_zero: bool) -> string {
     if blob == null return "";
     count := ID3D10Blob_GetBufferSize(blob);
-
     ShaderMemory.assert(count <= 0x7fff_ffff_ffff_ffff);
     text: string;
     text.data = cast(*u8) ID3D10Blob_GetBufferPointer(blob);
@@ -69,26 +63,21 @@ _d3d_macro_array :: (definitions: [] string) -> *D3D_SHADER_MACRO {
     values := cast(*D3D_SHADER_MACRO) ShaderMemory.temporary_alloc((definitions.count + 1) * size_of(D3D_SHADER_MACRO));
     if values == null return null;
     memset(values, 0, (definitions.count + 1) * size_of(D3D_SHADER_MACRO));
-
     for index: 0..definitions.count - 1 {
         text := definitions[index];
         split: s64 = 0;
-
         while split < text.count && text[split] != #char "=" split += 1;
         name: string;
         name.data = text.data;
         name.count = split;
         ShaderMemory.assert(name.count > 0, "Shader define requires a name");
         value := "1";
-
         if split < text.count {
             value.data = text.data + split + 1;
             value.count = text.count - split - 1;
         }
-
         values[index].Name = ShaderMemory.temp_c_string(name);
         values[index].Definition = ShaderMemory.temp_c_string(value);
     }
-
     return values;
 }

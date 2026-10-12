@@ -15,26 +15,22 @@ prefetch :: (pointer: *void, $hint: Prefetch_Hint) #expand {
 
 rdtsc :: () -> u64 {
     low: u64 = 0;
-
     #asm {
         rdtsc high:, low;
         shl.q high, 32;
         or.q low, high;
     }
-
     return low;
 }
 
 rdtscp :: () -> (timestamp: u64, msr: u32) {
     low: u64 = 0;
     msr: u32 = 0;
-
     #asm {
         rdtscp high:, low, msr;
         shl.q high, 32;
         or.q low, high;
     }
-
     return low, msr;
 }
 
@@ -51,7 +47,6 @@ rdseed :: () -> (success: bool, value: u64) {
 rdrand :: () -> (success: bool, value: u64) {
     sample: u64;
     delivered: bool;
-
     #asm { rdrand.q sample; setc delivered; }
     return delivered, sample;
 }
@@ -71,7 +66,6 @@ mfence :: () {
 
 cpuid_query :: (leaf: u32, subleaf: u32, out_a: *u32, out_b: *u32, out_c: *u32, out_d: *u32) {
     ra, rb, rc, rd: u32 = 0;
-
     #asm {
         mov.d a: gpr === a, leaf;
         mov.d c: gpr === c, subleaf;
@@ -81,7 +75,6 @@ cpuid_query :: (leaf: u32, subleaf: u32, out_a: *u32, out_b: *u32, out_c: *u32, 
         mov.d rc, c;
         mov.d rd, d;
     }
-
     out_a.* = ra;
     out_b.* = rb;
     out_c.* = rc;
@@ -320,49 +313,40 @@ Cpu_X86 :: struct {
 
 get_cpu_info :: () -> Cpu_X86 {
     cpu: Cpu_X86;
-
     // The 12-byte vendor name is spelled little-endian across EBX, EDX and ECX, in that order.
     vendor_name_is :: (b: u32, d: u32, c: u32, name: string) -> bool {
         spelled := cast(*u32) name.data;
         return name.count == 12 && spelled[0] == b && spelled[1] == d && spelled[2] == c;
     }
-
     // Leaf 0 reports the highest basic leaf plus the vendor name, and leaf 0x80000000 the
     // highest extended leaf. Leaves above those limits return garbage, so every query below
     // is guarded by them.
     max_basic_info, name_b, name_c, name_d: u32;
-
     cpuid_query(0, 0, *max_basic_info, *name_b, *name_c, *name_d);
     if vendor_name_is(name_b, name_d, name_c, "GenuineIntel") cpu.vendor = .INTEL;
     else if vendor_name_is(name_b, name_d, name_c, "AuthenticAMD") cpu.vendor = .AMD;
     max_extended_info, ignored_b, ignored_c, ignored_d: u32;
-
     cpuid_query(0x80000000, 0, *max_extended_info, *ignored_b, *ignored_c, *ignored_d);
 
     leaf_a, leaf_b, leaf_c, leaf_d: u32;
-
     if max_basic_info >= 0x01 {
         cpuid_query(0x01, 0, *leaf_a, *leaf_b, *leaf_c, *leaf_d);
         cpu.feature_leaves[x86_Feature_Leaf._01H_EDX] = leaf_d;
         cpu.feature_leaves[x86_Feature_Leaf._01H_ECX] = leaf_c;
     }
-
     if max_basic_info >= 0x19 {
         cpuid_query(0x19, 0, *leaf_a, *leaf_b, *leaf_c, *leaf_d);
         cpu.feature_leaves[x86_Feature_Leaf._19H_EBX] = leaf_b;
     }
-
     if max_extended_info >= 0x80000001 {
         cpuid_query(0x80000001, 0, *leaf_a, *leaf_b, *leaf_c, *leaf_d);
         cpu.feature_leaves[x86_Feature_Leaf._01H_EXT_EDX] = leaf_d;
         cpu.feature_leaves[x86_Feature_Leaf._01H_EXT_ECX] = leaf_c;
     }
-
     if max_extended_info >= 0x80000008 {
         cpuid_query(0x80000008, 0, *leaf_a, *leaf_b, *leaf_c, *leaf_d);
         cpu.feature_leaves[x86_Feature_Leaf._08H_EXT_EBX] = leaf_b;
     }
-
     if max_basic_info >= 0x07 {
         cpuid_query(0x07, 0, *leaf_a, *leaf_b, *leaf_c, *leaf_d);
         cpu.feature_leaves[x86_Feature_Leaf._07H_00H_EBX] = leaf_b;
@@ -371,12 +355,10 @@ get_cpu_info :: () -> Cpu_X86 {
         cpuid_query(0x07, 1, *leaf_a, *leaf_b, *leaf_c, *leaf_d);
         cpu.feature_leaves[x86_Feature_Leaf._07H_01H_EAX] = leaf_a;
     }
-
     if max_basic_info >= 0x0D {
         cpuid_query(0x0D, 1, *leaf_a, *leaf_b, *leaf_c, *leaf_d);
         cpu.feature_leaves[x86_Feature_Leaf._0DH_01H_EAX] = leaf_a;
     }
-
     return cpu;
 }
 

@@ -57,7 +57,6 @@ environment_variable :: (name: string) -> string {
     } else {
         value := POSIX.getenv(temp_c_string(name));
     }
-
     if !value return "";
     return copy_string(to_string(value));
 }

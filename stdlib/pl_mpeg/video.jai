@@ -104,13 +104,11 @@ video_create_with_buffer :: (buffer: *Buffer, destroy_when_done: bool) -> *Video
         entry.own_native = true;
         result.destroy_buffer_when_done = destroy_when_done;
     }
-
     return result;
 }
 
 video_destroy :: (video: *Video) {
     entry := video_state(video);
-
     assert(entry.own_native, "A borrowed decoder is owned by its parent");
     raw_plm_video_destroy(entry.native);
     if video.destroy_buffer_when_done buffer_destroy(video.buffer);
@@ -119,17 +117,14 @@ video_destroy :: (video: *Video) {
 
 video_get_framerate :: (video: *Video) -> float64 {
     entry := video_state(video);
-
     push_video(entry);
     result := raw_plm_video_get_framerate(entry.native);
-
     pull_video(entry);
     return result;
 }
 
 video_set_no_delay :: (video: *Video, no_delay: bool) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_set_no_delay(entry.native, cast(s32) no_delay);
     pull_video(entry);
@@ -137,7 +132,6 @@ video_set_no_delay :: (video: *Video, no_delay: bool) {
 
 video_set_time :: (video: *Video, time: float64) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_set_time(entry.native, time);
     pull_video(entry);
@@ -145,7 +139,6 @@ video_set_time :: (video: *Video, time: float64) {
 
 video_rewind :: (video: *Video) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_rewind(entry.native);
     pull_video(entry);
@@ -153,47 +146,38 @@ video_rewind :: (video: *Video) {
 
 video_has_ended :: (video: *Video) -> bool {
     entry := video_state(video);
-
     push_video(entry);
     result := raw_plm_video_has_ended(entry.native);
-
     pull_video(entry);
     return result != 0;
 }
 
 video_decode :: (video: *Video) -> *Frame {
     entry := video_state(video);
-
     push_video(entry);
     result := raw_plm_video_decode(entry.native);
-
     pull_video(entry);
     return result;
 }
 
 video_has_header :: (video: *Video) -> bool {
     entry := video_state(video);
-
     push_video(entry);
     result := raw_plm_video_has_header(entry.native);
-
     pull_video(entry);
     return result != 0;
 }
 
 video_decode_sequence_header :: (video: *Video) -> bool {
     entry := video_state(video);
-
     push_video(entry);
     result := raw_plm_video_decode_sequence_header(entry.native);
-
     pull_video(entry);
     return result != 0;
 }
 
 video_init_frame :: (video: *Video, frame: *Frame, base: *u8) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_init_frame(entry.native, frame, base);
     pull_video(entry);
@@ -201,7 +185,6 @@ video_init_frame :: (video: *Video, frame: *Frame, base: *u8) {
 
 video_decode_picture :: (video: *Video) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_decode_picture(entry.native);
     pull_video(entry);
@@ -209,7 +192,6 @@ video_decode_picture :: (video: *Video) {
 
 video_decode_slice :: (video: *Video, slice: Start_Code) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_decode_slice(entry.native, cast(s32) slice);
     pull_video(entry);
@@ -217,7 +199,6 @@ video_decode_slice :: (video: *Video, slice: Start_Code) {
 
 video_decode_macroblock :: (video: *Video) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_decode_macroblock(entry.native);
     pull_video(entry);
@@ -225,7 +206,6 @@ video_decode_macroblock :: (video: *Video) {
 
 video_decode_motion_vectors :: (video: *Video) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_decode_motion_vectors(entry.native);
     pull_video(entry);
@@ -233,17 +213,14 @@ video_decode_motion_vectors :: (video: *Video) {
 
 video_decode_motion_vector :: (video: *Video, r_size: s32, motion: s32) -> s32 {
     entry := video_state(video);
-
     push_video(entry);
     result := raw_plm_video_decode_motion_vector(entry.native, r_size, motion);
-
     pull_video(entry);
     return result;
 }
 
 video_predict_macroblock :: (using video: *Video) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_predict_macroblock(entry.native);
     pull_video(entry);
@@ -251,7 +228,6 @@ video_predict_macroblock :: (using video: *Video) {
 
 video_copy_macroblock :: (video: *Video, motion_h: s32, motion_v: s32, d: *Frame) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_copy_macroblock(entry.native, d, motion_h, motion_v);
     pull_video(entry);
@@ -259,7 +235,6 @@ video_copy_macroblock :: (video: *Video, motion_h: s32, motion_v: s32, d: *Frame
 
 video_interpolate_macroblock :: (video: *Video, motion_h: s32, motion_v: s32, d: *Frame) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_interpolate_macroblock(entry.native, d, motion_h, motion_v);
     pull_video(entry);
@@ -271,7 +246,6 @@ BLOCK_SET :: (dest: *u8, dest_width: s32, source_width: s32, block_size: s32, co
     dest_scan := dest_width - block_size;
     source_scan := source_width - block_size;
     y: s32;
-
     while y < block_size {
         x: s32;
         while x < block_size {
@@ -280,7 +254,6 @@ BLOCK_SET :: (dest: *u8, dest_width: s32, source_width: s32, block_size: s32, co
             si += 1;
             x += 1;
         }
-
         di += dest_scan;
         si += source_scan;
         y += 1;
@@ -289,7 +262,6 @@ BLOCK_SET :: (dest: *u8, dest_width: s32, source_width: s32, block_size: s32, co
 
 video_process_macroblock :: (video: *Video, d: *u8, s: *u8, motion_h: s32, motion_v: s32, block_size: s32, interpolate: bool) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_process_macroblock(entry.native, s, d, motion_h, motion_v, block_size, cast(s32) interpolate);
     pull_video(entry);
@@ -297,7 +269,6 @@ video_process_macroblock :: (video: *Video, d: *u8, s: *u8, motion_h: s32, motio
 
 video_decode_block :: (video: *Video, block: s32) {
     entry := video_state(video);
-
     push_video(entry);
     raw_plm_video_decode_block(entry.native, block);
     pull_video(entry);
@@ -322,7 +293,6 @@ convert_function :: (frame: *Frame, dest: *u8, stride: s32,
                      BYTES_PER_PIXEL: s32, RI: s32, GI: s32, BI: s32) {
     assert(BYTES_PER_PIXEL == 3 || BYTES_PER_PIXEL == 4);
     assert(stride >= frame.width * BYTES_PER_PIXEL);
-
     if BYTES_PER_PIXEL == 3 {
         if RI == 0 && GI == 1 && BI == 2 raw_plm_frame_to_rgb(frame, dest, stride);
         else if RI == 2 && GI == 1 && BI == 0 raw_plm_frame_to_bgr(frame, dest, stride);

@@ -70,12 +70,10 @@ immediate_set_texture :: (texture: *Texture) {
         log_error("Attempted to immediate_set_texture when no shader was set.\n");
         return;
     }
-
     if context.simp.specific.texture != texture {
         immediate_flush();
         context.simp.specific.texture = texture;
     }
-
     #if render_api == .OPENGL {
         backend_set_texture(shader, texture);
     }
@@ -85,11 +83,9 @@ immediate_set_shader :: (s: *Shader) {
     CheckInit();
     if context.simp.current_shader && context.simp.current_shader != s immediate_flush();
     context.simp.current_shader = s;
-
     #if render_api == .OPENGL {
         gl_find_shader_locations(s);
     }
-
     backend_use_shader(s);
 }
 
@@ -98,12 +94,10 @@ immediate_flush :: () {
     state := context.simp;
     if state.num_vertices == 0 return;
     assert(state.current_shader != null, "Tried to immediate_flush when no shader was set.");
-
     if !state.current_shader {
         state.num_vertices = 0;
         return;
     }
-
     #if render_api == .OPENGL {
         gl_submit(state);
     } else #if render_api == .SOFTWARE {
@@ -111,7 +105,6 @@ immediate_flush :: () {
     } else {
         assert(false, "Simp backend is unavailable");
     }
-
     state.num_vertices = 0;
 }
 
@@ -143,7 +136,6 @@ immediate_quad :: (p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, c0: Vecto
     points := Vector2.[p0, p1, p2, p0, p2, p3];
     colors := Vector4.[c0, c1, c2, c0, c2, c3];
     uvs := Vector2.[uv0, uv1, uv2, uv0, uv2, uv3];
-
     for i: 0..5 put_vertex(first + i, points[i], colors[i], uvs[i].x, uvs[i].y);
 }
 
@@ -168,10 +160,8 @@ immediate_rounded_rect :: (p0: Vector2, p2: Vector2, color: Vector4, center: Vec
 
 immediate_triangle_fan :: (base: Vector2, points: [] Vector2, color: Vector4, base_color: Vector4) {
     if points.count < 2 return;
-
     for i: 1..points.count - 1 {
         first := reserve_vertices(3);
-
         put_vertex(first, base, base_color, 0, 0);
         put_vertex(first + 1, points[i - 1], color, 0, 0);
         put_vertex(first + 2, points[i], color, 0, 0);
@@ -181,7 +171,6 @@ immediate_triangle_fan :: (base: Vector2, points: [] Vector2, color: Vector4, ba
 // One triangle with a color per corner.
 immediate_triangle :: (p0: Vector3, p1: Vector3, p2: Vector3, c0: Vector4, c1: Vector4, c2: Vector4, uv0 := Vector2.{}, uv1 := Vector2.{}, uv2 := Vector2.{}, normal := Vector3.{ z = 1 }) {
     first := reserve_vertices(3);
-
     put_vertex(first, p0, c0, uv0.x, uv0.y);
     put_vertex(first + 1, p1, c1, uv1.x, uv1.y);
     put_vertex(first + 2, p2, c2, uv2.x, uv2.y);
@@ -202,10 +191,8 @@ immediate_set_2d_projection :: (render_target_width: s32, render_target_height: 
         context.simp.num_vertices = 0;
         return;
     }
-
     width := cast(float) render_target_width;
     height := cast(float) render_target_height;
-
     context.simp.specific.projection = .{ width, height };
     m: Matrix4 = ---;
     if context.simp.coordinate_system == .LEFT_HANDED m = orthographic_projection_matrix(0, width, height, 0, -1.0, 1.0);
@@ -228,7 +215,6 @@ reserve_vertices :: (count: s32) -> *Immediate_Vertex {
     assert(count > 0 && count <= Immediate_State.MAX_VERTICES);
     if context.simp.num_vertices + count > Immediate_State.MAX_VERTICES immediate_flush();
     result := *context.simp.vertices[context.simp.num_vertices];
-
     context.simp.num_vertices += count;
     return result;
 }
@@ -248,7 +234,6 @@ backend_use_shader :: (s: *Shader) {
 
 software_submit :: (state: *Immediate_State) {
     target := state.specific.software_target;
-
     assert(target != null, "Install a bitmap render target before drawing");
     if !target return;
     assert(target.format == .RGBA8 || target.format == .BGRA8, "CPU render targets require RGBA8 or BGRA8");
@@ -269,22 +254,18 @@ software_triangle :: (state: *Immediate_State, target: *Bitmap, a: Immediate_Ver
     y0 := max(cast(int) floor(lo.y), 0);
     x1 := min(cast(int) ceil(hi.x), target.width);
     y1 := min(cast(int) ceil(hi.y), target.height);
-
     if state.specific.scissor_enabled {
         x0 = max(x0, cast(int) state.specific.scissor.x);
         y0 = max(y0, cast(int) state.specific.scissor.y);
         x1 = min(x1, cast(int) state.specific.scissor.z);
         y1 = min(y1, cast(int) state.specific.scissor.w);
     }
-
     for y: y0..y1 - 1 for x : x0..x1 - 1 {
         p := Vector2.{ cast(float) x + 0.5, cast(float) y + 0.5 };
         wa := edge(b.position, c.position, p) / area;
         wb := edge(c.position, a.position, p) / area;
         wc := 1 - wa - wb;
-
         if wa < 0 || wb < 0 || wc < 0 continue;
-
         // Half-open ownership of triangle edges prevents double alpha on shared diagonals.
         if wa == 0 && !owns_edge(b.position, c.position, area) continue;
         if wb == 0 && !owns_edge(c.position, a.position, area) continue;
@@ -292,47 +273,37 @@ software_triangle :: (state: *Immediate_State, target: *Bitmap, a: Immediate_Ver
         color := a.color_scale * wa + b.color_scale * wb + c.color_scale * wc;
         uv := a.uv0 * wa + b.uv0 * wb + c.uv0 * wc;
         sprite := state.current_shader == *shader_sprite_right_handed || state.current_shader == *shader_sprite_left_handed;
-
         if sprite || state.current_shader == *shader_text {
             // The right-handed sprite shader flips v, because bitmaps are stored top row first.
             if state.current_shader == *shader_sprite_right_handed uv.y = 1 - uv.y;
             sample := software_sample(state.specific.texture, uv);
-
             if sprite {
                 color = color * sample;
                 if color.w < 0.1 continue;
             } else color.w *= (sample.x + sample.y + sample.z) / 3;
         }
-
         if state.current_shader == *shader_rounded_rect {
             q := abs(p - a.rect_center) - a.rect_size + xy(a.rect_corner_radius);
             distance := length(max(q, xy(0))) + min(max(q.x, q.y), 0.0) - a.rect_corner_radius;
             soft := clamp(distance / max(a.rect_edge_softness, 0.001), 0.0, 1.0);
-
             color.w *= 1 - soft * soft * (3 - 2 * soft);
         }
-
         if state.current_shader == *shader_gradient color = software_gradient(state, p, color);
         pixel := target.data.data + software_row(y, target.height) * target.stride + x * 4;
         red: int = 0;
         blue: int = 2;
-
         if target.format == .BGRA8 {
             red = 2;
             blue = 0;
         }
-
         color = saturate(color);
-
         if state.current_shader.alpha_blend {
             inverse := 1 - color.w;
-
             color.x = color.x * color.w + cast(float) pixel[red] / 255 * inverse;
             color.y = color.y * color.w + cast(float) pixel[1] / 255 * inverse;
             color.z = color.z * color.w + cast(float) pixel[blue] / 255 * inverse;
             color.w += cast(float) pixel[3] / 255 * inverse;
         }
-
         pixel[red] = cast(u8) (color.x * 255 + 0.5);
         pixel[1] = cast(u8) (color.y * 255 + 0.5);
         pixel[blue] = cast(u8) (color.z * 255 + 0.5);
@@ -352,18 +323,15 @@ software_sample :: (texture: *Texture, uv: Vector2) -> Vector4 {
     y := clamp(cast(int) floor(uv.y * bitmap.height), 0, bitmap.height - 1);
     bpp := get_image_bytes_per_texel(bitmap.format);
     pixel := bitmap.data.data + y * bitmap.stride + x * bpp;
-
     if bitmap.format == .R8 return .{ cast(float) pixel[0] / 255, 0, 0, 1 };
     if bitmap.format == .RG8 return .{ cast(float) pixel[0] / 255, cast(float) pixel[1] / 255, 0, 1 };
     result := Vector4.{ cast(float) pixel[0] / 255, cast(float) pixel[1] / 255, cast(float) pixel[2] / 255, 1 };
     if bpp == 4 result.w = cast(float) pixel[3] / 255;
-
     if bitmap.format == .BGRA8 {
         tmp := result.x;
         result.x = result.z;
         result.z = tmp;
     }
-
     return result;
 }
 
@@ -375,7 +343,6 @@ software_gradient :: (state: *Immediate_State, p: Vector2, color: Vector4) -> Ve
     value := state.specific.gradient_value;
     rgb: Vector3;
     base := mode & 15;
-
     if mode < 16 {
         if base == 0 rgb = .{ value, u, v };
         if base == 1 rgb = .{ u, value, v };
@@ -393,7 +360,6 @@ software_gradient :: (state: *Immediate_State, p: Vector2, color: Vector4) -> Ve
         if base == 5 rgb = hsl_color(value, 1, t);
         if base == 6 rgb = .{ t, t, t };
     }
-
     return .{ rgb.x, rgb.y, rgb.z, color.w };
 }
 
@@ -401,7 +367,6 @@ hsl_color :: (h: float, s: float, l: float) -> Vector3 {
     amplitude := s * min(l, 1 - l);
     result: Vector3;
     offsets := float.[0, 8, 4];
-
     for i: 0..2 {
         k := offsets[i] + h * 12;
         k -= floor(k / 12) * 12;
@@ -410,6 +375,5 @@ hsl_color :: (h: float, s: float, l: float) -> Vector3 {
         if i == 1 result.y = channel;
         if i == 2 result.z = channel;
     }
-
     return result;
 }

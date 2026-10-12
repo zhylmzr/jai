@@ -9,7 +9,6 @@ read_entire_file :: (asset_manager: *AAssetManager, name: string, zero_terminate
         if log_errors Basic.log_error("Unable to open Android asset: %", name);
         return "", false;
     }
-
     defer AAsset_close(asset);
     length := AAsset_getLength64(asset);
     if length < 0 || length == 0x7fff_ffff_ffff_ffff return "", false;
@@ -28,10 +27,8 @@ read_entire_file :: (asset_manager: *AAssetManager, name: string, zero_terminate
             if log_errors Basic.log_error("Incomplete read of Android asset: %", name);
             return "", false;
         }
-
         offset += received;
     }
-
     if zero_terminated bytes[length] = 0;
     return string.{ length, bytes }, true;
 }

@@ -77,19 +77,16 @@ init :: (using group: *Thread_Group, num_threads: s32, group_proc: Native_Thread
         array_reset(*threads);
         return false;
     }
-
     initialized: s32 = 0;
     while initialized < num_threads {
         worker := *worker_info[initialized];
         worker.group = group;
         worker.worker_index = initialized;
         if !init_work_list(*worker.available) break;
-
         if !init_work_list(*worker.completed) {
             deinit_work_list(*worker.available, allocator);
             break;
         }
-
         thread := *threads[initialized];
         thread.data = worker;
         thread.worker_info = worker;
@@ -98,20 +95,16 @@ init :: (using group: *Thread_Group, num_threads: s32, group_proc: Native_Thread
             deinit_work_list(*worker.available, allocator);
             break;
         }
-
         worker.thread = thread.*;
         worker.work_steal_indices = NewArray(num_threads - 1, s32);
         cursor: s32 = 0;
-
         for other: 0..num_threads - 1 {
             if other == initialized continue;
             worker.work_steal_indices[cursor] = cast(s32) other;
             cursor += 1;
         }
-
         initialized += 1;
     }
-
     if initialized != num_threads {
         for i: 0..initialized - 1 {
             thread_deinit(*threads[i]);
@@ -119,14 +112,12 @@ init :: (using group: *Thread_Group, num_threads: s32, group_proc: Native_Thread
             deinit_work_list(*worker_info[i].completed, allocator);
             deinit_work_list(*worker_info[i].available, allocator);
         }
-
         free(worker_info_data_to_free, allocator);
         worker_info = .{};
         worker_info_data_to_free = null;
         array_reset(*threads);
         return false;
     }
-
     next_worker_index = 0;
     initted = true;
     started = false;
@@ -139,20 +130,16 @@ add_work :: (group: *Thread_Group, work: *void, logging_name := "") -> bool {
     if group == null || !group.initted || group.shutdown_requested return false;
     entry := cast(*Work_Entry) alloc(size_of(Work_Entry), group.allocator);
     if entry == null return false;
-
     // Work is dealt to the workers round-robin.
     index := group.next_worker_index;
-
     group.next_worker_index = (index + 1) % cast(s32) group.worker_info.count;
     entry.* = .{ work = work, logging_name = logging_name, work_list_index = index, issue_time = get_time(group) };
     append_work(*group.worker_info[index].available, entry);
-
     if group.enable_work_stealing {
         for *worker: group.worker_info {
             if worker.worker_index != index signal(*worker.available.semaphore);
         }
     }
-
     return true;
 }
 
@@ -161,7 +148,6 @@ get_completed_work :: (group: *Thread_Group) -> [..] *void {
         empty: [..] *void;
         return empty;
     }
-
     group.completed_work.count = 0;
     for *worker: group.worker_info {
         while true {
@@ -171,22 +157,18 @@ get_completed_work :: (group: *Thread_Group) -> [..] *void {
             free(entry, group.allocator);
         }
     }
-
     return group.completed_work;
 }
 
 start :: (group: *Thread_Group) -> bool {
     if group == null || !group.initted || group.started || group.shutdown_requested return false;
-
     for *thread: group.threads {
         if !thread_start(thread) {
             shutdown(group);
             return false;
         }
-
         thread.worker_info.thread = thread.*;
     }
-
     group.started = true;
     return true;
 }
@@ -197,21 +179,16 @@ shutdown :: (using group: *Thread_Group, timeout_milliseconds: s32 = -1) -> bool
     atomic_write(*should_exit, true);
     for *worker: worker_info signal(*worker.available.semaphore);
     deadline := get_time(group) + cast(float64) timeout_milliseconds / 1000;
-
     for *thread: threads {
         wait_ms := timeout_milliseconds;
-
         if timeout_milliseconds >= 0 {
             remaining := (deadline - get_time(group)) * 1000;
             if remaining < 0 remaining = 0;
             wait_ms = cast(s32) remaining;
         }
-
         if !thread_is_done(thread, wait_ms) return false;
     }
-
     processed_all := true;
-
     for *worker: worker_info {
         if worker.available.count != 0 processed_all = false;
         thread_deinit(*threads[worker.worker_index]);
@@ -219,7 +196,6 @@ shutdown :: (using group: *Thread_Group, timeout_milliseconds: s32 = -1) -> bool
         deinit_work_list(*worker.available, allocator);
         deinit_work_list(*worker.completed, allocator);
     }
-
     free(worker_info_data_to_free, allocator);
     worker_info_data_to_free = null;
     worker_info = .{};
@@ -242,7 +218,6 @@ init_work_list :: (list: *Work_List) -> bool {
 thread_group_run :: (thread: *Thread) -> s64 {
     worker := thread.worker_info;
     group := worker.group;
-
     while true {
         entry := pop_work(*worker.available);
         if entry == null && group.enable_work_stealing {
@@ -251,26 +226,21 @@ thread_group_run :: (thread: *Thread) -> s64 {
                 if entry != null break;
             }
         }
-
         if entry == null {
             if atomic_read(*group.should_exit) break;
             if wait_for(*worker.available.semaphore) == .ERROR return -1;
             continue;
         }
-
         status := group.proc(group, thread, entry.work);
-
         entry.thread_index = thread.index;
         append_work(*worker.completed, entry);
         if status == .STOP break;
     }
-
     return 0;
 }
 
 get_time :: (group: *Thread_Group) -> float64 {
     if group.time_proc != null return group.time_proc();
-
     #if POSIX_THREADS {
         now: timeval;
         assert(gettimeofday(*now, null) == 0);
@@ -308,7 +278,6 @@ deinit_work_list :: (list: *Work_List, allocator: Allocator) {
         free(entry, allocator);
         entry = next;
     }
-
     destroy(*list.semaphore);
     destroy(*list.mutex);
     list.* = .{};

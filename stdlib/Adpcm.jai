@@ -10,7 +10,6 @@ ADPCM_CHANNELS_MAX :: 9;
 IMA_ADPCM_decode :: (info: Adpcm_Info, input_block: [] u8, dest_buffer: [] u8) -> s32 {
     channels := info.nChannels;
     align := info.nBlockAlign;
-
     if channels <= 0 || channels > ADPCM_CHANNELS_MAX return 0;
     if input_block.count < 0 || dest_buffer.count < 0 || input_block.count > 0x7fff_ffff return 0;
     if input_block.count > 0 && !input_block.data return 0;
@@ -20,7 +19,6 @@ IMA_ADPCM_decode :: (info: Adpcm_Info, input_block: [] u8, dest_buffer: [] u8) -
     if info.wSamplesPerBlock != 1 + cast(s64) groups * 8 return 0;
     blocks := input_block.count / align;
     tail := input_block.count % align;
-
     if tail != 0 && tail != headers return 0;
     required := blocks * cast(s64) info.wSamplesPerBlock * channels * 2;
     if tail != 0 required += channels * 2;
@@ -28,44 +26,35 @@ IMA_ADPCM_decode :: (info: Adpcm_Info, input_block: [] u8, dest_buffer: [] u8) -
     if required > 0 && !dest_buffer.data return 0;
     total_blocks := blocks;
     if tail != 0 total_blocks += 1;
-
     // Validate all header indices before modifying the destination.
     for b: 0..total_blocks - 1 {
         for c: 0..channels - 1 {
             if input_block[b * align + c * 4 + 2] > 88 return 0;
         }
     }
-
     written: s32 = 0;
     states: [ADPCM_CHANNELS_MAX] ADPCM_State;
-
     for b: 0..total_blocks - 1 {
         start := b * align;
-
         for c: 0..channels - 1 {
             p := input_block.data + start + c * 4;
             value := (cast(u16) p[0]) | ((cast(u16) p[1]) << 8);
-
             states[c].sample = cast,no_check(s16) value;
             states[c].index = cast(s8) p[2];
             dest_buffer[written] = p[0];
             dest_buffer[written + 1] = p[1];
             written += 2;
         }
-
         if b == blocks break;
-
         for g: 0..groups - 1 {
             for c: 0..channels - 1 {
                 packet: [4] u8;
                 for k: 0..3 packet[k] = input_block[start + headers + (g * channels + c) * 4 + k];
                 Fill_IMA_ADPCM_block(dest_buffer, written, packet, c, channels, *states[c]);
             }
-
             written += channels * 16;
         }
     }
-
     return written;
 }
 
@@ -74,12 +63,10 @@ Fill_IMA_ADPCM_block :: (dest: [] u8, dest_start_index: s32, encoded: [4] u8, ch
     last := cast(s64) dest_start_index + channel * 2 + cast(s64) 14 * numchannels + 1;
     if last >= dest.count return;
     output := cast(s64) dest_start_index + channel * 2;
-
     for i: 0..7 {
         code := encoded[i / 2];
         if (i & 1) != 0 code >>= 4;
         sample := IMA_ADPCM_nibble(state, code & 15);
-
         dest[output] = cast,trunc(u8) sample;
         dest[output + 1] = cast,trunc(u8) (sample >> 8);
         output += numchannels * 2;
@@ -98,7 +85,6 @@ IMA_ADPCM_nibble :: inline (state: *ADPCM_State, nybble: u8) -> s32 {
     code := nybble & 15;
     step := step_table[state.index];
     change := step / 8;
-
     if (code & 1) != 0 change += step / 4;
     if (code & 2) != 0 change += step / 2;
     if (code & 4) != 0 change += step;

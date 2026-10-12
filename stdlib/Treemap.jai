@@ -49,15 +49,12 @@ Display_Node :: struct {
 
 add_node :: (treemap: *Treemap, name: string, parent: *Treemap_Node) -> *Treemap_Node {
     assert(treemap != null);
-
     if treemap.root {
         assert(parent != null);
         index := get_index(treemap, parent);
-
         assert(index >= 0 && index < treemap.nodes.count);
         assert(*treemap.nodes.all_buckets[index / 1024].data[index % 1024] == parent);
     } else assert(parent == null);
-
     // Any structural change invalidates the cached sizes (and every display's layout).
     treemap.dirty = true;
     locator, node := Buckets.bucket_array_add(*treemap.nodes, .{ name = name, parent = parent });
@@ -69,15 +66,12 @@ add_node :: (treemap: *Treemap, name: string, parent: *Treemap_Node) -> *Treemap
 
 free_treemap :: (treemap: *Treemap) {
     if !treemap return;
-
     for treemap.nodes.all_buckets {
         bucket := it;
-
         for slot: 0..treemap.nodes.items_per_bucket - 1 {
             if bucket.occupied[slot] array_free(bucket.data[slot].children);
         }
     }
-
     Buckets.bucket_array_reset(*treemap.nodes);
     treemap.root = null;
     treemap.dirty = true;
@@ -86,18 +80,15 @@ free_treemap :: (treemap: *Treemap) {
         if tree_states[index].tree == treemap array_unordered_remove_by_index(*tree_states, index);
         else index += 1;
     }
-
     index = 0;
     while index < display_states.count {
         if display_states[index].tree == treemap array_unordered_remove_by_index(*display_states, index);
         else index += 1;
     }
-
     if tree_states.count == 0 {
         array_free(tree_states);
         tree_states = .{};
     }
-
     if display_states.count == 0 {
         array_free(display_states);
         display_states = .{};
@@ -116,32 +107,25 @@ recompute_if_dirty :: (treemap: *Treemap) {
 recompute_if_dirty :: (display: *Treemap_Display, outer_size: Vector2, border_proc: Border_Proc = null, force := false) {
     assert(display.treemap != null && outer_size.x >= 0 && outer_size.y >= 0);
     treemap := display.treemap;
-
     recompute_if_dirty(treemap);
     tree_state := tree_state_index(treemap);
     state := display_state_index(display);
     generation := tree_states[tree_state].generation;
-
     if !force && !display.dirty && display_states[state].tree == treemap && display_states[state].generation == generation && display_states[state].data == display.nodes.data && display_states[state].border_proc == border_proc && display.nodes.count == treemap.nodes.count && display.outer_size.x == outer_size.x && display.outer_size.y == outer_size.y return;
     array_reset(*display.nodes);
-
     for index: 0..treemap.nodes.count - 1 {
         bucket := treemap.nodes.all_buckets[index / 1024];
-
         assert(bucket.occupied[index % 1024]);
         record: Display_Node;
         record.node = *bucket.data[index % 1024];
         array_add(*display.nodes, record);
     }
-
     display.outer_size = outer_size;
-
     if treemap.root {
         root_index := get_index(treemap, treemap.root);
         display.nodes[root_index].size = outer_size;
         size_children(treemap, treemap.root, display, border_proc);
     }
-
     display_states[state].tree = treemap;
     display_states[state].generation = generation;
     display_states[state].data = display.nodes.data;
@@ -155,13 +139,11 @@ size_children :: (treemap: *Treemap, root: *Treemap_Node, display: *Treemap_Disp
     parent: *Display_Node;
     if root.parent parent = *display.nodes[get_index(treemap, root.parent)];
     if border_proc border_proc(record.corner, record.size, root, parent, *record.border);
-
     for *record.border {
         if <<it < 0 {
             <<it = 0;
         }
     }
-
     corner := record.corner;
     corner.x += record.border[2];
     corner.y += record.border[1];
@@ -172,7 +154,6 @@ size_children :: (treemap: *Treemap, root: *Treemap_Node, display: *Treemap_Disp
     if remaining.y < 0 remaining.y = 0;
     weight_left := root.size;
     first: int = 0;
-
     while first < root.children.count {
         if weight_left <= 0 || root.children[first].size <= 0 {
             for i: first..root.children.count - 1 {
@@ -180,40 +161,32 @@ size_children :: (treemap: *Treemap, root: *Treemap_Node, display: *Treemap_Disp
                 child_record.corner = corner;
                 child_record.size = .{};
             }
-
             break;
         }
-
         area_per_weight := cast(float64) remaining.x * cast(float64) remaining.y / weight_left;
         short_side := cast(float64) remaining.x;
-
         if remaining.y < remaining.x short_side = cast(float64) remaining.y;
         last := first + 1;
         group_weight := root.children[first].size;
         largest := group_weight;
         smallest := group_weight;
         score := row_score(group_weight, largest, smallest, short_side, area_per_weight);
-
         while last < root.children.count {
             next_weight := root.children[last].size;
             candidate := row_score(group_weight + next_weight, largest, next_weight, short_side, area_per_weight);
-
             if candidate > score break;
             group_weight += next_weight;
             smallest = next_weight;
             score = candidate;
             last += 1;
         }
-
         horizontal := remaining.x <= remaining.y;
         fraction := group_weight / weight_left;
-
         if fraction > 1 fraction = 1;
         strip := remaining;
         if horizontal strip.y = cast(float) (cast(float64) remaining.y * fraction);
         else strip.x = cast(float) (cast(float64) remaining.x * fraction);
         flush_nodes(root.children, first, last, display, corner, group_weight, horizontal, strip);
-
         if horizontal {
             corner.y += strip.y;
             remaining.y -= strip.y;
@@ -221,11 +194,9 @@ size_children :: (treemap: *Treemap, root: *Treemap_Node, display: *Treemap_Disp
             corner.x += strip.x;
             remaining.x -= strip.x;
         }
-
         weight_left -= group_weight;
         first = last;
     }
-
     for root.children size_children(treemap, it, display, border_proc);
 }
 
@@ -239,16 +210,13 @@ flush_nodes :: (children: [] *Treemap_Node, unsized_cursor: int, child_index: in
     assert(unsized_cursor >= 0 && child_index >= unsized_cursor && child_index <= children.count);
     result: float64;
     cursor := root_corner;
-
     for i: unsized_cursor..child_index - 1 {
         child := children[i];
         record := *display.nodes[get_index(display.treemap, child)];
         fraction: float64;
-
         if fill_weight_total > 0 fraction = child.size / fill_weight_total;
         record.corner = cursor;
         record.size = size;
-
         if horizontal {
             record.size.x = cast(float) (cast(float64) size.x * fraction);
             if i == child_index - 1 record.size.x = root_corner.x + size.x - cursor.x;
@@ -258,10 +226,8 @@ flush_nodes :: (children: [] *Treemap_Node, unsized_cursor: int, child_index: in
             if i == child_index - 1 record.size.y = root_corner.y + size.y - cursor.y;
             cursor.y += record.size.y;
         }
-
         result += child.size;
     }
-
     return result;
 }
 
@@ -280,7 +246,6 @@ free_treemap_display :: (display: *Treemap_Display) {
         if display_states[index].display == display array_unordered_remove_by_index(*display_states, index);
         else index += 1;
     }
-
     if display_states.count == 0 {
         array_free(display_states);
         display_states = .{};
@@ -329,22 +294,18 @@ recompute_sizes :: (node: *Treemap_Node) {
         if node.size < 0 node.size = 0;
         return;
     }
-
     node.size = 0;
     for node.children {
         recompute_sizes(it);
         node.size += it.size;
     }
-
     for index: 1..node.children.count - 1 {
         child := node.children[index];
         cursor := index;
-
         while cursor > 0 && node.children[cursor - 1].size < child.size {
             node.children[cursor] = node.children[cursor - 1];
             cursor -= 1;
         }
-
         node.children[cursor] = child;
     }
 }
@@ -355,7 +316,6 @@ row_score :: (total: float64, largest: float64, smallest: float64, side: float64
     squared_total := total * total;
     a := squared_side * largest / (scale * squared_total);
     b := scale * squared_total / (squared_side * smallest);
-
     if a > b return a;
     return b;
 }

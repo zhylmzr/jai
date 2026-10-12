@@ -55,14 +55,11 @@ windows_emit_utf16 :: (window: Window_Type, unit: u16, repeated: bool) {
         windows_surrogate_window = window;
         return;
     }
-
     scalar := cast(u32) unit;
-
     if unit >= 0xdc00 && unit <= 0xdfff {
         if windows_high_surrogate == 0 || windows_surrogate_window != window return;
         scalar = 0x10000 + ((cast(u32) windows_high_surrogate - 0xd800) << 10) + unit - 0xdc00;
     }
-
     windows_high_surrogate = 0;
     event: Event;
     event.type = .TEXT_INPUT;
@@ -92,15 +89,12 @@ noted_count := 0;
 
 input_window_procedure :: (hwnd: Win.HWND, kind: u32, wparam: Win.WPARAM, lparam: Win.LPARAM) -> Win.LRESULT #c_call {
     windows_windowproc_handles_input = true;
-
     if noted_count < noted_messages.count {
         noted_messages[noted_count] = .{ hwnd, kind, wparam, lparam };
         noted_count += 1;
     }
-
     // Closing is the program's decision: report QUIT and keep the window.
     if kind == Win.WM_CLOSE return 0;
-
     // In the client area the default resets the cursor to the class arrow on every move;
     // a program that handles the cursor keeps its own.
     HTCLIENT :: 1;
@@ -113,7 +107,6 @@ process_noted_messages :: () {
         noted := noted_messages[index];
         windows_process_input_message(noted.hwnd, noted.kind, noted.wparam, noted.lparam);
     }
-
     noted_count = 0;
 }
 
@@ -127,13 +120,11 @@ windows_poll_input :: () {
             queue_input_event(event);
             continue;
         }
-
         if !windows_windowproc_handles_input windows_process_input_message(message.hwnd, message.message, message.wParam, message.lParam);
         Win.TranslateMessage(*message);
         Win.DispatchMessageW(*message);
         process_noted_messages();
     }
-
     focused := Win.GetFocus();
     if focused != windows_focus {
         if windows_focus set_input_focus(cast(Window_Type) cast(u64) windows_focus, false);
@@ -146,13 +137,11 @@ windows_poll_input :: () {
 windows_pointer_query :: (window: Window_Type, client_area: bool) -> float, float, bool {
     point: Win.POINT;
     if Win.GetCursorPos(*point) == 0 return 0, 0, false;
-
     if client_area {
         hwnd := cast(Win.HWND) cast(u64) window;
         if !hwnd hwnd = Win.GetFocus();
         if !hwnd || Win.ScreenToClient(hwnd, *point) == 0 return 0, 0, false;
     }
-
     return cast(float) point.x, cast(float) point.y, true;
 }
 
@@ -173,30 +162,24 @@ windows_process_input_message :: (hwnd: Win.HWND, kind: u32, wparam: Win.WPARAM,
     message.lParam = lparam;
     window := cast(Window_Type) cast(u64) message.hwnd;
     event: Event;
-
     if message.message == Win.WM_QUIT {
         event.type = .QUIT;
         queue_input_event(event);
         return;
     }
-
     if message.message == Win.WM_SETFOCUS set_input_focus(window, true);
     if message.message == Win.WM_KILLFOCUS set_input_focus(window, false);
-
     if message.message == Win.WM_DESTROY {
         set_input_focus(window, false);
-
         for position, index: windows_mouse_positions if position.window == message.hwnd {
             array_ordered_remove_by_index(*windows_mouse_positions, index);
             break;
         }
     }
-
     if message.message == Win.WM_CLOSE {
         event.type = .QUIT;
         queue_input_event(window, event);
     }
-
     if message.message == Win.WM_KEYDOWN || message.message == Win.WM_KEYUP || message.message == Win.WM_SYSKEYDOWN || message.message == Win.WM_SYSKEYUP {
         event.type = .KEYBOARD;
         event.key_code = windows_key_code(cast(u32) message.wParam);
@@ -233,7 +216,6 @@ windows_process_input_message :: (hwnd: Win.HWND, kind: u32, wparam: Win.WPARAM,
         x := cast(s16) ((cast(u64) message.lParam) & 0xffff);
         y := cast(s16) (((cast(u64) message.lParam) >> 16) & 0xffff);
         found := false;
-
         for *position: windows_mouse_positions {
             if position.window != message.hwnd continue;
             if position.valid queue_mouse_delta(x - position.x, y - position.y);
@@ -243,7 +225,6 @@ windows_process_input_message :: (hwnd: Win.HWND, kind: u32, wparam: Win.WPARAM,
             found = true;
             break;
         }
-
         if !found array_add(*windows_mouse_positions, .{ message.hwnd, x, y, true });
     } else if message.message == Win.WM_SIZE {
         queue_window_resize(window, cast(u16) ((cast(u64) message.lParam) & 0xffff), cast(u16) (((cast(u64) message.lParam) >> 16) & 0xffff));

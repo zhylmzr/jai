@@ -52,7 +52,6 @@ get_code_name :: (code: Code) -> string #compile_time {
     root := Compiler.compiler_get_nodes(code);
     if root.kind == .IDENT return Basic.copy_string((cast(*Compiler.Code_Ident) root).name);
     builder: Basic.String_Builder;
-
     PP.print_expression(*builder, root);
     return Basic.builder_to_string(*builder);
 }
@@ -62,31 +61,24 @@ print_vars_helper :: (builder: *Basic.String_Builder, config: Print_Vars_Config,
     names: [N] string;
     values: [N] string;
     types: [N] Type;
-
     #insert -> string {
         generated: Basic.String_Builder;
-
         for index: 0..N - 1 {
             Basic.print_to_builder(*generated, "names[%] = #run get_code_name(args[%]);\n", index, index);
             Basic.print_to_builder(*generated, "__printed_value% := #insert args[%];\n", index, index);
             Basic.print_to_builder(*generated, "types[%] = type_of(__printed_value%);\n", index, index);
             Basic.print_to_builder(*generated, "values[%] = Basic.sprint(\"\%\", __printed_value%);\n", index, index);
         }
-
         return Basic.builder_to_string(*generated);
     };
-
     name_width := 0;
     value_width := 0;
-
     for i: 0..N - 1 {
         name_width = Basic.max(name_width, names[i].count);
         value_width = Basic.max(value_width, values[i].count);
     }
-
     for i: 0..N - 1 {
         print_helper(builder, config, name_width, value_width, names[i], values[i], types[i]);
-
         // names[i] was made by #run and lives in the program's constant data; only values are heap.
         Basic.free(values[i]);
     }
@@ -104,10 +96,8 @@ print_vars :: ($args: ..Code) #expand {
 
 log_vars :: ($args: ..Code) #expand {
     builder: Basic.String_Builder;
-
     print_vars_helper(*builder, .{}, args);
     text := Basic.builder_to_string(*builder);
-
     Basic.log("%", text);
     Basic.free(text);
 }

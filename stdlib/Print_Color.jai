@@ -61,7 +61,6 @@ with_console_color :: (color: Console_Color, code: Code, style: Console_Style = 
 
 print_color :: (format_string: string, args: ..Any, color: Console_Color, style: Console_Style = .NORMAL, to_standard_error := false) {
     text := Basic.sprint(format_string, ..args);
-
     set_console_color(color, style, to_standard_error);
     Basic.write_string(text, to_standard_error);
     reset_console_color(to_standard_error);

@@ -4,37 +4,30 @@ md5 :: (input: string) -> string #must {
     state: [4] u32 = .[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476];
     block: [64] u8;
     position: s64 = 0;
-
     while input.count - position >= 64 {
         for i: 0..63 block[i] = input.data[position + i];
         md5_compress(state.data, block);
         position += 64;
     }
-
     remaining := input.count - position;
-
     for i: 0..63 block[i] = 0;
     for i: 0..remaining - 1 block[i] = input.data[position + i];
     block[remaining] = 128;
-
     if remaining >= 56 {
         md5_compress(state.data, block);
         for i: 0..63 block[i] = 0;
     }
-
     bits := cast(u64) input.count * 8;
     for i: 0..7 block[56 + i] = cast,trunc(u8) (bits >> cast(u64) (i * 8));
     md5_compress(state.data, block);
     output := alloc_string(32);
     if !output.data return "";
     digits :: "0123456789abcdef";
-
     for i: 0..15 {
         byte := cast,trunc(u8) (state[i / 4] >> cast(u32) ((i % 4) * 8));
         output.data[i * 2] = digits.data[byte >> 4];
         output.data[i * 2 + 1] = digits.data[byte & 15];
     }
-
     return output;
 }
 
@@ -57,22 +50,18 @@ md5_constants :: u32.[
 
 md5_compress :: (state: *u32, block: [64] u8) {
     words: [16] u32;
-
     for i: 0..15 {
         p := i * 4;
         words[i] = (cast(u32) block[p]) | ((cast(u32) block[p + 1]) << 8) | ((cast(u32) block[p + 2]) << 16) | ((cast(u32) block[p + 3]) << 24);
     }
-
     a := state[0];
     b := state[1];
     c := state[2];
     d := state[3];
-
     for i: 0..63 {
         round := i / 16;
         mix: u32;
         word: s64;
-
         if round == 0 {
             mix = (b & c) | ((~b) & d);
             word = i;
@@ -86,18 +75,15 @@ md5_compress :: (state: *u32, block: [64] u8) {
             mix = c ^ (b | (~d));
             word = (i * 7) % 16;
         }
-
         // Use u64 intermediates so overflow is explicitly modulo 2^32.
         value := cast,trunc(u32) (cast(u64) a + mix + md5_constants[i] + words[word]);
         shift := md5_rotations[round * 4 + i % 4];
         rotated := (value << shift) | (value >> (32 - shift));
-
         a = d;
         d = c;
         c = b;
         b = cast,trunc(u32) (cast(u64) b + rotated);
     }
-
     state[0] = cast,trunc(u32) (cast(u64) state[0] + a);
     state[1] = cast,trunc(u32) (cast(u64) state[1] + b);
     state[2] = cast,trunc(u32) (cast(u64) state[2] + c);

@@ -3,11 +3,9 @@
     current_time_monotonic :: () -> Apollo_Time {
         ticks: s64;
         frequency: s64;
-
         if !clock_query_counter(*ticks) || !clock_query_frequency(*frequency) || frequency <= 0 return APOLLO_TIME_INVALID;
         seconds := ticks / frequency;
         fraction := ticks % frequency;
-
         return seconds_to_apollo(seconds) + to_apollo(cast(float64) fraction / cast(float64) frequency);
     }
 
@@ -20,12 +18,10 @@
     filetime_to_apollo :: (stamp: $T) -> Apollo_Time {
         ticks := ((cast(u64) stamp.dwHighDateTime) << 32) | stamp.dwLowDateTime;
         epoch_ticks :: 116444736000000000;
-
         if ticks < epoch_ticks return APOLLO_TIME_INVALID;
         since_epoch := ticks - epoch_ticks;
         seconds := cast(s64) (since_epoch / 10000000);
         nanoseconds := cast(s64) (since_epoch % 10000000) * 100;
-
         return APOLLO_TIME_FOR_JAN_1_1970 + seconds_to_apollo(seconds) + nanoseconds_to_apollo(nanoseconds);
     }
 
@@ -33,7 +29,6 @@
     to_filetime :: (at: Apollo_Time) -> (ft: Clock_Filetime, success: bool) {
         ticks, ok := to_nanoseconds(at - APOLLO_TIME_FOR_JAN_1_1970);
         ft: Clock_Filetime;
-
         if !ok return ft, false;
         total := ticks / 100;
         if ticks < 0 && ticks % 100 != 0 total -= 1;
@@ -70,12 +65,10 @@
         if required == 0 return "";
         buffer := cast(*u16) alloc(cast(s64) required * 2 + 2, temp);
         written := clock_get_cwd(required, buffer);
-
         if written == 0 || written >= required return "";
         bytes := clock_wide_to_utf8(65001, 0, buffer, cast(s32) written, null, 0, null, null);
         if bytes <= 0 return "";
         out := cast(*u8) alloc(cast(s64) bytes, temp);
-
         clock_wide_to_utf8(65001, 0, buffer, cast(s32) written, out, bytes, null, null);
         return string.{ cast(s64) bytes, out };
     }
@@ -105,10 +98,8 @@
     clock_utf8_to_wide :: (text: string) -> [] u16 {
         count := clock_utf8_to_wide_raw(65001, 0, text.data, cast(s32) text.count, null, 0);
         result: [] u16;
-
         if count <= 0 && text.count > 0 return result;
         buffer := cast(*u16) alloc((cast(s64) count + 1) * 2, temp);
-
         clock_utf8_to_wide_raw(65001, 0, text.data, cast(s32) text.count, buffer, count);
         buffer[count] = 0;
         result.data = buffer;
@@ -119,11 +110,9 @@
 } else {
     current_time_monotonic :: () -> Apollo_Time {
         clock: s32 = 1;
-
         #if OS == .MACOS || OS == .IOS {
             clock = 6;
         }
-
         stamp: Clock_Timespec;
         if clock_get_time(clock, *stamp) != 0 return APOLLO_TIME_INVALID;
         return seconds_to_apollo(stamp.tv_sec) + nanoseconds_to_apollo(stamp.tv_nsec);
@@ -144,7 +133,6 @@
         os_local_offset_seconds :: (utc_seconds: s64) -> s64 {
             when := utc_seconds;
             parts: Clock_Tm;
-
             if Clock_Posix.localtime_r(*when, *parts) == null return 0;
             return parts.tm_gmtoff;
         }
@@ -153,7 +141,6 @@
             ts: Clock_Posix.timespec;
             elapsed := at - APOLLO_TIME_FOR_JAN_1_1970;
             nanoseconds_total, ok := to_nanoseconds(elapsed, DO_ROUNDING = true);
-
             if !ok || at == APOLLO_TIME_INVALID || nanoseconds_total < 0 return ts, false; // timespec cannot go negative
             ts.tv_sec = nanoseconds_total / 1_000_000_000;
             ts.tv_nsec = nanoseconds_total % 1_000_000_000;
@@ -170,7 +157,6 @@
         requested: Clock_Timespec;
         requested.tv_sec = milliseconds / 1000;
         requested.tv_nsec = (milliseconds % 1000) * 1000000;
-
         while true {
             remaining: Clock_Timespec;
             if clock_nanosleep(*requested, *remaining) == 0 return;
@@ -192,7 +178,6 @@
             if clock_errno_slot().* != 34 return ""; // ERANGE
             capacity *= 2;
         }
-
         return "";
     }
 
@@ -236,7 +221,6 @@ get_time :: () -> float64 {
 seconds_since_init :: () -> float64 {
     now := current_time_monotonic();
     now_ns, valid := to_nanoseconds(now);
-
     if !valid || now_ns < 0 return 0;
     installed, origin := compare_and_swap(*clock_initial_nanoseconds, cast(s64) -1, now_ns);
     if installed origin = now_ns;
@@ -249,12 +233,10 @@ seconds_since_init :: () -> float64 {
     store_in_integer :: (str: string) -> s32 {
         assert(str.count <= 4);
         out: s32;
-
         for str {
             shift := cast(u32) ((str.count - it_index - 1) * 8);
             out |= cast,no_check(s32) ((cast(u32) it) << shift);
         }
-
         return out;
     }
 

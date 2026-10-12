@@ -10,7 +10,6 @@ file_modtime_and_size :: (file_path: string) -> (modtime: Apollo_Time, size: s64
     info: File_Attribute_Data;
     if !native_file_attributes(os_utf8_to_wide(file_path), 0, *info) return .{}, 0, false;
     size := ((cast(s64) info.nFileSizeHigh) << 32) | info.nFileSizeLow;
-
     return filetime_to_apollo(info.ftLastWriteTime), size, true;
 }
 
@@ -34,7 +33,6 @@ same_file :: (source: string, destination: string) -> bool {
     defer Windows.CloseHandle(b);
     a_id: File_Identity;
     b_id: File_Identity;
-
     if !Windows.GetFileInformationByHandleEx(a, cast(Windows.FILE_INFO_BY_HANDLE_CLASS) 18, *a_id, size_of(File_Identity)) || !Windows.GetFileInformationByHandleEx(b, cast(Windows.FILE_INFO_BY_HANDLE_CLASS) 18, *b_id, size_of(File_Identity)) return false;
     return a_id.volume == b_id.volume && memcmp(a_id.identifier.data, b_id.identifier.data, 16) == 0;
 }
@@ -62,10 +60,8 @@ directory_entries :: (path: string) -> [] File_Visit_Info, bool {
     native: Windows.WIN32_FIND_DATAW;
     pattern := Strings.join(path, "/*");
     search := Windows.FindFirstFileW(os_utf8_to_wide(pattern), *native);
-
     if search == cast(Windows.HANDLE) -1 return result, false;
     defer Windows.FindClose(search);
-
     while true {
         name := os_wide_to_utf8(native.cFileName.data);
         if name != "." && name != ".." {
@@ -77,12 +73,10 @@ directory_entries :: (path: string) -> [] File_Visit_Info, bool {
             info.modification_time = filetime_to_apollo(native.ftLastWriteTime);
             array_add(*result, info);
         }
-
         if !Windows.FindNextFileW(search, *native) {
             if cast(u32) Windows.GetLastError() != 18 return result, false;
             break;
         }
     }
-
     return result, true;
 }

@@ -29,7 +29,6 @@ wasm_poll_input :: () {
         event.ctrl_pressed = (native.modifiers & 2) != 0;
         event.alt_pressed = (native.modifiers & 4) != 0;
         event.cmd_meta_pressed = (native.modifiers & 8) != 0;
-
         if native.type == {
             case 1;
                 event.type = .KEYBOARD;
@@ -37,31 +36,25 @@ wasm_poll_input :: () {
                 event.key_pressed = native.pressed;
                 event.repeat = native.repeat != 0;
                 queue_input_event(event);
-
             case 2;
                 event.type = .TEXT_INPUT;
                 event.utf32 = native.utf32;
                 event.text_input_count = 1;
                 queue_input_event(event);
-
             case 3;
                 if wasm_has_pointer queue_mouse_delta(native.x - wasm_pointer_x, native.y - wasm_pointer_y);
                 wasm_pointer_x, wasm_pointer_y = native.x, native.y;
                 wasm_has_pointer = true;
-
             case 4;
                 event.type = .MOUSE_WHEEL;
                 event.typical_wheel_delta = WHEEL_DELTA;
                 event.wheel_delta = native.y;
                 queue_mouse_delta(0, 0, native.y);
                 queue_input_event(event);
-
             case 5;
                 queue_window_resize(INVALID_WINDOW, native.x, native.y);
-
             case 6;
                 set_input_focus(native.pressed != 0);
-
             case 7;
                 event.type = .QUIT;
                 queue_input_event(event);

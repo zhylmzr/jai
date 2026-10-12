@@ -47,7 +47,6 @@ rp_unlock :: () {
 rp_record :: (memory: *void, heap: *void) {
     if !memory return;
     record := cast(*Allocation_Record) native_allocate(size_of(Allocation_Record));
-
     Basic.assert(record != null, "Unable to allocate rpmalloc ownership record");
     record.memory = memory;
     record.capacity = native_usable_size(memory);
@@ -69,17 +68,14 @@ rp_forget :: (memory: *void) {
             native_free(record);
             break;
         }
-
         link = *record.next;
     }
-
     rp_unlock();
 }
 
 rp_owns :: (heap: *void, memory: *void) -> bool {
     if !memory return false;
     address := cast(u64) memory;
-
     rp_lock();
     defer rp_unlock();
     record := rp_records;
@@ -88,7 +84,6 @@ rp_owns :: (heap: *void, memory: *void) -> bool {
         if record.heap == heap && address >= first && address - first < record.capacity return true;
         record = record.next;
     }
-
     return false;
 }
 
@@ -97,7 +92,6 @@ rp_allocate :: (heap: *void, size: s64, alignment: s64) -> *void {
     if native_thread_is_initialized() == 0 native_thread_initialize();
     if size < 0 || alignment < 0 return null;
     result: *void;
-
     if heap {
         if alignment != 0 result = native_heap_aligned_allocate(heap, cast(u64) alignment, cast(u64) size);
         else result = native_heap_allocate(heap, cast(u64) size);
@@ -105,7 +99,6 @@ rp_allocate :: (heap: *void, size: s64, alignment: s64) -> *void {
         if alignment != 0 result = native_aligned_allocate(cast(u64) alignment, cast(u64) size);
         else result = native_allocate(cast(u64) size);
     }
-
     rp_record(result, heap);
     return result;
 }
@@ -120,7 +113,6 @@ rp_callocate :: (heap: *void, count: u64, size: u64, alignment: u64) -> *void {
 rp_reallocate :: (heap: *void, memory: *void, size: s64, alignment: s64, oldsize: s64, flags: Realloc_Flags) -> *void {
     if size < 0 || alignment < 0 || oldsize < 0 return null;
     result: *void;
-
     if heap {
         if alignment != 0 result = native_heap_aligned_reallocate(heap, memory, cast(u64) alignment, cast(u64) size, cast(u32) flags);
         else result = native_heap_reallocate(heap, memory, cast(u64) size, cast(u32) flags);
@@ -128,13 +120,11 @@ rp_reallocate :: (heap: *void, memory: *void, size: s64, alignment: s64, oldsize
         if alignment != 0 || flags != .{} result = native_aligned_reallocate(memory, cast(u64) alignment, cast(u64) size, cast(u64) oldsize, cast(u32) flags);
         else result = native_reallocate(memory, cast(u64) size);
     }
-
     // Failed realloc preserves the original block; size zero is native free.
     if result || size == 0 {
         rp_forget(memory);
         rp_record(result, heap);
     }
-
     return result;
 }
 
@@ -154,7 +144,6 @@ rp_free_all :: (heap: *void) {
             native_free(record);
         } else link = *record.next;
     }
-
     rp_unlock();
     native_heap_free_all(heap);
 }
@@ -191,13 +180,11 @@ rp_initialize_config :: (config: *rpmalloc_config_t) -> s32 {
         rp_page_name = null;
         rp_huge_page_name = null;
     }
-
     return result;
 }
 
 rp_get_config :: () -> *rpmalloc_config_t {
     native := native_config();
-
     rp_public_config.page_size = cast(type_of(rp_public_config.page_size)) native.page_size;
     rp_public_config.span_size = cast(type_of(rp_public_config.span_size)) native.span_size;
     rp_public_config.span_map_count = cast(type_of(rp_public_config.span_map_count)) native.span_map_count;
@@ -207,13 +194,11 @@ rp_get_config :: () -> *rpmalloc_config_t {
 
 rp_finalize :: () {
     rp_lock();
-
     while rp_records {
         record := rp_records;
         rp_records = record.next;
         native_free(record);
     }
-
     rp_unlock();
     native_finalize();
     rp_initialized = false;
@@ -249,7 +234,6 @@ rp_error_callback :: (message: *u8) #c_call {
         length: s64;
         while message[length] != 0 length += 1;
         text: string = .{ length, message };
-
         #if USE_RAW rp_public_config.error_callback(text);
         else rp_public_config.error_callback(text, .{});
     }

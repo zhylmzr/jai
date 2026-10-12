@@ -11,12 +11,10 @@ to_string :: (cfstring: CFStringRef) -> string {
     if capacity < 0 || capacity == 0x7fffffffffffffff return "";
     bytes := cast(*u8) Basic.alloc(capacity + 1);
     if bytes == null return "";
-
     if !CFStringGetCString(cfstring, bytes, capacity + 1, .UTF8) {
         Basic.free(bytes);
         return "";
     }
-
     length: s64 = 0;
     while length < capacity && bytes[length] != 0 length += 1;
     result: string;

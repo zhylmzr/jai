@@ -24,7 +24,6 @@ quaternion_cases :: () -> bool {
     if abs(rotated.x) > 0.00001 || abs(rotated.y - 1) > 0.00001 || abs(rotated.z) > 0.00001 return false;
     blended := slerp(start = Quaternion_Identity, end = q, t = 0.5);
     _, _, z, theta := get_axis_and_angle(blended);
-
     if abs(theta - PI64 * 0.25) > 0.00001 || abs(z - 1) > 0.00001 return false;
     return true;
 }
@@ -41,16 +40,13 @@ matrix_cases :: () -> bool {
     inverse_matrix, success := inverse(m);
     if !success return false;
     product := multiply(m, inverse_matrix);
-
     for r: 0..3 for c : 0..3 {
         expected := 0.0;
         if r == c expected = 1;
         if abs(product.coef[r][c] - expected) > 0.00001 return false;
     }
-
     singular: Matrix4;
     _, was_inverted := inverse(singular);
-
     if was_inverted return false;
     return true;
 }

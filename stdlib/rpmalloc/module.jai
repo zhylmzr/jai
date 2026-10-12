@@ -29,56 +29,44 @@
 
 rpmalloc_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64, old_memory: *void, allocator_data: *void) -> *void {
     heap := allocator_data;
-
     if mode == .CAPS {
         if old_memory {
             name := cast(*string) old_memory;
             name.* = CAPS_VERSION_STRING;
         }
-
         return cast(*void) cast(u64) (Allocator_Caps.FREE | .CREATE_HEAP | .ACTUALLY_RESIZE |
                                       .IS_THIS_YOURS | .HINT_I_AM_A_GENERAL_HEAP_ALLOCATOR);
     }
-
     if mode == .STARTUP {
         if !rp_initialized {
             if rp_initialize_default() != 0 return null;
             rp_allocator_owns_initialization = true;
         }
-
         rp_allocator_count += 1;
         return native_heap_acquire();
     }
-
     if mode == .CREATE_HEAP || mode == .THREAD_START return native_heap_acquire();
-
     if mode == .SHUTDOWN || mode == .DESTROY_HEAP || mode == .THREAD_STOP {
         if heap {
             rp_free_all(heap);
             native_heap_release(heap);
         }
-
         if mode == .SHUTDOWN {
             rp_allocator_count -= 1;
             if rp_allocator_count == 0 && rp_allocator_owns_initialization rp_finalize();
         }
-
         return null;
     }
-
     if mode == .IS_THIS_YOURS return cast(*void) cast(u64) rp_owns(heap, old_memory);
-
     // Like Default_Allocator: blocks of a cache line or more start on one, so `New` of a
     // `#align 64` type is aligned (rpmalloc's size classes only promise 16).
     line_alignment := ifx requested_size >= 64 then 64 else 0;
     if mode == .ALLOCATE return rp_allocate(heap, requested_size, line_alignment);
     if mode == .RESIZE return rp_reallocate(heap, old_memory, requested_size, line_alignment, old_size, .{});
-
     if mode == .FREE {
         rp_free(heap, old_memory);
         return null;
     }
-
     Basic.assert(false, "Unknown rpmalloc allocator protocol mode");
     return null;
 }

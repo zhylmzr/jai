@@ -117,7 +117,6 @@ Compiler_Pin :: struct {
 
 compiler_create_workspace :: (name := "") -> Workspace {
     id := __jaic_workspace_create(name);
-
     ensure_option_slot(id);
     while workspace_names.count <= id array_add(*workspace_names, "");
     workspace_names[id] = copy_text(name);
@@ -151,7 +150,6 @@ add_build_string :: (data: string, w: Workspace, code := #code,null, loc := #cal
         text := "add_build_string: jaic cannot add a string in the scope of a Code value; leave `code` out to add it at the workspace's top level";
         __jaic_report(text, loc.fully_pathed_filename, loc.line_number, loc.character_number, xx Report.ERROR);
     }
-
     __jaic_workspace_add_string(resolve_workspace(w), data);
 }
 
@@ -191,7 +189,6 @@ get_toplevel_command_line :: () -> [] string {
 // typechecked expression is delivered.
 compiler_begin_intercept :: (w: Workspace, flags: Intercept_Flags = 0, loc := #caller_location) {
     id := resolve_workspace(w);
-
     __jaic_workspace_begin_intercept(id, cast(s64) flags);
 
     index := find_intercept(id);
@@ -223,13 +220,11 @@ compiler_wait_for_message :: () -> *Message {
     tried := 0;
     while tried < intercepted.count {
         index := (intercept_cursor + tried) % intercepted.count;
-
         tried += 1;
         if intercept_finished[index] continue;
 
         id := intercepted[index];
         kind := __jaic_workspace_next_event(id);
-
         intercept_cursor = (index + 1) % intercepted.count;
 
         message := build_message(id, kind);
@@ -237,13 +232,11 @@ compiler_wait_for_message :: () -> *Message {
             tried = 0;
             continue;
         }
-
         if message.kind == .COMPLETE {
             intercept_finished[index] = true;
             last_complete_workspace = id;
             last_complete_error = cast(s64) (cast(*Message_Complete) message).error_code;
         }
-
         return message;
     }
 
@@ -261,12 +254,10 @@ compiler_set_workspace_status :: (status: Workspace_Status, w: Workspace = -1) {
     // be made OK again, and saying so is an error rather than a no-op.
     id := resolve_workspace(w);
     failed := id == last_complete_workspace && last_complete_error != 0;
-
     if status == .OK {
         if failed __jaic_report("compiler_set_workspace_status: jaic cannot mark a failed workspace as OK", "", 0, 0, xx Report.ERROR);
         return;
     }
-
     if failed return;
     __jaic_report("the metaprogram marked the workspace as failed", "", 0, 0, xx Report.ERROR);
 }
@@ -332,7 +323,6 @@ get_basename_and_path :: (input_name: string) -> (basename: string, path: string
 is_subclass_of :: (info: *Type_Info, base_name: string, first_call := true) -> bool {
     hops := ifx first_call then 0 else 1;
     current := info;
-
     while current && current.type == .STRUCT {
         as_struct := cast(*Type_Info_Struct) current;
         if hops > 0 && as_struct.name == base_name return true;
@@ -346,7 +336,6 @@ is_subclass_of :: (info: *Type_Info, base_name: string, first_call := true) -> b
         if current.type == .POINTER current = (cast(*Type_Info_Pointer) current).pointer_to;
         hops += 1;
     }
-
     return false;
 }
 
@@ -379,7 +368,6 @@ get_runtime_info :: (w: Workspace = -1, loc := #caller_location) -> Runtime_Info
         text := tprint("get_runtime_info: jaic has the type table of the running program only, not of workspace %", w);
         __jaic_report(text, loc.fully_pathed_filename, loc.line_number, loc.character_number, xx Report.ERROR);
     }
-
     return __runtime_info;
 }
 
@@ -394,7 +382,6 @@ get_type_table :: (w: Workspace = -1, loc := #caller_location) -> [] *Type_Info 
         __jaic_type_table(w, *table);
         return table;
     }
-
     return get_runtime_info(w, loc).type_table;
 }
 
@@ -412,9 +399,7 @@ compiler_get_nodes :: (code: Code) -> (root: *Code_Node, expressions: [] *Code_N
         root: *Code_Node;
         expressions: [] *Code_Node;
     }
-
     nodes := cast(*Code_Nodes) record_struct(__jaic_code_nodes(code), type_info(Code_Nodes));
-
     return nodes.root, nodes.expressions;
 }
 
@@ -423,7 +408,6 @@ compiler_get_nodes :: (code: Code) -> (root: *Code_Node, expressions: [] *Code_N
 compiler_get_code :: (node: *Code_Node, code_to_copy_scope_from: Code = #code,null) -> Code {
     PP :: #import "Program_Print";
     builder: String_Builder;
-
     PP.print_expression(*builder, node);
     return __jaic_parse_code(builder_to_string(*builder), code_to_copy_scope_from);
 }
@@ -432,7 +416,6 @@ code_to_string :: (code: Code) -> string {
     PP :: #import "Program_Print";
     root := compiler_get_nodes(code);
     builder: String_Builder;
-
     PP.print_expression(*builder, root);
     return builder_to_string(*builder);
 }
@@ -473,25 +456,20 @@ compiler_modify_procedure :: (w: Workspace, body: *Code_Procedure_Body) {
     PP :: #import "Program_Print";
     statements: [..] s64;
     sources: [..] string;
-
     defer array_free(statements);
     defer array_free(sources);
-
     for body.block.statements {
         record := record_of(it);
         if record && record_differs(it, record) record = 0;
         source: string;
-
         if !record {
             builder: String_Builder;
             PP.print_expression(*builder, it);
             source = builder_to_string(*builder);
         }
-
         array_add(*statements, record);
         array_add(*sources, source);
     }
-
     __jaic_modify_procedure(resolve_workspace(w), record_of(body), statements.data, sources.data, statements.count);
     body.body_flags |= .ALREADY_MODIFIED;
 }
@@ -562,7 +540,6 @@ add_global_data :: (data: [] u8, segment: Data_Segment_Index, user_segment: *Dat
         text := "add_global_data: USER_SEGMENT needs the segment add_data_segment returned";
         __jaic_report(text, loc.fully_pathed_filename, loc.line_number, loc.character_number, xx Report.ERROR);
     }
-
     result: [] u8;
     result.data = alloc(data.count);
     result.count = data.count;
@@ -671,14 +648,12 @@ build_message :: (id: Workspace, event_kind: s64) -> *Message {
 
         case EVENT_TYPECHECKED;
             typechecked := cast(*Message_Typechecked) record_struct(__jaic_event_int(0), type_info(Message_Typechecked));
-
             // A body lowered after its header was reported reaches the header struct the
             // metaprogram may still hold from that earlier message.
             for typechecked.procedure_bodies {
                 body := it.expression;
                 if body && body.header body.header.body_or_null = body;
             }
-
             return typechecked;
 
         case EVENT_FAILED_IMPORT;
@@ -700,7 +675,6 @@ build_message :: (id: Workspace, event_kind: s64) -> *Message {
 
         case EVENT_PHASE;
             phase := __jaic_event_int(0);
-
             message_phase.kind = .PHASE;
             message_phase.workspace = id;
             message_phase.phase = xx phase;
@@ -714,7 +688,6 @@ build_message :: (id: Workspace, event_kind: s64) -> *Message {
             message_phase.support_object_files = .[];
             message_phase.system_libraries = .[];
             message_phase.user_libraries = .[];
-
             if phase == PHASE_PRE_WRITE_EXECUTABLE || phase == PHASE_READY_FOR_CUSTOM_LINK_COMMAND {
                 // Strings: the objects, support objects, system and user libraries, then the
                 // executable (counts in ints 1 to 4; PRE_WRITE has objects only).
@@ -722,12 +695,10 @@ build_message :: (id: Workspace, event_kind: s64) -> *Message {
                 for 0..3 counts[it] = __jaic_event_int(it + 1);
                 lists: [4][..] string;
                 next := 0;
-
                 for count, list_index: counts {
                     for item: 0..count - 1 array_add(*lists[list_index], __jaic_event_string(next + item));
                     next += count;
                 }
-
                 for lists[0] array_add(*phase_object_files, it);
                 message_phase.compiler_generated_object_files = phase_object_files;
                 message_phase.support_object_files = lists[1];
@@ -739,7 +710,6 @@ build_message :: (id: Workspace, event_kind: s64) -> *Message {
                 message_phase.linker_exit_code = xx __jaic_event_int(2);
                 message_phase.executable_name = __jaic_event_string(0);
             }
-
             return *message_phase;
 
         case EVENT_COMPLETE;
@@ -759,11 +729,9 @@ keep_typechecked :: (m: *Message_Typechecked, flags: Intercept_Flags) -> bool {
     if flags & .SKIP_STRUCTS m.structs.count = 0;
     if flags & .SKIP_OTHERS m.others.count = 0;
     kept := 0;
-
     for m.all {
         node := it.expression;
         skip: Intercept_Flags = .SKIP_OTHERS;
-
         if node {
             if node.kind == {
                 case .DECLARATION; skip = .SKIP_DECLARATIONS;
@@ -772,12 +740,10 @@ keep_typechecked :: (m: *Message_Typechecked, flags: Intercept_Flags) -> bool {
                 case .STRUCT; skip = .SKIP_STRUCTS;
             }
         }
-
         if flags & skip continue;
         m.all[kept] = it;
         kept += 1;
     }
-
     m.all.count = kept;
     return kept > 0;
 }
@@ -789,7 +755,6 @@ parse_version_numbers :: (text: string, info: *Version_Info) {
 
     parts: [3] s32;
     part := 0;
-
     while i < text.count && part < 3 {
         c := text[i];
         if is_digit_char(c) {
@@ -797,7 +762,6 @@ parse_version_numbers :: (text: string, info: *Version_Info) {
         } else if c == #char "." {
             part += 1;
         } else break;
-
         i += 1;
     }
 
@@ -821,7 +785,6 @@ decimal :: (n: s64) -> string {
 enum_member_name :: (value: $T) -> string {
     info := cast(*Type_Info_Enum) type_info(T);
     v := cast(s64) value;
-
     for info.values if it == v return info.names[it_index];
     return "";
 }
@@ -846,10 +809,8 @@ directory_of :: (file: string) -> string {
             result.count = i;
             return result;
         }
-
         i -= 1;
     }
-
     return "";
 }
 

@@ -26,11 +26,9 @@ get_build_options :: (w: Workspace = -1) -> Build_Options {
 // Relative `import_path` entries are anchored at the directory of `loc`.
 set_build_options :: (options: Build_Options, w: Workspace = -1, loc := #caller_location) {
     id := resolve_workspace(w);
-
     ensure_option_slot(id);
 
     previous := option_store[id];
-
     option_store[id] = options;
 
     // Rewrite relative import paths in the stored copy as well, so a later
@@ -45,7 +43,6 @@ set_build_options :: (options: Build_Options, w: Workspace = -1, loc := #caller_
 
 set_build_options_dc :: (options: Build_Options_During_Compile, w: Workspace = -1, loc := #caller_location) {
     id := resolve_workspace(w);
-
     ensure_option_slot(id);
 
     stored := *option_store[id];
@@ -58,7 +55,6 @@ set_build_options_dc :: (options: Build_Options_During_Compile, w: Workspace = -
     } else if stored.output_type == .NO_OUTPUT {
         stored.output_type = .EXECUTABLE;
     }
-
     stored.write_added_strings = options.write_added_strings;
     stored.append_executable_filename_extension = options.append_executable_filename_extension;
     stored.interactive_bytecode_debugger = options.interactive_bytecode_debugger;
@@ -69,7 +65,6 @@ set_build_options_dc :: (options: Build_Options_During_Compile, w: Workspace = -
     __jaic_workspace_set_option(id, "append_executable_filename_extension", ifx options.append_executable_filename_extension then "true" else "false");
     if options.output_executable_name.count > 0 __jaic_workspace_set_option(id, "output_executable_name", options.output_executable_name);
     if options.output_path.count > 0 __jaic_workspace_set_option(id, "output_path", options.output_path);
-
     for options.append_linker_arguments {
         __jaic_workspace_set_option(id, "additional_linker_argument", it);
     }
@@ -343,7 +338,6 @@ ensure_option_slot :: (id: s64) {
         array_add(*option_store, options);
         array_add(*option_store_ready, false);
     }
-
     if option_store_ready[id] return;
     option_store_ready[id] = true;
 
@@ -388,7 +382,6 @@ main_intermediate_default: string;
 collect_command_line :: () -> [] string {
     count := __jaic_command_line_count();
     result: [..] string;
-
     for 0..count - 1 array_add(*result, copy_text(__jaic_command_line_arg(it)));
     return result;
 }
@@ -396,7 +389,6 @@ collect_command_line :: () -> [] string {
 anchor_paths :: (paths: [] string, anchor_file: string) -> [] string {
     result: [..] string;
     directory := directory_of(anchor_file);
-
     for paths {
         if is_rooted(it) || directory.count == 0 {
             array_add(*result, it);
@@ -406,7 +398,6 @@ anchor_paths :: (paths: [] string, anchor_file: string) -> [] string {
             array_add(*result, tprint("%1%2%3", directory, string.{ 1, *separator }, it));
         }
     }
-
     return result;
 }
 
@@ -430,29 +421,24 @@ forward_options :: (id: s64, previous: Build_Options, options: Build_Options) {
 
     // Cross targets (wasm) take their triple, CPU and feature string from here; empty means the target's default.
     llvm := options.llvm_options;
-
     __jaic_workspace_set_option(id, "llvm_target_system_triple", llvm.target_system_triple);
     __jaic_workspace_set_option(id, "llvm_target_system_cpu", llvm.target_system_cpu);
     __jaic_workspace_set_option(id, "llvm_target_system_features", llvm.target_system_features);
 
     __jaic_workspace_set_option(id, "entry_point_name", options.entry_point_name);
     __jaic_workspace_set_option(id, "temporary_storage_size", decimal(options.temporary_storage_size));
-
     // The default folder is only a report; leaving it unsent keeps intermediates beside the output.
     if options.intermediate_path != main_intermediate_default __jaic_workspace_set_option(id, "intermediate_path", options.intermediate_path);
     __jaic_workspace_set_option(id, "append_executable_filename_extension", flag_text(options.append_executable_filename_extension));
     __jaic_workspace_set_option(id, "use_custom_link_command", flag_text(options.use_custom_link_command));
     __jaic_workspace_set_option(id, "disable_redzone", flag_text(options.disable_redzone));
-
     if options.runtime_support_definitions != previous.runtime_support_definitions {
         __jaic_workspace_set_option(id, "runtime_support_definitions", enum_member_name(options.runtime_support_definitions));
     }
-
     __jaic_workspace_set_option(id, "backtrace_on_crash", enum_member_name(options.backtrace_on_crash));
 
     __jaic_workspace_set_option(id, "enable_frame_pointers", flag_text(options.enable_frame_pointers));
     version := options.minimum_os_version;
-
     __jaic_workspace_set_option(id, "minimum_os_version", tprint("%.%", version.major, version.minor));
     machine := llvm.machine_code_optimization_setting;
     if machine != .UNSET __jaic_workspace_set_option(id, "machine_code_optimization", enum_member_name(machine));
@@ -550,7 +536,6 @@ check_build_options :: (previous: Build_Options, options: Build_Options, loc: So
 
     llvm := *o.llvm_options;
     before := *p.llvm_options;
-
     if llvm.function_sections && !before.function_sections {
         option_warning(loc, "Build_Options.llvm_options.function_sections", "jaic puts all functions of an object file in one section");
     }

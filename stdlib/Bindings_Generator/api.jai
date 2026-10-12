@@ -14,10 +14,8 @@ change_type_to_enum :: (decl: *Declaration, enum_name: string) -> bool {
 
 change_type_to_enum :: (decl: *Declaration, e: *Enum) {
     old_size := ifx decl.type then decl.type.size else -1;
-
     note_enum_retyping("type", decl.output_name, old_size, e);
     decl.type = make_enum_type(e);
-
     // A default argument written for the integer type now needs `cast(Enum)`.
     decl.decl_flags |= .NEEDS_DEFAULT_ARGUMENT_CAST;
 }
@@ -51,7 +49,6 @@ change_return_type :: (decl: *Declaration, new_return_type: *CType) {
 
 change_return_type :: (name: string, function_type: *Function_Type, new_return_type: *CType) {
     previous := function_type.return_type;
-
     function_type.return_type = new_return_type;
     if !previous || previous.size == new_return_type.size return;
     log("Bindings_Generator: the return type of % changes size, from % to % bytes.", name, previous.size, new_return_type.size);
@@ -62,26 +59,21 @@ change_return_type :: (name: string, function_type: *Function_Type, new_return_t
 // from macros. `decl` may be null to search globally.
 find_parent_enum :: (decl: *Declaration, enum_name: string) -> *Enum {
     scope := ifx decl then decl.parent else null;
-
     while true {
         // A null scope stands for the global one, which ends the walk.
         members: [] *Declaration;
         if !scope members = context.generator.global_scope.members;
         else if scope.kind == .STRUCT members = (cast(*Struct) scope).declarations;
         else if scope.kind == .NAMESPACE members = (cast(*Namespace) scope).declarations;
-
         for members {
             if it.kind == .ENUM && answers_to(it, enum_name) return cast(*Enum) it;
         }
-
         if !scope break;
         scope = scope.parent;
     }
-
     for context.generator.enum_macros {
         if answers_to(it, enum_name) return it;
     }
-
     return null;
 }
 
@@ -89,11 +81,9 @@ find_parent_enum :: (decl: *Declaration, enum_name: string) -> *Enum {
 // `output_name = false` its C name. Empty for any other type.
 get_type_name :: (type: *CType, output_name := true, strip_pointers := false) -> string {
     t := type;
-
     if strip_pointers {
         while t && t.pointer_to t = t.pointer_to;
     }
-
     named := naming_declaration(t);
     if !named return "";
     if output_name return named.output_name;
@@ -119,7 +109,6 @@ is_zero_int_expression :: (expression: *Expression) -> bool {
         literal := cast(*Literal) expression;
         if literal.literal_kind == .INTEGER return literal.int_value == 0;
     }
-
     return false;
 }
 
@@ -130,7 +119,6 @@ try_find_struct_in_type :: (type: *CType) -> *Struct {
         if t.array_element_type t = t.array_element_type;
         else t = t.pointer_to;
     }
-
     return ifx t then t.type_of_struct else null;
 }
 
@@ -143,11 +131,9 @@ is_assignment_operator :: (name: string) -> bool {
     if !is_operator_name(name) return false;
     symbol := replace_all(advance(name, "operator".count), " ", "");
     if !ends_with(symbol, "=") return false;
-
     for string.["==", "!=", "<=", ">="] {
         if symbol == it return false;
     }
-
     return true;
 }
 
@@ -158,9 +144,7 @@ replace_operator_name :: (name: string, keep_operators_allowed_in_jai := false) 
         symbol := replace_all(advance(name, "operator".count), " ", "");
         if array_find(JAI_OPERATORS, symbol) return tprint("operator%", symbol);
     }
-
     identifier := operator_names(name, 0);
-
     return identifier;
 }
 
@@ -174,7 +158,6 @@ append_parent_path :: (builder: *String_Builder, decl: *Declaration, current_sco
         array_add(*outside, d);
         d = d.parent;
     }
-
     for < outside {
         if it.kind == .NAMESPACE && (cast(*Namespace) it).should_flatten continue;
         if it.output_name print_to_builder(builder, "%.", it.output_name);
@@ -187,12 +170,10 @@ append_parent_path :: (builder: *String_Builder, decl: *Declaration, current_sco
 get_default_system_include_paths :: (os := OS, cpu := CPU) -> [] string {
     result: [..] string;
     common, per_cpu, found := get_libc_paths(os, cpu);
-
     if found {
         array_add(*result, common);
         if per_cpu != common array_add(*result, per_cpu);
     }
-
     return result;
 }
 
@@ -201,12 +182,10 @@ get_libc_paths :: (os := OS, cpu := CPU) -> libc_path: string, libc_platform_pat
         triple := ifx cpu == .ARM64 then "aarch64-linux-gnu" else "x86_64-linux-gnu";
         return "/usr/include", sprint("/usr/include/%", triple), true;
     }
-
     if os == .ANDROID {
         common, per_cpu := get_ndk_libc_paths(cpu);
         return common, per_cpu, true;
     }
-
     if os == .MACOS {
         sdk, have_sdk := get_macos_sdk_path();
         if have_sdk {
@@ -214,7 +193,6 @@ get_libc_paths :: (os := OS, cpu := CPU) -> libc_path: string, libc_platform_pat
             return include, include, true;
         }
     }
-
     return "", "", false; // Windows: the C library headers come with the toolchain.
 }
 
@@ -265,6 +243,5 @@ scope_contains :: (outer: *Declaration, inner: *Declaration) -> bool {
         if s == outer return true;
         s = s.parent;
     }
-
     return false;
 }

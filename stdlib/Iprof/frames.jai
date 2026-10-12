@@ -57,7 +57,6 @@ charge_open_nodes :: (now: s64) {
     node := current;
     while node {
         part := now - node.opened_at;
-
         node.frame_hier += part;
         if node.parent node.parent.frame_child += part;
         node.opened_at = now;
@@ -82,22 +81,17 @@ level_weight :: (level: s64) -> float64 {
 
 fold_frame_into :: (node: *Call_Node) {
     fresh := frame_sample(node);
-
     for level: 0..SMOOTHING_LEVELS - 1 {
         avg := *node.smooth[level];
-
         if !node.has_samples {
             avg.* = fresh; // Start at the first value rather than ramping up from zero.
             continue;
         }
-
         w := level_weight(level);
-
         avg.self_ms += (fresh.self_ms - avg.self_ms) * w;
         avg.hier_ms += (fresh.hier_ms - avg.hier_ms) * w;
         avg.calls += (fresh.calls - avg.calls) * w;
     }
-
     node.has_samples = true;
 }
 
@@ -105,7 +99,6 @@ fold_frame_into :: (node: *Call_Node) {
 // is not charged once per level.
 sum_zone_nodes :: (level: s64) {
     for every_node it.zone.shown = .{};
-
     for every_node {
         v := *it.smooth[level];
         z := *it.zone.shown;
@@ -118,7 +111,6 @@ sum_zone_nodes :: (level: s64) {
 #if DO_HISTORY {
     append_history :: (slot: s64) {
         sum_zone_nodes(0); // Level 0 was just set to this frame's raw values.
-
         for every_node {
             z := it.zone;
             h := *z.history[slot];

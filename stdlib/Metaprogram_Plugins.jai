@@ -16,38 +16,30 @@ parse_plugin_arguments :: (args: [] string) -> (success: bool, plugins_to_create
     plugins: [..] Plugin_To_Create;
     remaining: [..] string;
     i := 0;
-
     while i < args.count {
         arg := args[i];
-
         i += 1;
-
         if arg != "-plug" && arg != "+plug" {
             array_add(*remaining, arg);
             continue;
         }
-
         if i >= args.count {
             Compiler.compiler_report("-plug needs a plugin name.\n", mode = .ERROR_CONTINUABLE);
             return false, plugins, remaining;
         }
-
         plugin: Plugin_To_Create;
         plugin.name = args[i];
         i += 1;
         array_add(*plugins, plugin);
     }
-
     return true, plugins, remaining;
 }
 
 init_plugins :: (plugins: [] Plugin_To_Create, results: *[..] *Metaprogram_Plugin, w: Workspace) -> bool {
     if !plugins.count return true;
-
     for plugins {
         Compiler.compiler_report(tprint("Metaprogram plugin '%' cannot be loaded from inside a metaprogram; pass it to jaic as '-plug %' instead.\n", it.name, it.name), mode = .ERROR_CONTINUABLE);
     }
-
     return false;
 }
 
@@ -58,7 +50,6 @@ build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [
     Compiler.set_build_options_dc(.{ do_output = false });
     w := Compiler.compiler_create_workspace("Target Program");
     build_options := Compiler.get_build_options(w);
-
     if output_name build_options.output_executable_name = output_name;
     if output_path build_options.output_path = output_path;
     Compiler.set_build_options(build_options, w);
@@ -76,19 +67,16 @@ build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [
     Compiler.add_build_file(file, w);
 
     failed := false;
-
     while true {
         message := Compiler.compiler_wait_for_message();
         if !message break;
         for plugins if it.message it.message(it, message);
-
         if message.kind == .COMPLETE {
             done := cast(*Compiler.Message_Complete) message;
             failed = done.error_code != .NONE;
             break;
         }
     }
-
     Compiler.compiler_end_intercept(w);
     for plugins if it.finish it.finish(it);
     for plugins if it.shutdown it.shutdown(it);
@@ -99,9 +87,7 @@ build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [
 #scope_file
 deliver_plugin_options :: (plugins: [] *Metaprogram_Plugin, options: [] string) -> bool {
     stepwise: [..] *Metaprogram_Plugin;
-
     defer array_free(stepwise);
-
     for plugins {
         if it.init {
             if !it.init(it, options) return false;
@@ -109,13 +95,11 @@ deliver_plugin_options :: (plugins: [] *Metaprogram_Plugin, options: [] string) 
             array_add(*stepwise, it);
         }
     }
-
     // Only plugins without `init` need each option claimed by someone.
     if !stepwise.count return true;
     cursor := 0;
     while cursor < options.count {
         claimed := false;
-
         for stepwise {
             next := it.handle_one_option(it, options, cursor);
             if next > cursor {
@@ -124,27 +108,22 @@ deliver_plugin_options :: (plugins: [] *Metaprogram_Plugin, options: [] string) 
                 break;
             }
         }
-
         if !claimed {
             Compiler.compiler_report(tprint("No plugin accepts the option '%'.\n", options[cursor]), mode = .ERROR_CONTINUABLE);
             return false;
         }
     }
-
     return true;
 }
 
 init_plugins :: (names: [] string, results: *[..] *Metaprogram_Plugin, w: Workspace) -> bool {
     plugins: [..] Plugin_To_Create;
-
     defer array_free(plugins);
-
     for names {
         plugin: Plugin_To_Create;
         plugin.name = it;
         array_add(*plugins, plugin);
     }
-
     return init_plugins(plugins, results, w);
 }
 

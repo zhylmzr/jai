@@ -23,7 +23,6 @@ deinit_unmapping_allocator :: (a: Allocator) {
     state := cast(*Unmapping_Allocator) a.data;
     if !state return;
     allocator := state.table.allocator;
-
     deinit(state);
     free(state, allocator);
 }
@@ -37,37 +36,29 @@ deinit :: (ua: *Unmapping_Allocator) {
 
 unmapping_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64, old_memory: *void, allocator_data: *void) -> *void {
     state := cast(*Unmapping_Allocator) allocator_data;
-
     assert(state != null, "missing unmapping allocator state");
-
     if mode == .CAPS {
         if old_memory {
             name := cast(*string) old_memory;
             name.* = "independent guard-page allocator";
         }
-
         return cast(*void) cast(u64) (Allocator_Caps.FREE | .MULTIPLE_THREADS | .CREATE_HEAP | .IS_THIS_YOURS | .HINT_I_AM_A_DEBUG_ALLOCATOR | .HINT_I_AM_A_GENERAL_HEAP_ALLOCATOR);
     }
-
     if mode == .ALLOCATE || mode == .RESIZE {
         pointer := reserve_guarded(state, requested_size);
         if !pointer return null;
-
         if mode == .RESIZE && old_memory {
             retained := old_size;
             if retained > requested_size retained = requested_size;
             if retained > 0 memcpy(pointer, old_memory, retained);
             quarantine(state, old_memory);
         }
-
         return pointer;
     }
-
     if mode == .FREE {
         if old_memory quarantine(state, old_memory);
         return null;
     }
-
     if mode == .IS_THIS_YOURS {
         // Live allocations only: a retired address is no longer anyone's.
         lock(*state.mutex);
@@ -76,7 +67,6 @@ unmapping_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
         if found && size != 0xffff_ffff_ffff_ffff return cast(*void) 1;
         return null;
     }
-
     if mode == .CREATE_HEAP {
         // A heap is another independent instance; its handle is the allocator data.
         heap := New(Unmapping_Allocator, allocator = state.table.allocator);
@@ -85,17 +75,14 @@ unmapping_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
         init(*heap.mutex);
         return heap;
     }
-
     if mode == .DESTROY_HEAP {
         heap := cast(*Unmapping_Allocator) old_memory;
         if !heap return null;
         allocator := heap.table.allocator;
-
         deinit(heap);
         free(heap, allocator);
         return null;
     }
-
     return null;
 }
 
@@ -127,7 +114,6 @@ unmapping_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
             VirtualFree(base, 0, MEM_RELEASE);
             return null;
         }
-
         return base;
     }
 
@@ -152,12 +138,10 @@ unmapping_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
         else flags: s32 = 0x22;
         base := mmap(null, cast(u64) size, 3, flags, -1, 0);
         if base == cast(*void) -1 return null;
-
         if mprotect(base + size - guard_size, cast(u64) guard_size, 0) != 0 {
             munmap(base, cast(u64) size);
             return null;
         }
-
         return base;
     }
 
@@ -174,10 +158,8 @@ reserve_guarded :: (state: *Unmapping_Allocator, size: s64) -> *void {
     if readable_size == 0 readable_size = page_size;
     mapping_size := readable_size + page_size;
     base := map_with_guard(mapping_size, page_size);
-
     if !base return null;
     pointer := base + readable_size - size;
-
     lock(*state.mutex);
     table_set(*state.table, pointer, cast(u64) size);
     unlock(*state.mutex);
@@ -192,17 +174,14 @@ quarantine :: (state: *Unmapping_Allocator, pointer: *void) -> bool {
         assert(false, "invalid pointer or double free in unmapping allocator");
         return false;
     }
-
     page_size := page_bytes();
     readable_size := align_forward(cast(s64) size, page_size);
-
     if readable_size == 0 readable_size = page_size;
     base := pointer + cast(s64) size - readable_size;
     if !retire(base, readable_size + page_size) {
         assert(false, "failed to protect retired allocation");
         return false;
     }
-
     table_set(*state.table, pointer, 0xffff_ffff_ffff_ffff);
     return true;
 }

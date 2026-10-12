@@ -21,10 +21,8 @@ build_sdl :: (args: [] string) -> bool {
 build_sdl_variant :: (args: [] string, suffix: string, extra_config_args: [] string) -> bool {
     source := SOURCE_PATH;
     build_path := sprint("build/SDL2-%-%", PLATFORM_NAME, suffix);
-
     defer free(build_path);
     forwarded: [..] string;
-
     defer array_free(forwarded);
     index: s64 = 0;
     while index < args.count {
@@ -34,36 +32,29 @@ build_sdl_variant :: (args: [] string, suffix: string, extra_config_args: [] str
                 print("--source needs an independently obtained SDL2 source directory\n");
                 return false;
             }
-
             source = args[index + 1];
             index += 2;
             continue;
         }
-
         array_add(*forwarded, argument);
         index += 1;
     }
-
     // This is a manually invoked workflow for trusted upstream SDK source, never a #run action.
     configure: [..] string;
-
     defer array_free(configure);
     array_add(*configure, "cmake", "-S", source, "-B", build_path,
         "-DSDL_SHARED=ON", "-DSDL_STATIC=OFF", "-DSDL_TEST=OFF", "-DSDL_TESTS=OFF");
     mode := "Release";
     if suffix == "debug" mode = "Debug";
     mode_flag := sprint("-DCMAKE_BUILD_TYPE=%", mode);
-
     defer free(mode_flag);
     array_add(*configure, mode_flag);
     for flag: forwarded array_add(*configure, flag);
     for flag: extra_config_args array_add(*configure, flag);
     if !SDL_Build_Run(configure) return false;
     parallelism := sprint("%", NUM_PARALLEL_CMAKE_JOBS);
-
     defer free(parallelism);
     command: [] string = .["cmake", "--build", build_path, "--config", mode, "--parallel", parallelism];
-
     return SDL_Build_Run(command);
 }
 
@@ -76,7 +67,6 @@ run_or_exit :: (command: ..string, working_directory := "") -> string {
         free(error);
         exit(1);
     }
-
     free(error);
     return output;
 }
@@ -84,7 +74,6 @@ run_or_exit :: (command: ..string, working_directory := "") -> string {
 main :: () {
     arguments := get_command_line_arguments();
     options: [] string;
-
     if arguments.count > 1 options = .{ data = arguments.data + 1, count = arguments.count - 1 };
     if !build_sdl(options) exit(1);
 }
@@ -98,7 +87,6 @@ Process_SDL_Build :: #import "Process";
 SDL_Build_Run :: (command: [] string) -> bool {
     status, output, error, timed_out := Process_SDL_Build.run_command(..command,
         capture_and_return_output = true, print_captured_output = true);
-
     defer free(output);
     defer free(error);
     return !timed_out && status.type == .EXITED && status.exit_code == 0;

@@ -20,7 +20,6 @@ file_read_line :: (file: File) -> line: string, ok: bool {
     bytes: [..] u8;
     byte: u8;
     got_any := false;
-
     while true {
         success, received := file_read_checked(file, *byte, 1);
         if !success || received == 0 break;
@@ -28,7 +27,6 @@ file_read_line :: (file: File) -> line: string, ok: bool {
         if byte == #char "\n" break;
         array_add(*bytes, byte);
     }
-
     return finish_line(bytes), got_any;
 }
 
@@ -38,13 +36,11 @@ read_stdin_line :: () -> line: string, ok: bool {
     bytes: [..] u8;
     byte: u8;
     got_any := false;
-
     while read_stdin_byte(*byte) {
         got_any = true;
         if byte == #char "\n" break;
         array_add(*bytes, byte);
     }
-
     return finish_line(bytes), got_any;
 }
 
@@ -62,7 +58,6 @@ read_entire_file :: (f: File, zero_terminated := false) -> string, bool {
         free(bytes);
         return "", false;
     }
-
     if zero_terminated bytes[length] = 0;
     return .{ length, bytes }, true;
 }
@@ -88,7 +83,6 @@ write_entire_file :: (name: string, data: *void, count: int) -> bool {
     if !opened return false;
     written := file_write(*output, data, count);
     closed := file_close(*output);
-
     return written && closed;
 }
 
@@ -98,7 +92,6 @@ write_entire_file :: (name: string, builder: *String_Builder, do_reset := true) 
     if !opened return false;
     written := file_write(*output, builder, false);
     closed := file_close(*output);
-
     return written && closed;
 }
 
@@ -113,7 +106,6 @@ file_write :: (file: *File, builder: *String_Builder, do_reset := true) -> bool 
         if !file_write(file, get_buffer_data(part), part.count) return false;
         part = part.next;
     }
-
     return true;
 }
 
@@ -139,7 +131,6 @@ string_to_map_file_info :: (data: string) -> Map_File_Info {
 
 map_entire_file_start :: (name: string, log_errors := true) -> Map_File_Info, bool {
     result: Map_File_Info;
-
     #if USE_MAP_FILE {
         mapping, success := map_file(name, log_errors);
         if !success return result, false;
@@ -150,11 +141,9 @@ map_entire_file_start :: (name: string, log_errors := true) -> Map_File_Info, bo
         if !success return result, false;
         result.data = bytes;
     }
-
     #if STORE_MAPPED_FILENAMES {
         result.filename = copy_string(name);
     }
-
     return result, true;
 }
 
@@ -164,35 +153,28 @@ map_entire_file_end :: (file_info: *Map_File_Info) {
     } else {
         free(file_info.data);
     }
-
     #if STORE_MAPPED_FILENAMES {
         free(file_info.filename);
     }
-
     file_info.* = .{};
 }
 
 make_directory_if_it_does_not_exist :: (name: string, recursive := false) -> directory_now_exists: bool {
     if !name return false;
-
     if recursive {
         for i: 0..name.count - 1 {
             separator := name[i] == #char "/";
-
             #if OS == .WINDOWS {
                 separator = separator || name[i] == #char "\\";
             }
-
             if separator && i > 0 {
                 #if OS == .WINDOWS {
                     if i == 2 && name[1] == #char ":" continue;
                 }
-
                 if !os_make_directory_if_it_does_not_exist(Strings.slice(name, 0, i)) return false;
             }
         }
     }
-
     return os_make_directory_if_it_does_not_exist(name);
 }
 

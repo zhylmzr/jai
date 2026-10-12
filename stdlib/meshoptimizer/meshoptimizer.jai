@@ -108,7 +108,6 @@ meshopt_Meshlet :: struct {
         native_meshlets := cast(*Native_Meshlet) alloc(cast(s64) (bound * size_of(Native_Meshlet)));
         vertices := cast(*u32) alloc(cast(s64) (index_count * size_of(u32)));
         triangles := cast(*u8) alloc(cast(s64) (bound * (max_triangles * 3 + 3)));
-
         assert(native_meshlets && vertices && triangles);
         defer free(native_meshlets);
         defer free(vertices);
@@ -123,13 +122,11 @@ meshopt_Meshlet :: struct {
             target.triangle_count = cast(u8) source.triangle_count;
             for vertex: 0..cast(s64) source.vertex_count - 1
                 target.vertices[vertex] = vertices[source.vertex_offset + vertex];
-
             for triangle: 0..cast(s64) source.triangle_count - 1 {
                 for corner: 0..2
                     target.indices[triangle][corner] = triangles[source.triangle_offset + triangle * 3 + corner];
             }
         }
-
         return result;
     }
 

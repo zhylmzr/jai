@@ -52,7 +52,6 @@ uid :: (str: string) -> GUID {
         text.data += 1;
         text.count = 36;
     }
-
     Basic.assert(text.count == 36);
     Basic.assert(text.data[8] == 45 && text.data[13] == 45 && text.data[18] == 45 && text.data[23] == 45);
     result: GUID;
@@ -66,7 +65,6 @@ uid :: (str: string) -> GUID {
         result.Data4[index] = cast(u8) read_guid_hex(text, 24 + (index - 2) * 2, 2);
         index += 1;
     }
-
     return result;
 }
 
@@ -76,11 +74,9 @@ Basic :: #import "Basic";
 read_guid_hex :: (text: string, start: s64, length: s64) -> u32 {
     result: u32 = 0;
     index: s64 = 0;
-
     while index < length {
         character := text.data[start + index];
         value: u32;
-
         if character >= 48 && character <= 57 value = character - 48;
         else if character >= 65 && character <= 70 value = character - 55;
         else if character >= 97 && character <= 102 value = character - 87;
@@ -88,11 +84,9 @@ read_guid_hex :: (text: string, start: s64, length: s64) -> u32 {
             Basic.assert(false, "Invalid GUID hexadecimal digit");
             return 0;
         }
-
         result = (result << 4) | value;
         index += 1;
     }
-
     return result;
 }
 

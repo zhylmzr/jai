@@ -94,20 +94,17 @@ create_with_memory :: (memory: [] u8, free_when_done: bool) -> *Plm {
 create_with_buffer :: (buffer: *Buffer, destroy_when_done: bool) -> *Plm {
     native := raw_plm_create_with_buffer(native_buffer(buffer), 0);
     result := wrap_plm(native, native);
-
     if result {
         entry := plm_state(result);
         entry.own_native = true;
         entry.root_buffer = buffer;
         entry.release_root = destroy_when_done;
     }
-
     return result;
 }
 
 plm_destroy :: (using self: *Plm) {
     entry := plm_state(self);
-
     assert(entry.own_native);
     raw_plm_destroy(entry.native);
     release_owned_shadows(entry.native);
@@ -117,17 +114,14 @@ plm_destroy :: (using self: *Plm) {
 
 has_headers :: (using self: *Plm) -> bool {
     entry := plm_state(self);
-
     push_plm(entry);
     result := raw_plm_has_headers(entry.native);
-
     pull_plm(entry);
     return result != 0;
 }
 
 set_audio_enabled :: (using self: *Plm, enabled: bool) {
     entry := plm_state(self);
-
     push_plm(entry);
     raw_plm_set_audio_enabled(entry.native, cast(s32) enabled);
     pull_plm(entry);
@@ -135,7 +129,6 @@ set_audio_enabled :: (using self: *Plm, enabled: bool) {
 
 set_audio_stream :: (self: *Plm, stream_index: s32) {
     entry := plm_state(self);
-
     push_plm(entry);
     raw_plm_set_audio_stream(entry.native, stream_index);
     pull_plm(entry);
@@ -143,7 +136,6 @@ set_audio_stream :: (self: *Plm, stream_index: s32) {
 
 set_video_enabled :: (using self: *Plm, enabled: bool) {
     entry := plm_state(self);
-
     push_plm(entry);
     raw_plm_set_video_enabled(entry.native, cast(s32) enabled);
     pull_plm(entry);
@@ -151,38 +143,31 @@ set_video_enabled :: (using self: *Plm, enabled: bool) {
 
 get_num_video_streams :: (self: *Plm) -> s32 {
     entry := plm_state(self);
-
     push_plm(entry);
     result := raw_plm_get_num_video_streams(entry.native);
-
     pull_plm(entry);
     return result;
 }
 
 get_size :: (self: *Plm) -> (width: s32, height: s32) {
     entry := plm_state(self);
-
     push_plm(entry);
     width := raw_plm_get_width(entry.native);
     height := raw_plm_get_height(entry.native);
-
     pull_plm(entry);
     return width, height;
 }
 
 get_framerate :: (self: *Plm) -> float64 {
     entry := plm_state(self);
-
     push_plm(entry);
     result := raw_plm_get_framerate(entry.native);
-
     pull_plm(entry);
     return result;
 }
 
 rewind :: (using self: *Plm) {
     entry := plm_state(self);
-
     push_plm(entry);
     raw_plm_rewind(entry.native);
     pull_plm(entry);
@@ -190,7 +175,6 @@ rewind :: (using self: *Plm) {
 
 set_loop :: (self: *Plm, loop: bool) {
     entry := plm_state(self);
-
     push_plm(entry);
     raw_plm_set_loop(entry.native, cast(s32) loop);
     pull_plm(entry);
@@ -216,7 +200,6 @@ set_audio_decode_callback :: (self: *Plm, callback: Audio_Decode_Callback, user:
 
 decode :: (self: *Plm, tick: float64) {
     entry := plm_state(self);
-
     push_plm(entry);
     raw_plm_decode(entry.native, tick);
     pull_plm(entry);
@@ -224,27 +207,22 @@ decode :: (self: *Plm, tick: float64) {
 
 decode_video :: (self: *Plm) -> *Frame {
     entry := plm_state(self);
-
     push_plm(entry);
     result := raw_plm_decode_video(entry.native);
-
     pull_plm(entry);
     return result;
 }
 
 decode_audio :: (self: *Plm) -> *Samples {
     entry := plm_state(self);
-
     push_plm(entry);
     result := raw_plm_decode_audio(entry.native);
-
     pull_plm(entry);
     return result;
 }
 
 handle_end :: (self: *Plm) {
     entry := plm_state(self);
-
     push_plm(entry);
     raw_plm_handle_end(entry.native);
     pull_plm(entry);
@@ -252,7 +230,6 @@ handle_end :: (self: *Plm) {
 
 read_video_packet :: (buffer: *Buffer, user: *void) {
     entry := buffer_state(buffer);
-
     push_buffer(entry);
     raw_plm_read_video_packet(entry.native, native_plm(cast(*Plm) user));
     pull_buffer(entry);
@@ -260,7 +237,6 @@ read_video_packet :: (buffer: *Buffer, user: *void) {
 
 read_audio_packet :: (buffer: *Buffer, user: *void) {
     entry := buffer_state(buffer);
-
     push_buffer(entry);
     raw_plm_read_audio_packet(entry.native, native_plm(cast(*Plm) user));
     pull_buffer(entry);
@@ -268,7 +244,6 @@ read_audio_packet :: (buffer: *Buffer, user: *void) {
 
 read_packets :: (self: *Plm, requested_type: Start_Code) {
     entry := plm_state(self);
-
     push_plm(entry);
     raw_plm_read_packets(entry.native, cast(s32) requested_type);
     pull_plm(entry);
@@ -276,20 +251,16 @@ read_packets :: (self: *Plm, requested_type: Start_Code) {
 
 seek_frame :: (self: *Plm, time: float64, seek_exact: bool) -> *Frame {
     entry := plm_state(self);
-
     push_plm(entry);
     result := raw_plm_seek_frame(entry.native, time, cast(s32) seek_exact);
-
     pull_plm(entry);
     return result;
 }
 
 seek :: (self: *Plm, time: float64, seek_exact: bool) -> bool {
     entry := plm_state(self);
-
     push_plm(entry);
     result := raw_plm_seek(entry.native, time, cast(s32) seek_exact);
-
     pull_plm(entry);
     return result != 0;
 }
@@ -309,10 +280,8 @@ seek :: (self: *Plm, time: float64, seek_exact: bool) -> bool {
 
 init_decoders :: (using plm: *Plm) -> bool {
     entry := plm_state(plm);
-
     push_plm(entry);
     result := raw_plm_init_decoders(entry.native);
-
     pull_plm(entry);
     return result != 0;
 }

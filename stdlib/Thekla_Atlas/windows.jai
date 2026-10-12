@@ -126,7 +126,6 @@ atlas_set_assert_callback :: (callback: Atlas_Assert_Callback, _context: *void) 
 
 atlas_set_default_options :: (options: *Atlas_Options) -> void {
     native: Native_Atlas_Options;
-
     native_atlas_default_options(*native);
     options.* = .{};
     options.charter = native.charter;

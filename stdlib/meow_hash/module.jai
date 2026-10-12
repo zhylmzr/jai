@@ -19,12 +19,10 @@
     meow_hash_bytes :: (seed: *u8, len: u64, source: *u8, out: *u8) {
         state: [128] u8;
         s := state.data;
-
         for 0..127 s[it] = seed[it];
 
         p := source;
         remaining := len;
-
         while remaining >= 256 {
             #asm {
             x0: vec; x1: vec; x2: vec; x3: vec; x4: vec; x5: vec; x6: vec; x7: vec;
@@ -93,7 +91,6 @@
             movdqu [s + 96], x6;
             movdqu [s + 112], x7;
             }
-
             p += 256;
             remaining -= 256;
         }
@@ -105,15 +102,12 @@
         e := extra.data;
         whole := len & ~cast(u64) 15;
         last_part: [16] u8;
-
         for 0..cast(s64) (len & 15) - 1 last_part[it] = source[whole + cast(u64) it];
         before: [16] u8;
-
         if (len & 16) != 0 {
             before = last_part;
             for 0..15 last_part[it] = source[whole - 16 + cast(u64) it];
         }
-
         // `before` followed by `last_part` read one byte further right, and one byte further left.
         extra[0] = before[15];
         for 0..14 extra[1 + it] = last_part[it];
@@ -121,13 +115,11 @@
         for 0..14 extra[32 + it] = before[1 + it];
         extra[47] = last_part[0];
         for 0..15 extra[48 + it] = before[it];
-
         // Bytes 64..95 stay zero (the unused nonce); the length goes in at 96 and, shifted by one byte, at 112.
         for 0..7 {
             extra[112 + it] = cast,trunc(u8) (len >> cast(u64) (8 * it));
             if it > 0 extra[96 + it - 1] = cast,trunc(u8) (len >> cast(u64) (8 * it));
         }
-
         #asm {
           x0: vec; x1: vec; x2: vec; x3: vec; x4: vec; x5: vec; x6: vec; x7: vec;
           movdqu x0, [s + 0];
@@ -189,7 +181,6 @@
         movdqu [s + 112], x7;
             }
         }
-
         if pieces > 1 {
             #asm {
         x0: vec; x1: vec; x2: vec; x3: vec; x4: vec; x5: vec; x6: vec; x7: vec;
@@ -217,7 +208,6 @@
         movdqu [s + 112], x7;
             }
         }
-
         if pieces > 2 {
             #asm {
         x0: vec; x1: vec; x2: vec; x3: vec; x4: vec; x5: vec; x6: vec; x7: vec;
@@ -245,7 +235,6 @@
         movdqu [s + 112], x7;
             }
         }
-
         if pieces > 3 {
             #asm {
         x0: vec; x1: vec; x2: vec; x3: vec; x4: vec; x5: vec; x6: vec; x7: vec;
@@ -273,7 +262,6 @@
         movdqu [s + 112], x7;
             }
         }
-
         if pieces > 4 {
             #asm {
         x0: vec; x1: vec; x2: vec; x3: vec; x4: vec; x5: vec; x6: vec; x7: vec;
@@ -301,7 +289,6 @@
         movdqu [s + 112], x7;
             }
         }
-
         if pieces > 5 {
             #asm {
         x0: vec; x1: vec; x2: vec; x3: vec; x4: vec; x5: vec; x6: vec; x7: vec;
@@ -329,7 +316,6 @@
         movdqu [s + 112], x7;
             }
         }
-
         if pieces > 6 {
             #asm {
         x0: vec; x1: vec; x2: vec; x3: vec; x4: vec; x5: vec; x6: vec; x7: vec;
@@ -359,7 +345,6 @@
         }
 
         o := out;
-
         #asm {
         x0: vec; x1: vec; x2: vec; x3: vec; x4: vec; x5: vec; x6: vec; x7: vec;
         movdqu x0, [s + 0];

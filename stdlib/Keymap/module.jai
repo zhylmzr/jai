@@ -80,7 +80,6 @@ handle_event :: (set: *Keymap_Set, event: Event) -> bool {
         bucket_index -= 1;
         bucket := set.keymaps.all_buckets[bucket_index];
         slot: s64 = 16;
-
         while slot > 0 {
             slot -= 1;
             if !bucket.occupied[slot] continue;
@@ -88,7 +87,6 @@ handle_event :: (set: *Keymap_Set, event: Event) -> bool {
             if keymap.enabled && keymap_handle_event(keymap.*, event) return true;
         }
     }
-
     return false;
 }
 
@@ -105,7 +103,6 @@ add_proc :: (keymap: *Keymap, name: string, proc: Key_Press_Proc) {
         info.toggle_proc = null;
         return;
     }
-
     info: Keymap.Proc_Info;
     info.name = copy_string(name);
     info.press_\proc = proc;
@@ -119,7 +116,6 @@ add_proc :: (keymap: *Keymap, name: string, proc: Key_Hold_Proc) {
         info.press_\proc = null;
         return;
     }
-
     info: Keymap.Proc_Info;
     info.name = copy_string(name);
     info.toggle_proc = proc;
@@ -139,13 +135,11 @@ keymap_handle_event :: (keymap: Keymap, e: Event) -> bool {
     if !keymap.enabled || (e.type != .KEYBOARD && e.type != .TEXT_INPUT) return false;
     key := cast(u32) e.key_code;
     pressed := e.key_pressed != 0;
-
     if e.type == .TEXT_INPUT {
         key = e.utf32;
         pressed = true;
         if key < 128 return false;
     }
-
     if key >= 97 && key <= 122 key -= 32;
     index := keymap.mappings.count;
     while index > 0 {
@@ -155,7 +149,6 @@ keymap_handle_event :: (keymap: Keymap, e: Event) -> bool {
         ignore_modifiers := keymap.ignore_modifier_keys;
         if !mapping.respect_ignore_modifier_keys ignore_modifiers = !ignore_modifiers;
         if pressed && !ignore_modifiers && mapping.modifier_flags.packed != e.modifier_flags.packed continue;
-
         if mapping.proc_index >= 0 {
             info := keymap.procs[mapping.proc_index];
             if info.toggle_proc != null {
@@ -163,21 +156,17 @@ keymap_handle_event :: (keymap: Keymap, e: Event) -> bool {
                     mapping.toggled_on = pressed;
                     info.toggle_proc(pressed);
                 }
-
                 return true;
             }
-
             if !pressed return false;
             if info.press_\proc != null info.press_\proc();
             return true;
         }
-
         if !pressed return false;
         if keymap.command_string_proc == null return false;
         keymap.command_string_proc(mapping.command_string);
         return true;
     }
-
     return false;
 }
 
@@ -188,7 +177,6 @@ keymap_copy :: (source: *Keymap, dest: *Keymap) {
     dest.command_string_proc = source.command_string_proc;
     dest.ignore_modifier_keys = source.ignore_modifier_keys;
     dest.enabled = source.enabled;
-
     for item: source.mappings {
         copied := item;
         copied.toggled_on = false;
@@ -202,7 +190,6 @@ keymap_copy_procs :: (source: *Keymap, dest: *Keymap) {
     release_holds(dest);
     for info: dest.procs free(info.name);
     dest.procs.count = 0;
-
     for info: source.procs {
         copied := info;
         copied.name = copy_string(info.name);
@@ -243,56 +230,44 @@ reload_keymap :: (using keymap: *Keymap, short_name: string, filename: string, o
 
 load_from_handler :: (set: *Keymap_Set, keymap: *Keymap, handler: *Text_File_Handler) -> bool {
     pending: [..] Pending_Mapping;
-
     defer array_free(pending);
     current := keymap;
-
     while true {
         line, found := consume_next_line(handler);
         if !found break;
         line = trim_keymap_text(line);
         if line.count == 0 continue;
-
         if line.data[0] == 91 {
             if line.count < 2 || line.data[line.count - 1] != 93 {
                 handler.failed = true;
                 break;
             }
-
             section := text_range(line, 1, line.count - 2);
             if section == "1" continue;
-
             if set == null {
                 handler.failed = true;
                 break;
             }
-
             current = find_section(set, section);
             if current == null {
                 handler.failed = true;
                 break;
             }
-
             continue;
         }
-
         if current == null {
             handler.failed = true;
             break;
         }
-
         split: s64 = 0;
         while split < line.count && line.data[split] != 32 && line.data[split] != 9 split += 1;
-
         if split == line.count {
             handler.failed = true;
             break;
         }
-
         token := text_range(line, 0, split);
         command := trim_keymap_text(text_range(line, split, line.count - split));
         flags: Modifier_Flags;
-
         while token.count >= 2 && token.data[1] == 45 {
             modifier := upper_ascii(token.data[0]);
             if modifier == 83 flags.shift_pressed = true;
@@ -303,17 +278,14 @@ load_from_handler :: (set: *Keymap_Set, keymap: *Keymap, handler: *Text_File_Han
                 handler.failed = true;
                 break;
             }
-
             token = text_range(token, 2, token.count - 2);
         }
-
         if handler.failed break;
         recognized, code := map_string_to_key(token);
         if !recognized || command.count == 0 {
             handler.failed = true;
             break;
         }
-
         is_proc := command.data[0] != 58;
         if !is_proc command = trim_keymap_text(text_range(command, 1, command.count - 1));
         mapping, error_type := make_mapping(current, code, flags, true, command, is_proc);
@@ -321,15 +293,12 @@ load_from_handler :: (set: *Keymap_Set, keymap: *Keymap, handler: *Text_File_Han
             handler.failed = true;
             break;
         }
-
         array_add(*pending, .{ current, mapping });
     }
-
     if handler.failed {
         for entry: pending free(entry.mapping.command_string);
         return false;
     }
-
     for entry: pending install_mapping(entry.keymap, entry.mapping);
     return true;
 }
@@ -338,12 +307,10 @@ map_string_to_key :: (s: string) -> bool, Key_Code {
     for named: named_keys {
         if key_name_equal(s, named.name) return true, named.key;
     }
-
     if s.count >= 2 && upper_ascii(s.data[0]) == 70 {
         number, success, remainder := string_to_int(text_range(s, 1, s.count - 1));
         if success && remainder.count == 0 && number >= 1 && number <= 24 return true, cast(Key_Code) (cast(s64) Key_Code.F1 + number - 1);
     }
-
     value, valid := single_codepoint(s);
     if !valid return false, .UNKNOWN;
     if value >= 97 && value <= 122 value -= 32;
@@ -357,7 +324,6 @@ map_key_to_string :: (k: Key_Code) -> string {
     if value >= cast(u32) Key_Code.F1 && value <= cast(u32) Key_Code.F24 return tprint("F%", value - cast(u32) Key_Code.F1 + 1);
     bytes: [4] u8;
     count: s64;
-
     if value < 0x80 {
         bytes[0] = cast(u8) value;
         count = 1;
@@ -377,9 +343,7 @@ map_key_to_string :: (k: Key_Code) -> string {
         bytes[3] = cast(u8) (0x80 | (value & 0x3f));
         count = 4;
     } else return "Unknown";
-
     result: string = .{ count, cast(*u8) alloc(count, temp) };
-
     memcpy(result.data, *bytes[0], count);
     return result;
 }
@@ -419,7 +383,6 @@ single_codepoint :: (s: string) -> u32, bool {
     count: s64;
     value: u32;
     minimum: u32;
-
     if first < 0x80 {
         count = 1;
         value = first;
@@ -436,15 +399,12 @@ single_codepoint :: (s: string) -> u32, bool {
         value = first & 7;
         minimum = 0x10000;
     } else return 0, false;
-
     if count != s.count return 0, false;
-
     for i: 1..count - 1 {
         byte := s.data[i];
         if (byte & 0xc0) != 0x80 return 0, false;
         value = value << 6 | (byte & 0x3f);
     }
-
     return value, value >= minimum && value <= 0x10ffff && !(value >= 0xd800 && value <= 0xdfff);
 }
 
@@ -471,18 +431,15 @@ trim_keymap_text :: (s: string) -> string {
             break;
         }
     }
-
     while result.count > 0 && (result.data[0] == 32 || result.data[0] == 9 || result.data[0] == 13) {
         result.data += 1;
         result.count -= 1;
     }
-
     while result.count > 0 {
         byte := result.data[result.count - 1];
         if byte != 32 && byte != 9 && byte != 13 break;
         result.count -= 1;
     }
-
     return result;
 }
 
@@ -499,7 +456,6 @@ make_mapping :: (keymap: *Keymap, key: Key_Code, flags: Modifier_Flags,
     result.respect_ignore_modifier_keys = respect;
     if (key == .SHIFT && flags.shift_pressed) || (key == .CTRL && flags.ctrl_pressed) ||
        (key == .ALT && flags.alt_pressed) || (key == .CMD && flags.cmd_meta_pressed) return result, .NONSENSICAL_MODIFIERS;
-
     if is_proc {
         for info, i: keymap.procs {
             if info.name == command {
@@ -507,10 +463,8 @@ make_mapping :: (keymap: *Keymap, key: Key_Code, flags: Modifier_Flags,
                 return result, .NO_ERROR;
             }
         }
-
         return result, .UNKNOWN_COMMAND;
     }
-
     if keymap.command_string_proc == null return result, .UNKNOWN_COMMAND;
     result.command_string = copy_string(command);
     return result, .NO_ERROR;
@@ -520,17 +474,14 @@ install_mapping :: (keymap: *Keymap, mapping: Single_Key_Mapping) {
     for *old: keymap.mappings {
         if old.utf32 != mapping.utf32 || old.modifier_flags.packed != mapping.modifier_flags.packed ||
             old.respect_ignore_modifier_keys != mapping.respect_ignore_modifier_keys continue;
-
         if old.toggled_on && old.proc_index >= 0 {
             proc := keymap.procs[old.proc_index].toggle_proc;
             if proc != null proc(false);
         }
-
         free(old.command_string);
         old.* = mapping;
         return;
     }
-
     array_add(*keymap.mappings, mapping);
 }
 
@@ -546,12 +497,10 @@ release_holds :: (keymap: *Keymap) {
 
 find_section :: (set: *Keymap_Set, section: string) -> *Keymap {
     if set == null return null;
-
     for bucket: set.keymaps.all_buckets {
         for occupied, i: bucket.occupied {
             if occupied && bucket.data[i].section_name == section return *bucket.data[i];
         }
     }
-
     return null;
 }

@@ -12,25 +12,20 @@ output_open :: (config: Sound_Player_Config) -> channels: s32, rate: s32, ok: bo
     AAudioStreamBuilder_setSampleRate(builder, PREFERRED_RATE);
     AAudioStreamBuilder_setChannelCount(builder, AA_CHANNELS);
     status := AAudioStreamBuilder_openStream(builder, *stream);
-
     AAudioStreamBuilder_delete(builder);
-
     if cast(s32) status < 0 {
         log_error("Sound_Player: AAudio could not open an output stream (%).\n", cast(s32) status);
         stream = null;
         return 0, 0, false;
     }
-
     // The device may not honour the requested shape; only the format and channel count matter.
     if AAudioStream_getChannelCount(stream) != AA_CHANNELS || AAudioStream_getFormat(stream) != .PCM_I16 {
         output_close();
         return 0, 0, false;
     }
-
     rate := AAudioStream_getSampleRate(stream);
     burst := AAudioStream_getFramesPerBurst(stream);
     wanted := max(2 * burst, cast(s32) (max(config.seconds_to_fill_ahead, 0.01) * rate));
-
     device_buffer_frames = AAudioStream_setBufferSizeInFrames(stream, wanted);
     return AA_CHANNELS, rate, true;
 }
@@ -61,7 +56,6 @@ output_write :: (frames: s64) {
         chunk.data = staging.data;
         chunk.count = count * AA_CHANNELS;
         mix_into(chunk);
-
         // A zero timeout writes what fits now; anything that did not fit is dropped, which only
         // happens if the device queue is smaller than seconds_to_fill_ahead.
         accepted := AAudioStream_write(stream, staging.data, cast(s32) count, 0);
@@ -75,7 +69,6 @@ output_devices :: () -> [] Output_Device {
     app := context.android_app;
     if !app || !app.activity return listed_devices;
     activity := app.activity;
-
     // AudioManager.getDevices appeared in API level 23.
     if activity.sdkVersion < 23 || !activity.vm || !activity.clazz return listed_devices;
 
@@ -83,21 +76,18 @@ output_devices :: () -> [] Output_Device {
     env: *Jni.JNIEnv;
     attached := false;
     state := vm.*.GetEnv(vm, cast(**void) *env, Jni.JNI_VERSION_1_6);
-
     if state == Jni.JNI_EDETACHED {
         if vm.*.AttachCurrentThread(vm, *env, null) != Jni.JNI_OK return listed_devices;
         attached = true;
     } else if state != Jni.JNI_OK {
         return listed_devices;
     }
-
     defer if attached vm.*.DetachCurrentThread(vm);
 
     if env.*.PushLocalFrame(env, 32) != Jni.JNI_OK {
         jni_failed(env);
         return listed_devices;
     }
-
     defer env.*.PopLocalFrame(env, null);
     collect_devices(env, activity.clazz);
     return listed_devices;
@@ -122,7 +112,6 @@ collect_devices :: (env: *Jni.JNIEnv, activity: Jni.jobject) {
     GET_DEVICES_OUTPUTS :: 2;
     service := env.*.NewStringUTF(env, "audio");
     utf8 := env.*.NewStringUTF(env, "UTF-8");
-
     if jni_failed(env) || !service || !utf8 return;
 
     get_service := jni_method(env, activity, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
@@ -138,7 +127,6 @@ collect_devices :: (env: *Jni.JNIEnv, activity: Jni.jobject) {
     array := env.*.CallObjectMethodA(env, manager, get_devices, argument.data);
     if jni_failed(env) || !array return;
     count := env.*.GetArrayLength(env, array);
-
     if jni_failed(env) return;
 
     for index: 0..count - 1 {
@@ -147,10 +135,8 @@ collect_devices :: (env: *Jni.JNIEnv, activity: Jni.jobject) {
         defer env.*.DeleteLocalRef(env, info);
         get_id := jni_method(env, info, "getId", "()I");
         get_name := jni_method(env, info, "getProductName", "()Ljava/lang/CharSequence;");
-
         if !get_id || !get_name continue;
         id := env.*.CallIntMethodA(env, info, get_id, null);
-
         if jni_failed(env) continue;
         name := env.*.CallObjectMethodA(env, info, get_name, null);
         if jni_failed(env) || !name continue;
@@ -173,7 +159,6 @@ jni_method :: (env: *Jni.JNIEnv, object: Jni.jobject, name: *u8, signature: *u8)
     class := env.*.GetObjectClass(env, object);
     if jni_failed(env) || !class return null;
     method := env.*.GetMethodID(env, class, name, signature);
-
     env.*.DeleteLocalRef(env, class);
     if jni_failed(env) return null;
     return method;
@@ -196,13 +181,10 @@ jni_text :: (env: *Jni.JNIEnv, sequence: Jni.jobject, encoding: Jni.jstring) -> 
     length := env.*.GetArrayLength(env, bytes);
     if jni_failed(env) || length <= 0 return "";
     result := alloc_string(length);
-
     env.*.GetByteArrayRegion(env, bytes, 0, length, cast(*Jni.jbyte) result.data);
-
     if jni_failed(env) {
         free(result);
         return "";
     }
-
     return result;
 }

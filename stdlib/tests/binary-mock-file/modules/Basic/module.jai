@@ -6,7 +6,6 @@ heap_used: s64;
 alloc :: (size: s64) -> *void {
     if size < 0 || size > heap.count - heap_used return null;
     result := heap.data + heap_used;
-
     heap_used += size;
     return result;
 }

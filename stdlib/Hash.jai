@@ -31,12 +31,10 @@ djb2_hash :: (s: string) -> u32 #no_aoc {
 sdbm_hash :: (data: *void, size: int, h := HASH_INIT) -> u32 #no_aoc {
     bytes := cast(*u8) data;
     offset: int = 0;
-
     while offset < size {
         h = h * 65599 + bytes[offset];
         offset += 1;
     }
-
     return h;
 }
 
@@ -48,7 +46,6 @@ sdbm_float_hash :: inline (f: *float, count: int, h := HASH_INIT) -> u32 {
         h = sdbm_hash(*sample, size_of(float), h);
         offset += 1;
     }
-
     return h;
 }
 
@@ -59,12 +56,10 @@ fnv1a_hash :: inline (val: u64, h := FNV_64_OFFSET_BIAS) -> u64 #no_aoc {
 fnv1a_hash :: (data: *void, size: int, h := FNV_64_OFFSET_BIAS) -> u64 {
     bytes := cast(*u8) data;
     offset: int = 0;
-
     while offset < size {
         h = fnv1a_hash(cast(u64) bytes[offset], h);
         offset += 1;
     }
-
     return h;
 }
 

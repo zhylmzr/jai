@@ -14,7 +14,6 @@ SDL_PointInRect :: (p: *SDL_Point, r: *SDL_Rect) -> SDL_bool {
     if SDL_RectEmpty(r) == SDL_TRUE return SDL_FALSE;
     horizontal := cast(s64) p.x - cast(s64) r.x;
     vertical := cast(s64) p.y - cast(s64) r.y;
-
     if horizontal < 0 || vertical < 0 return SDL_FALSE;
     if horizontal >= r.w || vertical >= r.h return SDL_FALSE;
     return SDL_TRUE;

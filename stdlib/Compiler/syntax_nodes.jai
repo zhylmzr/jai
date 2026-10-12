@@ -777,7 +777,6 @@ operator_to_string :: (op: Operator_Type) -> string {
     UPDATING :: string.["+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "<<<=", ">>>=", "&=", "|=", "^=", "&&=", "||="];
 
     code := cast(s64) op;
-
     if code >= 131 && code < 131 + PAIRS_AND_SHIFTS.count return PAIRS_AND_SHIFTS[code - 131];
     if code >= 145 && code < 145 + UPDATING.count return UPDATING[code - 145];
 

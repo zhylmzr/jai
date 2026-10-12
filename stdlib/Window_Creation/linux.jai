@@ -6,15 +6,12 @@ get_mouse_pointer_position :: (dpy: *Display, win: Window, right_handed: bool) -
     root, child: Window;
     screen_x, screen_y, local_x, local_y: s32;
     keys: u32;
-
     if XQueryPointer(dpy, win, *root, *child, *screen_x, *screen_y, *local_x, *local_y, *keys) == False return 0, 0, false;
-
     if right_handed {
         geometry: XWindowAttributes;
         if XGetWindowAttributes(dpy, win, *geometry) == 0 return local_x, local_y, false;
         local_y = geometry.height - local_y;
     }
-
     return local_x, local_y, true;
 }
 
@@ -26,7 +23,6 @@ get_mouse_pointer_position :: (right_handed := false) -> x: int, y: int, success
     if !x_global_display return 0, 0, false;
     focused: Window;
     mode: s32;
-
     XGetInputFocus(x_global_display, *focused, *mode);
     return get_mouse_pointer_position(x_global_display, focused, right_handed);
 }
@@ -56,12 +52,10 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
         attributes[14] = 0;
         visual = glXChooseVisual(display, XDefaultScreen(display), attributes.data);
     }
-
     if !visual return None;
     defer XFree(visual);
     root := XDefaultRootWindow(display);
     owner := root;
-
     if parent != None owner = parent;
     settings: XSetWindowAttributes;
     settings.colormap = XCreateColormap(display, root, visual.visual, AllocNone);
@@ -77,13 +71,11 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
         XFreeColormap(display, settings.colormap);
         return None;
     }
-
     title := to_c_string(window_name);
     if title {
         XStoreName(display, handle, title);
         free(title);
     }
-
     XSetWMProtocols(display, handle, *x_global_wm_delete_window, 1);
     if parent != None XSetTransientForHint(display, handle, parent);
     array_add(*x_global_windows, handle);
@@ -105,10 +97,8 @@ toggle_fullscreen :: (win: Window, desire_fullscreen: bool, saved: *Saved_Window
     request.xclient.data.l[1] = cast(s64) x_global_net_wm_state_fullscreen;
     request.xclient.data.l[3] = 1;
     accepted := XSendEvent(display, XDefaultRootWindow(display), False, SubstructureNotifyMask | SubstructureRedirectMask, *request);
-
     XSync(display, False);
     _, _, measured_width, measured_height, measured := get_dimensions(win, false);
-
     return accepted != 0 && measured, measured_width, measured_height;
 }
 

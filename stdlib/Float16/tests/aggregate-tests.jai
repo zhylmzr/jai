@@ -4,7 +4,6 @@
 aggregate_cases :: () -> bool {
     v := vector3_float16(make_vector3(1, -2, 0.5));
     back := vector3_float32(v);
-
     if back != make_vector3(1, -2, 0.5) return false;
     m := Matrix3_Identity;
     m._12 = 0.5;

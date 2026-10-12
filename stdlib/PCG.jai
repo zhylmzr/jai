@@ -13,10 +13,8 @@ random_get_within_bound :: (state: *u64, range: u32) -> u32 {
     if range == 0 {
         #asm { int3; }
     }
-
     threshold := cast(u32) (((cast(u64) 1) << 32) % range);
     candidate := random_get(state);
-
     while candidate < threshold candidate = random_get(state);
     return candidate % range;
 }

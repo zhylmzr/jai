@@ -76,7 +76,6 @@ sound_player_init :: (given_config: Sound_Player_Config) -> bool {
         sound_player_shutdown();
         return false;
     }
-
     return true;
 }
 
@@ -216,19 +215,15 @@ make_stream :: (data: *Sound_Data, category := Sound_Category.GENERAL_SFX) -> *S
     if !data || !data.loaded return null;
 
     cache: *Block_Cache;
-
     if data.type == {
         case .LINEAR_SAMPLE_ARRAY;
             if !data.samples || data.nchannels < 1 || data.nchannels > MAX_CHANNELS_PER_SOUND return null;
-
         case .OGG_COMPRESSED;
             cache = open_vorbis_cache(data);
             if !cache return null;
-
         case .ADPCM_COMPRESSED;
             cache = open_adpcm_cache(data);
             if !cache return null;
-
         case;
             return null;
     }
@@ -260,14 +255,12 @@ set_repeating :: (stream: *Sound_Stream, repeating: bool) {
     if !stream return;
     guard := player.running;
     if guard lock(*player.lock);
-
     if repeating {
         stream.user_flags |= .REPEATING;
         stream.repeat_end_position = stream_length(stream);
     } else {
         stream.user_flags &= ~ .REPEATING;
     }
-
     if guard unlock(*player.lock);
 }
 
@@ -311,14 +304,12 @@ post_entity_update :: (dt: float) {
     defer unlock(*player.lock);
     reap := !player.config.keep_sounds_alive_by_default;
     index := 0;
-
     while index < player.voices.count {
         stream := player.voices[index];
         if reap && !stream.marked && !(stream.user_flags & .DO_NOT_KILL) {
             remove_voice_at(index);
             continue;
         }
-
         refresh_voice(stream);
         index += 1;
     }
@@ -421,15 +412,12 @@ remove_voice_at :: (index: s64) {
 // on its cache and freed by the worker when the last decode lands. Lock held.
 release_voice :: (stream: *Sound_Stream) {
     cache := stream.voice.cache;
-
     stream.voice.cache = null;
-
     if cache && cache.in_flight > 0 {
         cache.parked_stream = stream;
         streams_waiting_on_decodes += 1;
         return;
     }
-
     if cache close_block_cache(cache);
     give_back(stream);
 }

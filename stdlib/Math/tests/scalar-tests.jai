@@ -26,14 +26,12 @@ numeric_scalar_cases :: () -> bool {
     if !near(pow(cast(float64) -2.0, 3.0), -8.0) || !isnan(pow(cast(float64) -2.0, 0.5)) return false;
     if pow(-FLOAT64_INFINITY, 0.5) != FLOAT64_INFINITY return false;
     if fmod_cycling(cast(float64) -0.5, 2.0) != 1.5 || fmod_cycling(cast(float64) 0.5, -2.0) != -1.5 return false;
-
     for i: 1..8 {
         x := cast(float64) i * 0.01;
         if !near(exp(log(x)), x) return false;
         if !near(sin(x) * sin(x) + cos(x) * cos(x), 1.0) return false;
         if !near(sqrt(x) * sqrt(x), x) return false;
     }
-
     return true;
 }
 
@@ -55,12 +53,10 @@ numeric_half_range :: (start: int, end: int) -> bool {
         exponent := ((cast(u16) half) >> 10) & 31;
         fraction := (cast(u16) half) & 1023;
         back := float32_to_float16(float16_to_float32(half));
-
         if exponent != 31 && back != half return false;
         if exponent == 31 && fraction == 0 && back != half return false;
         if exponent == 31 && fraction != 0 && !isnan(float16_to_float32(half)) return false;
     }
-
     return true;
 }
 
