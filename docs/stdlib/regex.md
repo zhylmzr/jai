@@ -19,7 +19,7 @@ main :: () {
     date, ok := Regex.parse(Date, "2026-10-11");    // date: Date.Groups
     print("% %\n", date.year, type_of(date.year));  // 2026 u16
 
-    pet := Regex.captures(Pet, "my dog 7");          // pet.kind == .dog (Pet.Groups.Kind)
+    pet := Regex.captures(Pet, "my dog 7");          // pet.kind == .DOG (Pet.Groups.Kind)
 
     point: Point;
     Regex.parse_into(Regex.Static("(?<x>-?\\d+),(?<y>-?\\d+)"), "3,-4", *point);
@@ -88,7 +88,7 @@ Every matcher is O(pattern × text). There is no exponential backtracking.
 | --- | --- |
 | an optional sign then decimal digits (any script's `\d`) | the smallest integer that holds the most digits: ≤2 `u8`/`s8`, ≤4 `u16`/`s16`, ≤9 `u32`/`s32`, else 64-bit |
 | that, then `.` and digits | `float64` |
-| an alternation of 2–64 distinct identifier words | an enum `u8` named after the group, capitalized (`kind` → `Kind`) |
+| an alternation of 2–64 identifier words | an enum `u8` named after the group, capitalized (`kind` → `Kind`), with each word as an upper snake case member (`dog` → `DOG`, `hotDog` → `HOT_DOG`) |
 | anything else | `string` |
 
 A number that does not fit its type makes the call return `false`. Groups that may not take part (under `?`, `*`, `{0,n}` or an alternation) get a `bool` in `has`. `parse_into` and `captures_into` generate the assignments for the caller's struct from its type info. A field without a group, a group without a field, or an unsupported field type is a compile error.
@@ -106,7 +106,8 @@ A number that does not fit its type makes the call return `false`. Groups that m
 Gotchas:
 
 - Runtime `Regex` values share a mutable DFA cache. Don't use one from two threads; compile one per thread. Frozen `Static` engines are read-only, but a lazily built one is shared through a global cache.
-- `Groups` enum names are capitalized group names. A clash with another field gets a `_Value` suffix. Words that are Jai keywords disable the enum, so the group stays a `string`.
+- `Groups` enum names are capitalized group names. A clash with another field gets a `_Value` suffix.
+- Words that spell the same member (`dog|Dog|DOG`) fold into one. If that leaves fewer than two members, the group stays a `string`. Under `(?i)` a word matched in another case still maps to its member. One matched through a non-ASCII fold (the Kelvin sign for `k`) makes the call return `false`.
 
 ## Configuration
 
