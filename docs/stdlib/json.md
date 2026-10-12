@@ -34,7 +34,7 @@ value, error := parse_json(text);               // a Json_Value tree when the sh
 
 ## Types
 
-Integers are exact over their full range (including 64-bit); a number that does not fit is `.OUT_OF_RANGE`. Floats print as the shortest string that round-trips (`0.1`, `1e21`; integral values get `.0`); `NaN` and infinities encode as `null`. Decoding floats is correctly rounded (own big-number fallback, because `Basic`'s `string_to_float64` is not exact). Supported: strings, bools, enums (by name, or number with `as_number`), fixed/view/resizable arrays, pointers (`null` or a value), nested and recursive structs, `Hash_Table` with string keys, and `Json_Value`. 128-bit integers are not.
+Integers are exact over their full range (including 64-bit); a number that does not fit is `.OUT_OF_RANGE`. Floats print as the shortest string that round-trips (`0.1`, `1e21`; integral values get `.0`); `NaN` and infinities encode as `null`. Decoding floats is correctly rounded: after the RFC 8259 grammar check, the token goes to Basic's conversion (`scan_decimal_float` and `decimal_float_to_float64`/`32`, see `Float_Parse.jai`), with no exponent limit, so `1e999999` is `.OUT_OF_RANGE` and `1e-999999` is zero. Supported: strings, bools, enums (by name, or number with `as_number`), fixed/view/resizable arrays, pointers (`null` or a value), nested and recursive structs, `Hash_Table` with string keys, and `Json_Value`. 128-bit integers are not.
 
 ## Attributes
 
@@ -112,7 +112,7 @@ Gains are modest (about 1.0 to 1.1x, 1.4x for long clean strings): the parser is
 
 - New attribute: parse it in `collect_leaves` (`generate.jai`), carry it on `Leaf`, and emit it in `generate_encoder` / `generate_decoder`.
 - New type: add cases to `emit_encode` and `emit_decode`.
-- Runtime helpers (`json_read_*`, `json_key`, ...) live in `reader.jai` and `writer.jai`; number conversion in `number.jai`; stage 1 in `index.jai`.
+- Runtime helpers (`json_read_*`, `json_key`, ...) live in `reader.jai` and `writer.jai`; float printing in `number.jai` (reading a validated token calls Basic); stage 1 in `index.jai`.
 - Vector paths stay behind `simd_enabled()` and must give identical results; run `tests/differential.jai`.
 
 ## Configuration

@@ -28,6 +28,7 @@
 #load "allocation.jai";
 #load "Array.jai";
 #load "Simple_String.jai";
+#load "Float_Parse.jai";
 #load "String_Builder.jai";
 #load "Print.jai";
 #load "Int128.jai";
