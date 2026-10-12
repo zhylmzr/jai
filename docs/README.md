@@ -108,6 +108,7 @@ The clean-room `stdlib/`. Contributors must not read the source of an official J
 - [Args: a compile-time-generated command-line parser (jaic extension)](stdlib/args.md)
 - [Regex: regular expressions with compile-time typed patterns (jaic extension)](stdlib/regex.md)
 - [Json: typed JSON generated at compile time (jaic extension)](stdlib/json.md)
+- [Http: the HTTP/1 codec, strict and sans-IO (jaic extension)](stdlib/http-codec.md)
 - [SIMD: portable fixed-width vectors (jaic extension)](stdlib/simd.md)
 - [Byte_Search: vectorized byte and substring search (jaic extension)](stdlib/byte-search.md)
 - [Compiler API, reflection and metaprogram support](stdlib/compiler-and-metaprogramming.md)
