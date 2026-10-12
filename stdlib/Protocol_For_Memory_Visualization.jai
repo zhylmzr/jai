@@ -1,8 +1,8 @@
+// Memory visualization wire declarations; pointer values are sender-owned opaque addresses.
+
 MEMORY_VISUALIZATION_CHANNEL_NAME :: "Jai Memory Visualization";
 
 VIS_PROTOCOL_VERSION :: 2;
-
-// Memory visualization wire declarations; pointer values are sender-owned opaque addresses.
 
 Vis_Protocol_Tag :: enum u32 {
     ERROR :: 0;

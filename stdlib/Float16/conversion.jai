@@ -1,8 +1,10 @@
 // Shared exact binary conversion bodies.
 Float16 :: #type,isa u16;
+
 half_to_float_fast4 :: (h: Float16) -> float32 {
     return half_to_float(cast(u16) h);
 }
+
 float_to_half_fast3 :: (_f: float32) -> Float16 {
     bits := float32_bits(_f);
     sign := cast(u16) ((bits >> 16) & 0x8000);

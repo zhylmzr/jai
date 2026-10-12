@@ -1,3 +1,39 @@
+// Pool: a bump allocator for many allocations that share one lifetime.
+//
+// Memory comes from large blocks obtained from a "block allocator" (by default the
+// context allocator at first use). Individual frees are ignored; `reset` recycles every
+// block, and `release` hands them back. Requests of `oversized_size` bytes or more skip
+// the blocks entirely and are served by one separate allocation each, remembered in
+// `out_of_band_allocations` so reset/release can free them.
+#module_parameters ()(USE_UNMAPPING_ALLOCATOR := false);
+
+// With USE_UNMAPPING_ALLOCATOR, a pool that was not given a block allocator takes its blocks
+// from one guard-page allocator shared by every such pool in the program, so a stale pointer into
+// a released pool faults instead of reading recycled memory. That needs virtual memory (not wasm).
+// (Reset keeps its blocks for reuse; set free_memblocks_on_reset to have reset retire them too.)
+#if USE_UNMAPPING_ALLOCATOR {
+    #import "Unmapping_Allocator";
+    #import "Atomics";
+
+    guard_allocator: Allocator;
+    guard_state: s64; // 0 not made, 1 being made or read, 2 ready
+
+    shared_guard_allocator :: () -> Allocator {
+        while true {
+            before := atomic_swap(*guard_state, 1);
+            if before == 1 continue;
+            if before == 0 {
+                push_allocator(context.default_allocator);
+                guard_allocator = get_unmapping_allocator();
+            }
+            result := guard_allocator;
+            atomic_write(*guard_state, 2);
+            return result;
+        }
+        return .{};
+    }
+}
+
 Pool :: struct {
     memblock_size: s64 = POOL_BUCKET_SIZE_DEFAULT; // full size of each block, header included
     oversized_size: s64 = POOL_OVERSIZED_SIZE_DEFAULT; // requests at least this big get their own allocation
@@ -85,16 +121,15 @@ get :: (pool: *Pool, nbytes: s64) -> *void {
     return result;
 }
 
-// Forget everything handed out so far. Blocks are kept for reuse (or returned, with
-// free_memblocks_on_reset); oversized allocations always go back to the block allocator.
+// Reset, then give every block back to the block allocator.
 release :: (pool: *Pool) {
     reset(pool);
     free_chain(pool, pool.unused_memblocks);
     pool.unused_memblocks = null;
 }
 
-// Allocator entry point: `data` is the *Pool. FREE is a no-op; RESIZE always copies
-// into a fresh allocation because a bump pointer cannot grow in place reliably.
+// Forget everything handed out so far. Blocks are kept for reuse (or returned, with
+// free_memblocks_on_reset); oversized allocations always go back to the block allocator.
 reset :: (pool: *Pool) {
     // Recycled blocks keep their order, newest first, so the next `get` lands in the
     // block that was current before the reset.
@@ -122,15 +157,16 @@ reset :: (pool: *Pool) {
     pool.bytes_left = 0;
 }
 
-// Reset, then give every block back to the block allocator.
+// Bytes handed out from blocks (block capacity minus what is still free in the current
+// block), and how many oversized allocations are outstanding.
 calculate_used_memory :: (pool: Pool) -> inband_size: s64, outband_count: s64 {
     capacity := chain_length(pool.used_memblocks) * pool.memblock_size;
     assert(capacity >= pool.bytes_left);
     return capacity - pool.bytes_left, chain_length(pool.out_of_band_allocations);
 }
 
-#scope_file
-
+// Allocator entry point: `data` is the *Pool. FREE is a no-op; RESIZE always copies
+// into a fresh allocation because a bump pointer cannot grow in place reliably.
 pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64, old_memory: *void, allocator_data: *void) -> *void {
     pool := cast(*Pool) allocator_data;
 
@@ -164,49 +200,15 @@ pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64
     return null;
 }
 
-// Bytes handed out from blocks (block capacity minus what is still free in the current
-// block), and how many oversized allocations are outstanding.
-// Pool: a bump allocator for many allocations that share one lifetime.
-//
-// Memory comes from large blocks obtained from a "block allocator" (by default the
-// context allocator at first use). Individual frees are ignored; `reset` recycles every
-// block, and `release` hands them back. Requests of `oversized_size` bytes or more skip
-// the blocks entirely and are served by one separate allocation each, remembered in
-// `out_of_band_allocations` so reset/release can free them.
-#module_parameters ()(USE_UNMAPPING_ALLOCATOR := false);
-
-// With USE_UNMAPPING_ALLOCATOR, a pool that was not given a block allocator takes its blocks
-// from one guard-page allocator shared by every such pool in the program, so a stale pointer into
-// a released pool faults instead of reading recycled memory. That needs virtual memory (not wasm).
-// (Reset keeps its blocks for reuse; set free_memblocks_on_reset to have reset retire them too.)
-#if USE_UNMAPPING_ALLOCATOR {
-    #import "Unmapping_Allocator";
-    #import "Atomics";
-
-    guard_allocator: Allocator;
-    guard_state: s64; // 0 not made, 1 being made or read, 2 ready
-
-    shared_guard_allocator :: () -> Allocator {
-        while true {
-            before := atomic_swap(*guard_state, 1);
-            if before == 1 continue;
-            if before == 0 {
-                push_allocator(context.default_allocator);
-                guard_allocator = get_unmapping_allocator();
-            }
-            result := guard_allocator;
-            atomic_write(*guard_state, 2);
-            return result;
-        }
-        return .{};
-    }
-}
-
 POOL_BUCKET_SIZE_DEFAULT :: 65536;
+
 POOL_OVERSIZED_SIZE_DEFAULT :: 6554;
 
 STAMP :: 0xcc; // fill byte used when overwrite_memory is on
+
 HEADER_SIZE :: size_of(Memblock); // bytes at the front of every block used for the list link
+
+#scope_file
 
 Memblock :: struct {
     next: *Memblock;
@@ -284,4 +286,5 @@ padding_for :: (address: *u8, alignment: s64) -> s64 #no_aoc {
 CAPS_VERSION_STRING :: "modules/Pool";
 
 #scope_module
+
 #import "Basic";

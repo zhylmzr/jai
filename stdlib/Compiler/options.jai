@@ -1,3 +1,12 @@
+// Build_Options and friends, plus the Jai-side per-workspace option store.
+//
+// jaic does not own a Build_Options record that Jai code can point into. Instead
+// this module keeps one Build_Options per workspace id and, on set_build_options,
+// forwards the subset the Rust side understands as (key, text value) pairs through
+// __jaic_workspace_set_option. See docs/metaprogramming/compiler-module.md for the key table.
+
+#scope_export
+
 Optimization_Type :: enum u8 {
     DEBUG :: 0;
     VERY_DEBUG :: 1;
@@ -7,8 +16,6 @@ Optimization_Type :: enum u8 {
     OPTIMIZED_VERY_SMALL :: 5;
 };
 
-// Apply a whole build flavor at once: runtime checks, frame-pointer policy and the
-// LLVM pass levels. Callers can still tweak individual fields afterwards.
 get_build_options :: (w: Workspace = -1) -> Build_Options {
     id := resolve_workspace(w);
     ensure_option_slot(id);
@@ -63,9 +70,8 @@ set_build_options_dc :: (options: Build_Options_During_Compile, w: Workspace = -
     }
 }
 
-#scope_module
-
-// LLVM IR and codegen levels per flavor; both debug flavors run unoptimized.
+// Apply a whole build flavor at once: runtime checks, frame-pointer policy and the
+// LLVM pass levels. Callers can still tweak individual fields afterwards.
 set_optimization :: (build_options: *Build_Options, type: Optimization_Type, preserve_debug_info := true) {
     for_shipping := type != .DEBUG && type != .VERY_DEBUG;
     wide_vectors := type == .VERY_OPTIMIZED;
@@ -308,17 +314,11 @@ X64_Options :: struct {
     enable_unix_runtime_frame_information := true;
 }
 
-// Build_Options and friends, plus the Jai-side per-workspace option store.
-//
-// jaic does not own a Build_Options record that Jai code can point into. Instead
-// this module keeps one Build_Options per workspace id and, on set_build_options,
-// forwards the subset the Rust side understands as (key, text value) pairs through
-// __jaic_workspace_set_option. See docs/metaprogramming/compiler-module.md for the key table.
-
-#scope_export
-
 MACHINE_OPTIONS_SIZE :: 128;
 
+#scope_module
+
+// LLVM IR and codegen levels per flavor; both debug flavors run unoptimized.
 optimization_levels_for :: (type: Optimization_Type) -> Llvm_Bitcode_Optimization_Setting, Llvm_Machine_Code_Optimization_Setting {
     if type == .OPTIMIZED return .O2, .DEFAULT;
     if type == .VERY_OPTIMIZED return .O3, .AGGRESSIVE;

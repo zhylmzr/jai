@@ -19,7 +19,6 @@ free_permanent :: (using path: Path) {
     array_free(words);
 }
 
-#scope_file
 path_to_string :: (path: Path, max_words := -1) -> string {
     builder: String_Builder;
     init_string_builder(*builder);
@@ -108,6 +107,7 @@ reduce_path :: (path: Path) -> Path {
     return result;
 }
 
+#scope_file
 path_separator :: (byte: u8) -> bool {
     return byte == #char "/" || byte == #char "\\";
 }

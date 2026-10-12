@@ -1,6 +1,10 @@
+// Example_Plugin: a metaprogram plugin that fills in every callback and prints a line
+// from each one, to show when the compiler calls them. Copy it as a starting point.
+#import "Basic";
+#import "Compiler";
+
 HELP_STRING :: "-option arg        Print the supplied example argument.\n";
 
-#scope_module
 log_help :: (p: *Metaprogram_Plugin) {
     log(HELP_STRING);
 }
@@ -16,11 +20,6 @@ handle_one_option :: (p: *Metaprogram_Plugin, options: [] string, cursor: int) -
     return cursor + 2;
 }
 
-// Example_Plugin: a metaprogram plugin that fills in every callback and prints a line
-// from each one, to show when the compiler calls them. Copy it as a starting point.
-#import "Basic";
-#import "Compiler";
-
 get_plugin :: () -> *Metaprogram_Plugin {
     plugin := New(Metaprogram_Plugin);
     plugin.handle_one_option = handle_one_option;
@@ -33,16 +32,16 @@ get_plugin :: () -> *Metaprogram_Plugin {
     return plugin;
 }
 
-// Called before the compiler starts intercepting the workspace; `flags` may be adjusted here.
+// Build options can no longer change; a plugin could add its own source files now.
 add_source :: (p: *Metaprogram_Plugin) {
     print("Example_Plugin: add_source.\n");
 }
 
+// Called before the compiler starts intercepting the workspace; `flags` may be adjusted here.
 before_intercept :: (p: *Metaprogram_Plugin, flags: *Intercept_Flags) {
     print("Example_Plugin: before_intercept, nothing compiled yet.\n");
 }
 
-// Build options can no longer change; a plugin could add its own source files now.
 message :: (p: *Metaprogram_Plugin, message: *Message) {
     num_messages += 1;
     if message.kind == {
@@ -70,4 +69,5 @@ shutdown :: (p: *Metaprogram_Plugin) {
     free(p);
 }
 
+#scope_module
 num_messages := 0;

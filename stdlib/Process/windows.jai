@@ -1,5 +1,7 @@
 #load "../File/windows-encoding.jai";
+
 Windows :: #import "Windows";
+
 Utf8 :: #import "Windows_Utf8";
 
 create_process :: (process: *Process, args: ..string, working_directory := "", capture_and_return_output := false, arg_quoting := Process_Argument_Quoting.QUOTE_IF_NEEDED, kill_process_if_parent_exits := true) -> success: bool {
@@ -66,6 +68,14 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
     return true;
 }
 
+// Creates a pipe whose parent end supports overlapped I/O and returns the child end, ready to be
+// inherited as a standard handle.
+//
+// The parent end lands in `pipe.handle`, and `pipe.overlapped` points to an OVERLAPPED record
+// whose manual-reset event a caller can wait on after starting an asynchronous read or write.
+// `is_input` names the direction from the child's point of view: true gives the child a
+// readable end (we write to `pipe`), false a writable one (we read from `pipe`). The caller owns
+// the returned handle and closes it once the child has started; `deinit(pipe)` releases the rest.
 init_named_pipe_pair :: (pipe: *Process.Pipe, is_input: bool) -> bool, Windows.HANDLE {
     invalid := cast(Windows.HANDLE) -1;
     serial := Atomics.atomic_add(*named_pipe_serial, 1);
@@ -156,7 +166,6 @@ get_process_result :: (process: *Process, timeout_ms := -1) -> success: bool, Pr
     return true, process.saved_result;
 }
 
-#scope_module
 kill_process :: (process: *Process) -> bool {
     return process.launched && (process.saved_result.type != .STILL_RUNNING || Windows.TerminateProcess(process.info.hProcess, 137) != 0);
 }
@@ -172,14 +181,6 @@ deinit :: (pipe: *Process.Pipe) {
     }
 }
 
-// Creates a pipe whose parent end supports overlapped I/O and returns the child end, ready to be
-// inherited as a standard handle.
-//
-// The parent end lands in `pipe.handle`, and `pipe.overlapped` points to an OVERLAPPED record
-// whose manual-reset event a caller can wait on after starting an asynchronous read or write.
-// `is_input` names the direction from the child's point of view: true gives the child a
-// readable end (we write to `pipe`), false a writable one (we read from `pipe`). The caller owns
-// the returned handle and closes it once the child has started; `deinit(pipe)` releases the rest.
 deinit :: (process: *Process) {
     close_pipe_ends(process);
     if process.launched {
@@ -194,6 +195,8 @@ deinit :: (process: *Process) {
     }
     process.* = .{};
 }
+
+#scope_module
 
 named_pipe_serial: s64;
 

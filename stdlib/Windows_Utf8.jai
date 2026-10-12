@@ -22,7 +22,6 @@ wide_to_utf8_new :: (data: *u16, length: s32 = -1) -> (result: string, success: 
     return wide_to_utf8(data, length);
 }
 
-#scope_file
 // Independent wrappers for the Windows SDK UTF conversion APIs.
 utf8_to_wide :: (utf8: string) -> (result_data: *u16, success: bool, result_length_in_bytes: s32) {
     if utf8.count == 0 return null, true, 0;
@@ -45,6 +44,7 @@ utf8_to_wide_new :: (utf8: string) -> (result_data: *u16, success: bool, result_
     return utf8_to_wide(utf8);
 }
 
+#scope_file
 Basic :: #import "Basic";
 
 kernel32 :: #system_library "kernel32";

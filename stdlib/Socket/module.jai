@@ -1,3 +1,5 @@
+#import "Basic";
+
 close_and_reset :: (s: *Socket, loc := #caller_location) {
     if s.* == INVALID_SOCKET return;
     #if OS == .WINDOWS result := closesocket(s.*);
@@ -182,34 +184,39 @@ get_last_socket_error :: () -> OS_Error_Code {
     else return errno();
 }
 
-#import "Basic";
-
-#if OS == .WINDOWS {
-    #import "Windows";
-    #load "generated_windows.jai";
-
-    Socket :: SOCKET;
-    WINSOCK_VERSION: u16 : 0x0202;
-    SOCKET_WOULDBLOCK :: WSAEWOULDBLOCK;
-    SIO_KEEPALIVE_VALS :: 0x98000004;
-} else {
-    #import "POSIX";
-
-    Socket :: s32;
-    INVALID_SOCKET: Socket : -1;
-    SOCKET_ERROR :: -1;
-    SOCKET_WOULDBLOCK :: EWOULDBLOCK;
-
-    #if OS == .MACOS || OS == .IOS #load "generated_macos.jai";
-    else #if OS == .ANDROID #load "generated_android.jai";
-    else #load "generated_linux.jai";
-}
-
 socket_init :: () -> bool {
     #if OS == .WINDOWS {
         data: WSAData;
         return WSAStartup(WINSOCK_VERSION, *data) == 0;
     } else return true;
+}
+
+#if OS == .MACOS || OS == .IOS {
+    htons :: (hostshort: u16) -> u16 {
+        bytes: [2] u8 = .[cast,trunc(u8) (hostshort >> 8), cast,trunc(u8) hostshort];
+        result: u16;
+        memcpy(*result, *bytes, 2);
+        return result;
+    }
+
+    htonl :: (hostlong: u32) -> u32 {
+        bytes: [4] u8 = .[cast,trunc(u8) (hostlong >> 24), cast,trunc(u8) (hostlong >> 16), cast,trunc(u8) (hostlong >> 8), cast,trunc(u8) hostlong];
+        result: u32;
+        memcpy(*result, *bytes, 4);
+        return result;
+    }
+
+    ntohs :: (netshort: u16) -> u16 {
+        bytes: [2] u8;
+        memcpy(*bytes, *netshort, 2);
+        return (cast(u16) bytes[0]) << 8 | bytes[1];
+    }
+
+    ntohl :: (netlong: u32) -> u32 {
+        bytes: [4] u8;
+        memcpy(*bytes, *netlong, 4);
+        return ((cast(u32) bytes[0]) << 24) | ((cast(u32) bytes[1]) << 16) | ((cast(u32) bytes[2]) << 8) | bytes[3];
+    }
 }
 
 #if OS == .WINDOWS {
@@ -284,126 +291,119 @@ socket_init :: () -> bool {
     }
 }
 
-#if OS == .MACOS || OS == .IOS {
-    htons :: (hostshort: u16) -> u16 {
-        bytes: [2] u8 = .[cast,trunc(u8) (hostshort >> 8), cast,trunc(u8) hostshort];
-        result: u16;
-        memcpy(*result, *bytes, 2);
-        return result;
-    }
-
-    htonl :: (hostlong: u32) -> u32 {
-        bytes: [4] u8 = .[cast,trunc(u8) (hostlong >> 24), cast,trunc(u8) (hostlong >> 16), cast,trunc(u8) (hostlong >> 8), cast,trunc(u8) hostlong];
-        result: u32;
-        memcpy(*result, *bytes, 4);
-        return result;
-    }
-
-    ntohs :: (netshort: u16) -> u16 {
-        bytes: [2] u8;
-        memcpy(*bytes, *netshort, 2);
-        return (cast(u16) bytes[0]) << 8 | bytes[1];
-    }
-
-    ntohl :: (netlong: u32) -> u32 {
-        bytes: [4] u8;
-        memcpy(*bytes, *netlong, 4);
-        return ((cast(u32) bytes[0]) << 24) | ((cast(u32) bytes[1]) << 16) | ((cast(u32) bytes[2]) << 8) | bytes[3];
-    }
-}
-
 // Winsock's WSA* errno values; each is its POSIX-style number offset by WSABASEERR.
 #if OS == .WINDOWS {
     WSABASEERR :: 10000;
-    WSAEINTR :: (WSABASEERR + 4);
-    WSAEBADF :: (WSABASEERR + 9);
     WSAEACCES :: (WSABASEERR + 13);
-    WSAEFAULT :: (WSABASEERR + 14);
-    WSAEINVAL :: (WSABASEERR + 22);
-    WSAEMFILE :: (WSABASEERR + 24);
-    WSAEWOULDBLOCK :: (WSABASEERR + 35);
-    WSAEINPROGRESS :: (WSABASEERR + 36);
-    WSAEALREADY :: (WSABASEERR + 37);
-    WSAENOTSOCK :: (WSABASEERR + 38);
-    WSAEDESTADDRREQ :: (WSABASEERR + 39);
-    WSAEMSGSIZE :: (WSABASEERR + 40);
-    WSAEPROTOTYPE :: (WSABASEERR + 41);
-    WSAENOPROTOOPT :: (WSABASEERR + 42);
-    WSAEPROTONOSUPPORT :: (WSABASEERR + 43);
-    WSAESOCKTNOSUPPORT :: (WSABASEERR + 44);
-    WSAEOPNOTSUPP :: (WSABASEERR + 45);
-    WSAEPFNOSUPPORT :: (WSABASEERR + 46);
-    WSAEAFNOSUPPORT :: (WSABASEERR + 47);
     WSAEADDRINUSE :: (WSABASEERR + 48);
     WSAEADDRNOTAVAIL :: (WSABASEERR + 49);
-    WSAENETDOWN :: (WSABASEERR + 50);
-    WSAENETUNREACH :: (WSABASEERR + 51);
-    WSAENETRESET :: (WSABASEERR + 52);
+    WSAEAFNOSUPPORT :: (WSABASEERR + 47);
+    WSAEALREADY :: (WSABASEERR + 37);
+    WSAEBADF :: (WSABASEERR + 9);
+    WSAECANCELLED :: (WSABASEERR + 103);
     WSAECONNABORTED :: (WSABASEERR + 53);
-    WSAECONNRESET :: (WSABASEERR + 54);
-    WSAENOBUFS :: (WSABASEERR + 55);
-    WSAEISCONN :: (WSABASEERR + 56);
-    WSAENOTCONN :: (WSABASEERR + 57);
-    WSAESHUTDOWN :: (WSABASEERR + 58);
-    WSAETOOMANYREFS :: (WSABASEERR + 59);
-    WSAETIMEDOUT :: (WSABASEERR + 60);
     WSAECONNREFUSED :: (WSABASEERR + 61);
-    WSAELOOP :: (WSABASEERR + 62);
-    WSAENAMETOOLONG :: (WSABASEERR + 63);
+    WSAECONNRESET :: (WSABASEERR + 54);
+    WSAEDESTADDRREQ :: (WSABASEERR + 39);
+    WSAEDISCON :: (WSABASEERR + 101);
+    WSAEDQUOT :: (WSABASEERR + 69);
+    WSAEFAULT :: (WSABASEERR + 14);
     WSAEHOSTDOWN :: (WSABASEERR + 64);
     WSAEHOSTUNREACH :: (WSABASEERR + 65);
-    WSAENOTEMPTY :: (WSABASEERR + 66);
-    WSAEPROCLIM :: (WSABASEERR + 67);
-    WSAEUSERS :: (WSABASEERR + 68);
-    WSAEDQUOT :: (WSABASEERR + 69);
-    WSAESTALE :: (WSABASEERR + 70);
-    WSAEREMOTE :: (WSABASEERR + 71);
-    WSASYSNOTREADY :: (WSABASEERR + 91);
-    WSAVERNOTSUPPORTED :: (WSABASEERR + 92);
-    WSANOTINITIALISED :: (WSABASEERR + 93);
-    WSAEDISCON :: (WSABASEERR + 101);
-    WSAENOMORE :: (WSABASEERR + 102);
-    WSAECANCELLED :: (WSABASEERR + 103);
+    WSAEINPROGRESS :: (WSABASEERR + 36);
+    WSAEINTR :: (WSABASEERR + 4);
+    WSAEINVAL :: (WSABASEERR + 22);
     WSAEINVALIDPROCTABLE :: (WSABASEERR + 104);
     WSAEINVALIDPROVIDER :: (WSABASEERR + 105);
+    WSAEISCONN :: (WSABASEERR + 56);
+    WSAELOOP :: (WSABASEERR + 62);
+    WSAEMFILE :: (WSABASEERR + 24);
+    WSAEMSGSIZE :: (WSABASEERR + 40);
+    WSAENAMETOOLONG :: (WSABASEERR + 63);
+    WSAENETDOWN :: (WSABASEERR + 50);
+    WSAENETRESET :: (WSABASEERR + 52);
+    WSAENETUNREACH :: (WSABASEERR + 51);
+    WSAENOBUFS :: (WSABASEERR + 55);
+    WSAENOMORE :: (WSABASEERR + 102);
+    WSAENOPROTOOPT :: (WSABASEERR + 42);
+    WSAENOTCONN :: (WSABASEERR + 57);
+    WSAENOTEMPTY :: (WSABASEERR + 66);
+    WSAENOTSOCK :: (WSABASEERR + 38);
+    WSAEOPNOTSUPP :: (WSABASEERR + 45);
+    WSAEPFNOSUPPORT :: (WSABASEERR + 46);
+    WSAEPROCLIM :: (WSABASEERR + 67);
+    WSAEPROTONOSUPPORT :: (WSABASEERR + 43);
+    WSAEPROTOTYPE :: (WSABASEERR + 41);
     WSAEPROVIDERFAILEDINIT :: (WSABASEERR + 106);
-    WSASYSCALLFAILURE :: (WSABASEERR + 107);
-    WSASERVICE_NOT_FOUND :: (WSABASEERR + 108);
-    WSATYPE_NOT_FOUND :: (WSABASEERR + 109);
-    WSA_E_NO_MORE :: (WSABASEERR + 110);
-    WSA_E_CANCELLED :: (WSABASEERR + 111);
     WSAEREFUSED :: (WSABASEERR + 112);
+    WSAEREMOTE :: (WSABASEERR + 71);
+    WSAESHUTDOWN :: (WSABASEERR + 58);
+    WSAESOCKTNOSUPPORT :: (WSABASEERR + 44);
+    WSAESTALE :: (WSABASEERR + 70);
+    WSAETIMEDOUT :: (WSABASEERR + 60);
+    WSAETOOMANYREFS :: (WSABASEERR + 59);
+    WSAEUSERS :: (WSABASEERR + 68);
+    WSAEWOULDBLOCK :: (WSABASEERR + 35);
     WSAHOST_NOT_FOUND :: (WSABASEERR + 1001);
-    WSATRY_AGAIN :: (WSABASEERR + 1002);
-    WSANO_RECOVERY :: (WSABASEERR + 1003);
+    WSANOTINITIALISED :: (WSABASEERR + 93);
     WSANO_DATA :: (WSABASEERR + 1004);
-    WSA_QOS_RECEIVERS :: (WSABASEERR + 1005);
-    WSA_QOS_SENDERS :: (WSABASEERR + 1006);
-    WSA_QOS_NO_SENDERS :: (WSABASEERR + 1007);
-    WSA_QOS_NO_RECEIVERS :: (WSABASEERR + 1008);
-    WSA_QOS_REQUEST_CONFIRMED :: (WSABASEERR + 1009);
+    WSANO_RECOVERY :: (WSABASEERR + 1003);
+    WSASERVICE_NOT_FOUND :: (WSABASEERR + 108);
+    WSASYSCALLFAILURE :: (WSABASEERR + 107);
+    WSASYSNOTREADY :: (WSABASEERR + 91);
+    WSATRY_AGAIN :: (WSABASEERR + 1002);
+    WSATYPE_NOT_FOUND :: (WSABASEERR + 109);
+    WSAVERNOTSUPPORTED :: (WSABASEERR + 92);
+    WSA_E_CANCELLED :: (WSABASEERR + 111);
+    WSA_E_NO_MORE :: (WSABASEERR + 110);
     WSA_QOS_ADMISSION_FAILURE :: (WSABASEERR + 1010);
-    WSA_QOS_POLICY_FAILURE :: (WSABASEERR + 1011);
-    WSA_QOS_BAD_STYLE :: (WSABASEERR + 1012);
     WSA_QOS_BAD_OBJECT :: (WSABASEERR + 1013);
-    WSA_QOS_TRAFFIC_CTRL_ERROR :: (WSABASEERR + 1014);
-    WSA_QOS_GENERIC_ERROR :: (WSABASEERR + 1015);
-    WSA_QOS_ESERVICETYPE :: (WSABASEERR + 1016);
-    WSA_QOS_EFLOWSPEC :: (WSABASEERR + 1017);
-    WSA_QOS_EPROVSPECBUF :: (WSABASEERR + 1018);
+    WSA_QOS_BAD_STYLE :: (WSABASEERR + 1012);
+    WSA_QOS_EFILTERCOUNT :: (WSABASEERR + 1021);
     WSA_QOS_EFILTERSTYLE :: (WSABASEERR + 1019);
     WSA_QOS_EFILTERTYPE :: (WSABASEERR + 1020);
-    WSA_QOS_EFILTERCOUNT :: (WSABASEERR + 1021);
-    WSA_QOS_EOBJLENGTH :: (WSABASEERR + 1022);
     WSA_QOS_EFLOWCOUNT :: (WSABASEERR + 1023);
-    WSA_QOS_EUNKOWNPSOBJ :: (WSABASEERR + 1024);
-    WSA_QOS_EPOLICYOBJ :: (WSABASEERR + 1025);
     WSA_QOS_EFLOWDESC :: (WSABASEERR + 1026);
-    WSA_QOS_EPSFLOWSPEC :: (WSABASEERR + 1027);
+    WSA_QOS_EFLOWSPEC :: (WSABASEERR + 1017);
+    WSA_QOS_EOBJLENGTH :: (WSABASEERR + 1022);
+    WSA_QOS_EPOLICYOBJ :: (WSABASEERR + 1025);
+    WSA_QOS_EPROVSPECBUF :: (WSABASEERR + 1018);
     WSA_QOS_EPSFILTERSPEC :: (WSABASEERR + 1028);
+    WSA_QOS_EPSFLOWSPEC :: (WSABASEERR + 1027);
     WSA_QOS_ESDMODEOBJ :: (WSABASEERR + 1029);
+    WSA_QOS_ESERVICETYPE :: (WSABASEERR + 1016);
     WSA_QOS_ESHAPERATEOBJ :: (WSABASEERR + 1030);
+    WSA_QOS_EUNKOWNPSOBJ :: (WSABASEERR + 1024);
+    WSA_QOS_GENERIC_ERROR :: (WSABASEERR + 1015);
+    WSA_QOS_NO_RECEIVERS :: (WSABASEERR + 1008);
+    WSA_QOS_NO_SENDERS :: (WSABASEERR + 1007);
+    WSA_QOS_POLICY_FAILURE :: (WSABASEERR + 1011);
+    WSA_QOS_RECEIVERS :: (WSABASEERR + 1005);
+    WSA_QOS_REQUEST_CONFIRMED :: (WSABASEERR + 1009);
     WSA_QOS_RESERVED_PETYPE :: (WSABASEERR + 1031);
+    WSA_QOS_SENDERS :: (WSABASEERR + 1006);
+    WSA_QOS_TRAFFIC_CTRL_ERROR :: (WSABASEERR + 1014);
+}
+
+#if OS == .WINDOWS {
+    #import "Windows";
+    #load "generated_windows.jai";
+
+    Socket :: SOCKET;
+    WINSOCK_VERSION: u16 : 0x0202;
+    SOCKET_WOULDBLOCK :: WSAEWOULDBLOCK;
+    SIO_KEEPALIVE_VALS :: 0x98000004;
+} else {
+    #import "POSIX";
+
+    Socket :: s32;
+    INVALID_SOCKET: Socket : -1;
+    SOCKET_ERROR :: -1;
+    SOCKET_WOULDBLOCK :: EWOULDBLOCK;
+
+    #if OS == .MACOS || OS == .IOS #load "generated_macos.jai";
+    else #if OS == .ANDROID #load "generated_android.jai";
+    else #load "generated_linux.jai";
 }
 
 #scope_file

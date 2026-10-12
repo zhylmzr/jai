@@ -195,7 +195,6 @@ wait_for_completion :: (queue: *Queue($T), check_only := false) -> T, data: [] u
     return value.user_data, value.data, value.result;
 }
 
-#scope_module
 destroy_queue :: (queue: *Queue) {
     if !queue return;
     Threads.lock(*queue.mutex);
@@ -219,6 +218,7 @@ destroy_queue :: (queue: *Queue) {
     free(queue, queue.allocator);
 }
 
+#scope_module
 File_State :: struct {
     stream: Sync.File;
     pending: s64;

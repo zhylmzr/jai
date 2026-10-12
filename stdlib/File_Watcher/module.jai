@@ -89,8 +89,6 @@ process_changes :: (using watcher: *File_Watcher) -> changed: bool, needs_wait: 
     return emit_changes(watcher);
 }
 
-// Queue the interesting subset of `events` for a path. Repeated events for a path that
-// is already queued are OR-ed into that entry and restart its merge-window clock.
 emit_changes :: (using watcher: *$T/File_Watcher) -> changed: bool, needs_wait: bool, wait_seconds: float64 {
     now := seconds_since_init();
     emitted := false;
@@ -116,7 +114,8 @@ emit_changes :: (using watcher: *$T/File_Watcher) -> changed: bool, needs_wait: 
     return emitted, pending, wait;
 }
 
-#scope_module
+// Queue the interesting subset of `events` for a path. Repeated events for a path that
+// is already queued are OR-ed into that entry and restart its merge-window clock.
 add_change :: (watcher: *File_Watcher, full_path: string, events: File_Change_Event) {
     interesting := events & watcher.events_to_watch;
     if interesting == 0 return;
@@ -191,6 +190,7 @@ deinit :: (watcher: *File_Watcher) {
     watcher.* = .{};
 }
 
+#scope_module
 Snapshot_Entry :: struct {
     path: string;
     modtime: Apollo_Time;

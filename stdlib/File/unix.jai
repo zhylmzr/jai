@@ -64,6 +64,7 @@ file_write :: (file: *File, data: *void, length: s64) -> bool {
     return true;
 }
 
+// One byte of standard input, straight from descriptor 0; false at the end of input.
 read_stdin_byte :: (byte: *u8) -> bool {
     while true {
         got := read(0, byte, 1);
@@ -74,7 +75,6 @@ read_stdin_byte :: (byte: *u8) -> bool {
     return false;
 }
 
-#scope_file
 file_set_position :: (f: File, pos: s64) -> bool {
     return file_seek(f, pos, .START);
 }
@@ -172,7 +172,7 @@ get_absolute_path_unix :: (relative_path: string) -> string, success: bool {
     return result, true;
 }
 
-// One byte of standard input, straight from descriptor 0; false at the end of input.
+#scope_file
 native_handle :: (file: File) -> *FILE {
     return file.handle;
 }

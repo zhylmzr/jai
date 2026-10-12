@@ -5,6 +5,8 @@ Prefetch_Hint :: enum {
     NTA :: 3;
 }
 
+// Lower-level instruction hooks. jaic lowers #asm to portable IR: prefetch has no observable effect so it is a
+// no-op, rdseed falls back to rdrand (jaic has no rdseed), the rest map directly.
 prefetch :: (pointer: *void, $hint: Prefetch_Hint) #expand {
     #if hint == .NTA || hint == .T0 || hint == .T1 || hint == .T2 {} else {
         #assert false "'hint' argument to prefetch is out of range.";
@@ -21,7 +23,6 @@ rdtsc :: () -> u64 {
     return low;
 }
 
-// Hint for spin-wait loops: lets the core back off (and a sibling hyperthread run).
 rdtscp :: () -> (timestamp: u64, msr: u32) {
     low: u64 = 0;
     msr: u32 = 0;
@@ -33,6 +34,7 @@ rdtscp :: () -> (timestamp: u64, msr: u32) {
     return low, msr;
 }
 
+// Hint for spin-wait loops: lets the core back off (and a sibling hyperthread run).
 pause :: () {
     #asm { pause; }
 }
@@ -79,8 +81,6 @@ cpuid_query :: (leaf: u32, subleaf: u32, out_a: *u32, out_b: *u32, out_c: *u32, 
     out_d.* = rd;
 }
 
-// Lower-level instruction hooks. jaic lowers #asm to portable IR: prefetch has no observable effect so it is a
-// no-op, rdseed falls back to rdrand (jaic has no rdseed), the rest map directly.
 // CPU metadata layouts retain the x86 feature-leaf ABI.
 x86_Vendor :: enum u8 {
     UNKNOWN :: 0;

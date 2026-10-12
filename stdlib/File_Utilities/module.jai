@@ -3,12 +3,6 @@ Strings :: #import "String";
 #import "File";
 #load "path.jai";
 
-#if OS == .WINDOWS {
-    #load "os/windows.jai";
-} else {
-    #load "os/unix.jai";
-}
-
 copy_file :: (source: string, dest: string) -> bool {
     if source == dest || same_file(source, dest) return false;
     input, opened := file_open(source);
@@ -51,6 +45,12 @@ File_Visit_Info :: struct {
     is_symlink: bool;
     is_directory: bool;
     descend_into_directory: bool;
+}
+
+#if OS == .WINDOWS {
+    #load "os/windows.jai";
+} else {
+    #load "os/unix.jai";
 }
 
 visit_files :: (dir_name: string, recursive: bool, user_data: $T, proc: (info: *File_Visit_Info, user_data: T), visit_files := true, visit_directories := false, visit_symlinks := true, follow_directory_symlinks := true) -> bool {

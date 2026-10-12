@@ -91,14 +91,12 @@ find_visual_studio_in_a_ridiculous_garbage_way :: () -> (library_path := "", lin
     return library_path, linker_path;
 }
 
-#scope_file
 ICONDIR :: struct {
     Reserved1: WORD;
     ResourceType: WORD;
     ImageCount: WORD;
 }
 
-#scope_file
 ICONDIRENTRY :: struct {
     Width: u8;
     Height: u8;
@@ -110,19 +108,31 @@ ICONDIRENTRY :: struct {
     dwImageOffset: DWORD;
 }
 
+#scope_export
+#load "Windows/resources.jai";
+
+#scope_module
+#import "Basic";
+#import "File";
+#import "Windows";
+#import "Windows_Registry";
+#import "Windows_Utf8";
+#import "File_Utilities";
+#import "String";
+
+#scope_file
 RESOURCE_ID_MANIFEST :: 1;
 RESOURCE_ID_FIRST_ICON :: 2;
-
 REQUIRE_ADMINISTRATOR_FALSE :: "asInvoker";
 REQUIRE_ADMINISTRATOR_TRUE :: "requireAdministrator";
-#scope_export
-#scope_file
+
 kernel32 :: #system_library "kernel32";
 WORD :: u16;
 LONG :: s32;
 BeginUpdateResourceW :: (pFileName: *u16, bDeleteExistingResources: BOOL) -> HANDLE #foreign kernel32;
 UpdateResourceW :: (hUpdate: HANDLE, lpType: *u16, lpName: *u16, wLanguage: WORD, lpData: *void, cbData: DWORD) -> BOOL #foreign kernel32;
 EndUpdateResourceW :: (hUpdate: HANDLE, fDiscard: BOOL) -> BOOL #foreign kernel32;
+
 MEMICONDIR :: struct {
     Reserved1: WORD;
     ResourceType: WORD;
@@ -168,6 +178,7 @@ _sdk_vs_newer :: (left: [4] u32, right: [4] u32) -> bool {
     }
     return false;
 }
+
 _sdk_vs_join :: (left: string, right: string) -> string {
     builder: String_Builder;
     defer free_buffers(*builder);
@@ -189,20 +200,6 @@ BUFFER_LENGTH :: 10000;
 Ole32 :: #system_library "ole32";
 OleAut32 :: #system_library "oleaut32";
 
-#scope_module
-#import "Basic";
-#import "File";
-#import "Windows";
-#import "Windows_Registry";
-#import "Windows_Utf8";
-#import "File_Utilities";
-#import "String";
-
-#scope_export
-#load "Windows/resources.jai";
-
-
-#scope_file
 COINIT_APARTMENTTHREADED :: 2;
 COINIT_MULTITHREADED :: 0;
 COINIT_DISABLE_OLE1DDE :: 4;
@@ -248,7 +245,6 @@ REFCLSID :: *IID;
 CoCreateInstance :: (rclsid: REFCLSID, pUnkOuter: *IUnknown, dwClsContext: CLSCTX, riid: REFIID, ppv: **void) -> HRESULT #foreign Ole32;
 CoCreateFreeThreadedMarshaler :: (punkOuter: *IUnknown, ppunkMarshal: **IUnknown) -> HRESULT #foreign Ole32;
 
-#scope_export
 BSTR :: *u16;
 COLESTR :: BSTR;
 SysAllocString :: (psz: *u16) -> BSTR #foreign OleAut32;
@@ -295,4 +291,3 @@ IEnumSetupInstances :: struct {
     using vtable: *IEnumSetupInstances_VTable;
     uuid :: "6380BCFF-41D3-4B2E-8B2E-BF8A6810C848";
 }
-

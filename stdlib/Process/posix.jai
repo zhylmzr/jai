@@ -107,9 +107,6 @@ write_to_process :: (process: *Process, data: [] u8) -> success: bool, bytes_wri
     return amount >= 0, cast(int) max(0, amount);
 }
 
-// One read from a pipe. End of input and a non-blocking pipe with nothing to read both give
-// (true, 0); the handle stays open and `eof` is left to the caller, which knows whether the
-// pipe was reported readable (callers watching handles themselves keep them registered).
 read_from_process :: (process: *Process, output_buffer: [] u8, error_buffer: [] u8, timeout_ms := -1) -> success: bool, output_bytes: int, error_bytes: int {
     descriptors: [2] P.pollfd;
     descriptors[0].fd = process.output.handle;
@@ -140,6 +137,9 @@ read_from_process :: (process: *Process, output_buffer: [] u8, error_buffer: [] 
     return ok, output_bytes, error_bytes;
 }
 
+// One read from a pipe. End of input and a non-blocking pipe with nothing to read both give
+// (true, 0); the handle stays open and `eof` is left to the caller, which knows whether the
+// pipe was reported readable (callers watching handles themselves keep them registered).
 read_pipe :: (pipe: *Process.Pipe, buffer: [] u8) -> success: bool, bytes_read: int {
     if pipe.handle < 0 return false, 0;
     if buffer.count == 0 return true, 0;
@@ -183,7 +183,12 @@ close_and_reset :: (fd: *s32, loc := #caller_location) {
     fd.* = -1;
 }
 
-#scope_module
+deinit :: (pipe: *Process.Pipe) {
+    if pipe.handle >= 0 P.close(pipe.handle);
+    pipe.handle = -1;
+    pipe.eof = true;
+}
+
 deinit :: (process: *Process) {
     close_pipe_ends(process);
     if process.launched && process.saved_result.type == .STILL_RUNNING {
@@ -194,11 +199,7 @@ deinit :: (process: *Process) {
     process.* = .{};
 }
 
-deinit :: (pipe: *Process.Pipe) {
-    if pipe.handle >= 0 P.close(pipe.handle);
-    pipe.handle = -1;
-    pipe.eof = true;
-}
+#scope_module
 
 close_pair :: (pair: *[2] s32) {
     close_and_reset(*(<<pair)[0]);
@@ -242,6 +243,7 @@ process_monotonic_ms :: () -> s64 {
 }
 
 process_socket_libc :: #system_library "libc";
+
 process_socketpair :: (domain: s32, type: s32, protocol: s32, pair: *[2] s32) -> s32 #foreign process_socket_libc "socketpair";
 
 #if OS == .LINUX {

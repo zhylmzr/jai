@@ -2,6 +2,7 @@
 #module_parameters (ENABLE_NATIVE_INPUT_ADAPTERS := true);
 
 #import "Basic";
+
 #import "Window_Type";
 
 Input_Event_Type :: enum {
@@ -121,23 +122,31 @@ Window_Event :: struct {
 }
 
 Event :: Window_Event;
+
+// Borrowed frame views: payload ownership remains in events_this_frame.
 Routed_Input_Event :: struct {
     window: Window_Type;
     event: Event;
 }
 
-WHEEL_DELTA :: 120; // Wheel units per notch, as in the original Input module.
+WHEEL_DELTA :: 120; // Wheel units per notch.
 
 NUM_BUTTON_STATES :: 307;
+
 events_this_frame: [..] Event = .{ allocator = INPUT_HEAP };
 
-// Borrowed frame views: payload ownership remains in events_this_frame.
 routed_events_this_frame: [..] Routed_Input_Event = .{ allocator = INPUT_HEAP };
+
 unrouted_events_this_frame: [..] Event = .{ allocator = INPUT_HEAP };
+
 input_button_states: [NUM_BUTTON_STATES] Key_Current_State;
+
 mouse_delta_x: int;
+
 mouse_delta_y: int;
+
 mouse_delta_z: int;
+
 Window_Resize_Record :: struct {
     window: Window_Type;
     width: s32;
@@ -150,11 +159,11 @@ Window_Move_Record :: struct {
     y: s32;
 }
 
-// Adapters run on the owner thread. A queued event's `files` (the array and each name, all from
-// the array's allocator) pass to Input, which frees them at the next update.
 window_resizes_this_frame: [..] Window_Resize_Record = .{ allocator = INPUT_HEAP };
 
+// Set by hosts that learn a window is minimized.
 window_minimized := false;
+
 input_application_has_focus := false;
 
 input_system_initialized := false;
@@ -171,9 +180,8 @@ init_input_system :: () {
     if input_initialize_source != null input_initialize_source();
 }
 
-// These explicit adapters are additional authored integration points. The pointer
-// getters are named distinctly from Window_Creation's get_mouse_pointer_position, which
-// programs commonly import alongside Input.
+// false (the default): the pointer shows the standard arrow over Input's windows, restored as it
+// moves there. true: the program sets the cursor itself and Input leaves it alone.
 set_custom_cursor_handling :: (is_custom: bool) {
     custom_cursor_handling = is_custom;
 }
@@ -215,8 +223,8 @@ update_window_events :: () {
     pending_events.count = 0;
 }
 
-// false (the default): the pointer shows the standard arrow over Input's windows, restored as it
-// moves there. true: the program sets the cursor itself and Input leaves it alone.
+// Adapters run on the owner thread. A queued event's `files` (the array and each name, all from
+// the array's allocator) pass to Input, which frees them at the next update.
 queue_input_event :: (event: Event) {
     array_add(*pending_events, .{ event = event });
 }
@@ -267,7 +275,6 @@ add_resize_record :: (hwnd: Window_Type, width: s32, height: s32) {
     queue_window_resize(hwnd, width, height);
 }
 
-// Set by hosts that learn a window is minimized; kept for source compatibility with the original Input module.
 set_input_focus :: (focused: bool) {
     unscoped_input_focus = focused;
     if !focused {
@@ -312,9 +319,15 @@ get_window_resizes :: () -> [] Window_Resize_Record {
     return window_resizes_this_frame;
 }
 
+// These explicit adapters are additional authored integration points. The pointer
+// getters are named distinctly from Window_Creation's get_mouse_pointer_position, which
+// programs commonly import alongside Input.
 input_event_source: () = null;
+
 input_initialize_source: () = null;
+
 input_pointer_source: (window: Window_Type, client_area: bool) -> float, float = null;
+
 input_pointer_query_source: (window: Window_Type, client_area: bool) -> float, float, bool = null;
 
 get_input_pointer_position :: () -> float, float, bool {
@@ -335,6 +348,7 @@ get_input_pointer_position :: (window: Window_Type, client_area := false) -> flo
 }
 
 #scope_module
+
 // Input's queues live across frames, so they never take the caller's context.allocator: a program
 // that runs with `context.allocator = temp` and resets temporary storage every frame would leave
 // them pointing at reclaimed memory.
@@ -347,9 +361,11 @@ Window_Input_State :: struct {
 }
 
 window_input_states: [..] Window_Input_State = .{ allocator = INPUT_HEAP };
+
 unscoped_input_focus := false;
 
 unscoped_button_states: [NUM_BUTTON_STATES] Key_Current_State;
+
 Pending_Input_Event :: struct {
     event: Event;
     window: Window_Type;
@@ -358,25 +374,20 @@ Pending_Input_Event :: struct {
 
 pending_events: [..] Pending_Input_Event = .{ allocator = INPUT_HEAP };
 
-#if ENABLE_NATIVE_INPUT_ADAPTERS {
-    #if OS == .WINDOWS {
-        #load "windows.jai";
-    } else #if OS == .LINUX {
-        #load "x11.jai";
-    } else #if OS == .MACOS {
-        #load "macos.jai";
-    } else #if OS == .WASM {
-        #load "wasm.jai";
-    }
-}
-
 pending_moves: [..] Window_Move_Record = .{ allocator = INPUT_HEAP };
+
 moves_to_free: [..] Window_Move_Record = .{ allocator = INPUT_HEAP };
+
 pending_resizes: [..] Window_Resize_Record = .{ allocator = INPUT_HEAP };
+
 pending_mouse_x: int;
+
 pending_mouse_y: int;
+
 pending_mouse_z: int;
+
 custom_cursor_handling := false;
+
 find_input_window :: (window: Window_Type) -> s64 {
     for record, index: window_input_states if record.window == window return index;
     return -1;
@@ -458,7 +469,6 @@ release_focus_buttons :: (window: Window_Type, scoped: bool) {
     }
 }
 
-// Strict decoder shared by XIM and AppKit text streams.
 publish_pending_event :: (pending: Pending_Input_Event) {
     event := pending.event;
     if event.type == .KEYBOARD && cast(u32) event.key_code < NUM_BUTTON_STATES {
@@ -481,6 +491,7 @@ publish_pending_event :: (pending: Pending_Input_Event) {
     else array_add(*unrouted_events_this_frame, event);
 }
 
+// Strict decoder shared by XIM and AppKit text streams.
 queue_utf8_text :: (window: Window_Type, bytes: [] u8, repeat := false) {
     offset: s64 = 0;
     while offset < bytes.count {
@@ -525,6 +536,18 @@ queue_utf8_text :: (window: Window_Type, bytes: [] u8, repeat := false) {
     }
 }
 
+#if ENABLE_NATIVE_INPUT_ADAPTERS {
+    #if OS == .WINDOWS {
+        #load "windows.jai";
+    } else #if OS == .LINUX {
+        #load "x11.jai";
+    } else #if OS == .MACOS {
+        #load "macos.jai";
+    } else #if OS == .WASM {
+        #load "wasm.jai";
+    }
+}
+
 install_native_input_adapter :: () {
     #if ENABLE_NATIVE_INPUT_ADAPTERS {
         #if OS == .WINDOWS {
@@ -542,4 +565,3 @@ install_native_input_adapter :: () {
         }
     }
 }
-

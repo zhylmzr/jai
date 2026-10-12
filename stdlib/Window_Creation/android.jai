@@ -16,6 +16,7 @@ get_mouse_pointer_position :: (win: *Android.ANativeWindow, right_handed: bool) 
 get_mouse_pointer_position :: (right_handed := false) -> x: int, y: int, success: bool {
     return touch_x, touch_y, true;
 }
+
 get_dimensions :: (win: *Android.ANativeWindow, right_handed: bool) -> (x: s32, y: s32, width: s32, height: s32, success := true) {
     if !win return 0, 0, 0, 0, false;
     pixel_width := Android.ANativeWindow_getWidth(win);
@@ -39,4 +40,3 @@ toggle_fullscreen :: (win: *Android.ANativeWindow, desire_fullscreen: bool, save
     _, _, width, height, valid := get_dimensions(win, false);
     return valid, width, height;
 }
-

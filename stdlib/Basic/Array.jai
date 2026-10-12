@@ -1,3 +1,4 @@
+// Independently authored array operations. Capacity belongs to the descriptor.
 peek :: (array: [] $T) -> T {
     assert(array.count > 0);
     return array[array.count - 1];
@@ -33,7 +34,6 @@ array_view :: inline (array: [] $T, index: int, count: int) -> [] T {
     return .{ ifx count < available then count else available, array.data + index };
 }
 
-// Independently authored array operations. Capacity belongs to the descriptor.
 array_copy :: (array: [] $T) -> [] T {
     output, base := NewArray(array.count, T, false);
     for i: 0..array.count - 1 output[i] = array[i];
@@ -91,7 +91,6 @@ array_reserve :: (array: *Resizable_Array, desired_items: s64, element_size: s64
     array.allocated = next;
 }
 
-// Appends a zeroed element to a resizable array and returns a pointer to it.
 maybe_grow :: (array: *Resizable_Array, element_size: s64) {
     array_reserve(array, array.count + 1, element_size);
 }
@@ -99,6 +98,8 @@ maybe_grow :: (array: *Resizable_Array, element_size: s64) {
 init_range :: (ptr: *$T, begin: s64, end: s64) {
     for i: begin..end - 1 Initialize(ptr + i);
 }
+
+// Appends a zeroed element to a resizable array and returns a pointer to it.
 array_add :: (array: *[..] $T) -> *T #must {
     array_reserve(array, array.count + 1);
     result := array.data + array.count;
@@ -233,4 +234,3 @@ array_free :: (array: [..] $T) {
         free(array.data, a);
     }
 }
-

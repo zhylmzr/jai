@@ -1,15 +1,23 @@
 #import "Basic";
+
 A :: #import "Atomics";
 
 CHANNEL_MAGIC :: "ShmC";
+
 MESSAGE_MAGIC :: "ShmM2022";
 
 PROTOCOL_VERSION :: 1;
+
 OFFSET_TO_HEADER_OS_SPECIFIC :: 64;
+
 OFFSET_TO_MESSAGE_QUEUE_HEADER :: 128;
+
 OFFSET_TO_MESSAGE_DATA :: 256;
+
 PER_MESSAGE_OVERHEAD_SIZE :: 16;
+
 WRAPPING_SENTINEL :: 0xcafebabef00dface;
+
 Header :: struct {
     magic: u32;
     version: u32;
@@ -40,14 +48,6 @@ Message_Queue_Header :: struct {
     write_cursor: s64;
 }
 
-Write_Channel :: struct {
-    header: *Header;
-    os_specific: Write_Channel_Os_Specific;
-    reserved_offset: s64 = -1;
-    prior_write_cursor: s64;
-    reserved_bytes: s64;
-}
-
 #if OS == .WINDOWS {
     Windows :: #import "Windows";
 
@@ -72,6 +72,14 @@ Write_Channel :: struct {
     }
 
     #load "posix.jai";
+}
+
+Write_Channel :: struct {
+    header: *Header;
+    os_specific: Write_Channel_Os_Specific;
+    reserved_offset: s64 = -1;
+    prior_write_cursor: s64;
+    reserved_bytes: s64;
 }
 
 Read_Channel :: struct {
@@ -166,7 +174,6 @@ reader_done_with_message :: (message: *Read_Message) -> bool {
     return true;
 }
 
-#scope_module
 writer_reserve_message :: (channel: *Write_Channel, data_bytes: s64) -> (success: bool, reserved: Reserved_Message) {
     if !channel || !channel.header || data_bytes < 0 return false, .{};
     header := channel.header;
@@ -232,6 +239,8 @@ get_size_of_full_mapping_from_stub_header :: (pointer: *void) -> (success: bool,
     return true, header.full_memory_region_size_in_bytes;
 }
 
+#scope_module
+
 write_stamp :: (header: *Header, offset: s64, length: s64) {
     pointer := cast(*u8) header + offset;
     magic := message_magic();
@@ -247,6 +256,7 @@ read_stamp :: (header: *Header, offset: s64) -> s64, bool {
     memcpy(*length, pointer + 8, 8);
     return length, magic == message_magic();
 }
+
 message_magic :: () -> u64 {
     value: u64;
     memcpy(*value, MESSAGE_MAGIC.data, 8);
@@ -258,4 +268,3 @@ channel_magic :: () -> u32 {
     memcpy(*value, CHANNEL_MAGIC.data, 4);
     return value;
 }
-

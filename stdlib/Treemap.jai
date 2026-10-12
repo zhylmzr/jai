@@ -64,7 +64,6 @@ add_node :: (treemap: *Treemap, name: string, parent: *Treemap_Node) -> *Treemap
     return node;
 }
 
-// Bumping the tree's generation is what tells displays their cached layout is stale.
 free_treemap :: (treemap: *Treemap) {
     if !treemap return;
     for treemap.nodes.all_buckets {
@@ -96,8 +95,7 @@ free_treemap :: (treemap: *Treemap) {
     }
 }
 
-#scope_file;
-
+// Bumping the tree's generation is what tells displays their cached layout is stale.
 recompute_if_dirty :: (treemap: *Treemap) {
     if treemap.dirty {
         if treemap.root recompute_sizes(treemap.root);
@@ -202,13 +200,12 @@ size_children :: (treemap: *Treemap, root: *Treemap_Node, display: *Treemap_Disp
     for root.children size_children(treemap, it, display, border_proc);
 }
 
-// The row range is [unsized_cursor, child_index), including an empty range.
 get_index :: (treemap: *Treemap, node: *Treemap_Node) -> s64 {
     assert(node != null);
     return cast(s64) node.locator.bucket_index * treemap.nodes.items_per_bucket + node.locator.slot_index;
 }
 
-// These helpers also retire private cache state for the supplied owner address.
+// The row range is [unsized_cursor, child_index), including an empty range.
 flush_nodes :: (children: [] *Treemap_Node, unsized_cursor: int, child_index: int, display: *Treemap_Display, root_corner: Vector2, fill_weight_total: float64, horizontal: bool, size: Vector2) -> (flushed_node_weight: float64) {
     assert(unsized_cursor >= 0 && child_index >= unsized_cursor && child_index <= children.count);
     result: float64;
@@ -238,6 +235,7 @@ init_treemap_display :: (treemap: *Treemap) -> Treemap_Display {
     return .{ treemap = treemap };
 }
 
+// These helpers also retire private cache state for the supplied owner address.
 free_treemap_display :: (display: *Treemap_Display) {
     if !display return;
     array_free(display.nodes);
@@ -253,6 +251,8 @@ free_treemap_display :: (display: *Treemap_Display) {
         display_states = .{};
     }
 }
+
+#scope_file;
 
 Tree_State :: struct {
     tree: *Treemap;

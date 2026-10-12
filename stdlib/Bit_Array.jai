@@ -7,12 +7,6 @@ Bit_Array :: struct {
     allocator: Allocator;
 }
 
-// Allocates zeroed storage for `count` bits (from `array.allocator`, else the context's).
-set_bit_to :: (array: *Bit_Array, i: int, value: bool) {
-    assert(i >= 0 && i < array.count);
-    array.slots[i >> 6] = set_bits(array.slots[i >> 6], bit_mask(i), value);
-}
-
 operator [] :: (a: Bit_Array, i: int) -> bool {
     assert(i >= 0 && i < a.count);
     return (a.slots[i >> 6] & bit_mask(i)) != 0;
@@ -20,6 +14,11 @@ operator [] :: (a: Bit_Array, i: int) -> bool {
 
 operator []= :: (a: *Bit_Array, i: int, value: bool) {
     set_bit_to(a, i, value);
+}
+
+set_bit_to :: (array: *Bit_Array, i: int, value: bool) {
+    assert(i >= 0 && i < array.count);
+    array.slots[i >> 6] = set_bits(array.slots[i >> 6], bit_mask(i), value);
 }
 
 set_bit :: (array: *Bit_Array, i: int) {
@@ -75,14 +74,13 @@ set_bits :: inline (w: s64, m: s64, b: bool) -> s64 {
     return w & ~m;
 }
 
-#scope_file
-
 make_bit_array :: (count: int) -> Bit_Array #must {
     result: Bit_Array;
     init_bit_array(*result, count);
     return result;
 }
 
+// Allocates zeroed storage for `count` bits (from `array.allocator`, else the context's).
 init_bit_array :: (array: *Bit_Array, count: int) {
     assert(count >= 0);
     array.count = count;
@@ -97,6 +95,8 @@ deinit :: (array: *Bit_Array) {
     array.slots = .[];
     array.count = 0;
 }
+
+#scope_file
 
 Basic :: #import "Basic";
 

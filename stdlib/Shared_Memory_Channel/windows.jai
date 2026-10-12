@@ -1,4 +1,5 @@
 #load "../File/windows-encoding.jai";
+
 Utf8 :: #import "Windows_Utf8";
 
 HEADER_OS_MAGIC :: "ShmW";
@@ -90,6 +91,7 @@ writer_disconnect :: (channel: *Write_Channel) -> bool {
 }
 
 #scope_module
+
 os_magic :: () -> u32 {
     value: u32;
     memcpy(*value, HEADER_OS_MAGIC.data, 4);

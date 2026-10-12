@@ -247,6 +247,7 @@ get_time :: (group: *Thread_Group) -> float64 {
         return cast(float64) now.tv_sec + cast(float64) now.tv_usec / 1000000;
     } else return cast(float64) native_tick_count() / 1000;
 }
+
 append_work :: (list: *Work_List, entry: *Work_Entry) {
     entry.next = null;
     lock(*list.mutex);
@@ -281,4 +282,3 @@ deinit_work_list :: (list: *Work_List, allocator: Allocator) {
     destroy(*list.mutex);
     list.* = .{};
 }
-

@@ -1,5 +1,7 @@
 // Authored scalar Jai lexer. Interface is the supplied lexer API; no maintained replacement exists.
 
+#load "scanner.jai";
+
 USE_SIMD :: false;
 
 LEXER_SIMD_WIDTH :: 16;
@@ -35,7 +37,6 @@ Hex_Digit_Type :: enum u8 {
     UNICODE_32 :: 2;
 }
 
-#load "scanner.jai";
 Token :: struct {
     type: Token_Type = .ERROR;
     l0, c0: s32;
@@ -159,4 +160,3 @@ Token_Type :: enum s16 {
 Note_Flags :: enum_flags u8 {
     IS_SYSTEM_LEVEL :: 0x1;
 }
-

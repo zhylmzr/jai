@@ -62,7 +62,6 @@ init :: () {
     _md_end();
 }
 
-// Release retained history at an explicit process/debugger lifecycle boundary.
 deinit :: (report: *Leak_Report) {
     previous := context.inside_memory_debugger;
     context.inside_memory_debugger = true;
@@ -72,6 +71,7 @@ deinit :: (report: *Leak_Report) {
     report.* = .{};
 }
 
+// Release retained history at an explicit process/debugger lifecycle boundary.
 deinit_memory_debugger :: () {
     if !_md_begin(.{}) return;
     defer _md_end();
@@ -85,7 +85,6 @@ deinit_memory_debugger :: () {
     md_deinit(*md_state);
 }
 
-#scope_module
 Preamble :: () #expand {
     if context.inside_memory_debugger `return;
     if _md_ignore_allocator(`allocator) `return;
@@ -178,7 +177,6 @@ this_allocation_does_not_propagate_leak_ownership :: (memory: *void) {
     if record && record.allocation.is_live record.allocation.propagates_leak_ownership = false;
 }
 
-// One-shot convenience: build the report, print it, then release its scratch storage.
 this_allocation_leaks_todo :: (memory: *void) {
     this_allocation_is_not_a_leak(memory);
 }
@@ -365,12 +363,14 @@ log_leak_report :: (report: Leak_Report, options: Leak_Report_Options = .{}) {
         _md_quantity(report.marked_as_non_leak_bytes, "byte"), _md_quantity(report.marked_as_non_leak_allocations, "allocation"));
 }
 
+// One-shot convenience: build the report, print it, then release its scratch storage.
 report_memory_leaks :: (options: Leak_Report_Options = .{}) {
     leaks := make_leak_report(options);
     log_leak_report(leaks, options);
     deinit(*leaks);
 }
 
+#scope_module
 MD_Heap :: struct {
     allocator: Allocator;
     destroyed: bool;

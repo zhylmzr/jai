@@ -38,7 +38,9 @@ Table :: struct(Key_Type: Type, Value_Type: Type,
 }
 
 NEVER_OCCUPIED_HASH :: 0;
+
 REMOVED_HASH :: 1;
+
 FIRST_VALID_HASH :: 2;
 
 init :: (using table: *Table, slots_to_allocate: s64 = 0) {
@@ -174,7 +176,6 @@ next_power_of_two :: (x: int) -> int {
     return n;
 }
 
-#scope_file
 expand :: (table: *Table) {
     resize(table, Basic.max(table.SIZE_MIN, table.allocated * 2));
 }
@@ -217,7 +218,10 @@ Walk_Table :: (code: Code) #expand {
     }
 }
 
+#scope_file
+
 Basic :: #import "Basic";
+
 Hash :: #import "Hash";
 
 _valid_hash :: (hash: u32) -> u32 {

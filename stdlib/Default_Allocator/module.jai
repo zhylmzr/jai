@@ -1,20 +1,12 @@
+// A Jai ownership ledger partitions system C allocations into independent heaps.
+#module_parameters(ENABLE_ASSERTS := true, ENABLE_VALIDATE_ARGS := true)();
+
 c_malloc :: (size: u64) -> *void #foreign crt "malloc";
 c_free :: (memory: *void) #foreign crt "free";
 c_realloc :: (memory: *void, size: u64) -> *void #foreign crt "realloc";
 c_calloc :: (count: u64, size: u64) -> *void #foreign crt "calloc";
 c_memmove :: (destination: *void, source: *void, count: u64) -> *void #foreign crt "memmove";
 
-#scope_module
-// Alignment. Blocks of CACHE_LINE bytes or more start on a CACHE_LINE boundary; smaller ones
-// keep malloc's 16. A type declared `#align 64` has a size that is a multiple of 64, so plain
-// `New`/`alloc` honor it although the allocator protocol carries no alignment.
-//
-// Only malloc, realloc and free are used: compile-time code of a cross build calls the host's C
-// library, so posix_memalign or _aligned_malloc would each be missing on some host/target pair.
-// A wide block is a malloc block WIDE_SLACK bytes larger than asked, used from its first
-// cache-line boundary. Its ledger entry is that boundary, plus WIDE_BLOCK and the number of
-// skipped 16-byte steps in bits 0-1. Plain entries have bits 0-3 clear (malloc is 16-aligned),
-// and the ledger hashes from bit 4 up, so tags never change where an entry lives.
 allocator_default_heap: *Heap;
 
 initialize_if_needed :: inline () -> did_init: bool {
@@ -37,10 +29,8 @@ unsafe_reset :: inline () {
     ledger_lock = 0;
 }
 
-// A Jai ownership ledger partitions system C allocations into independent heaps.
-#module_parameters(ENABLE_ASSERTS := true, ENABLE_VALIDATE_ARGS := true)();
-
 allocator :: Allocator.{ allocator_proc, null };
+
 allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64, old_memory: *void, allocator_data: *void) -> *void {
     // The common modes first: compile-time code runs this through the interpreter, where
     // every test and call counts.
@@ -120,6 +110,17 @@ allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64, old
     return null;
 }
 
+#scope_module
+// Alignment. Blocks of CACHE_LINE bytes or more start on a CACHE_LINE boundary; smaller ones
+// keep malloc's 16. A type declared `#align 64` has a size that is a multiple of 64, so plain
+// `New`/`alloc` honor it although the allocator protocol carries no alignment.
+//
+// Only malloc, realloc and free are used: compile-time code of a cross build calls the host's C
+// library, so posix_memalign or _aligned_malloc would each be missing on some host/target pair.
+// A wide block is a malloc block WIDE_SLACK bytes larger than asked, used from its first
+// cache-line boundary. Its ledger entry is that boundary, plus WIDE_BLOCK and the number of
+// skipped 16-byte steps in bits 0-1. Plain entries have bits 0-3 clear (malloc is 16-aligned),
+// and the ledger hashes from bit 4 up, so tags never change where an entry lives.
 CACHE_LINE :: 64;
 WIDE_SLACK :: CACHE_LINE - 16;
 WIDE_BLOCK :: 8;

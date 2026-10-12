@@ -1,12 +1,19 @@
 #import "Basic";
+
 #import "Input";
+
 #import "Gamepad";
+
 #import "Text_File_Handler";
+
 #import "Bucket_Array";
+
 File :: #import "File";
+
 #load "save.jai";
 
 Key_Press_Proc :: #type ();
+
 Key_Hold_Proc :: #type (bool);
 
 Modifier_Flags :: Event.Modifier_Flags;
@@ -190,7 +197,6 @@ keymap_copy_procs :: (source: *Keymap, dest: *Keymap) {
     }
 }
 
-#scope_file
 load_from_file :: (set: *Keymap_Set, short_name: string, filename: string, optional := false) -> bool {
     contents, success := File.read_entire_file(filename, log_errors = !optional);
     if !success return optional;
@@ -342,6 +348,8 @@ map_key_to_string :: (k: Key_Code) -> string {
     return result;
 }
 
+#scope_file
+
 named_keys: [] struct {
     name: string;
     key: Key_Code;
@@ -368,6 +376,7 @@ named_keys: [] struct {
 .{ "Gamepad_RStickLeft", xx (Key_Code.GAMEPAD_0_BEGIN) + xx (Gamepad_Code.RIGHT_STICK_LEFT) }, .{ "Gamepad_RStickRight", xx (Key_Code.GAMEPAD_0_BEGIN) + xx (Gamepad_Code.RIGHT_STICK_RIGHT) },
 .{ "Gamepad_LStickClick", xx (Key_Code.GAMEPAD_0_BEGIN) + xx (Gamepad_Code.LEFT_STICK_CLICK) }, .{ "Gamepad_RStickClick", xx (Key_Code.GAMEPAD_0_BEGIN) + xx (Gamepad_Code.RIGHT_STICK_CLICK) }
 ];
+
 single_codepoint :: (s: string) -> u32, bool {
     if s.count < 1 || s.count > 4 return 0, false;
     first := s.data[0];
@@ -495,4 +504,3 @@ find_section :: (set: *Keymap_Set, section: string) -> *Keymap {
     }
     return null;
 }
-

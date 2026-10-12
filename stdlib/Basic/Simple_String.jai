@@ -1,3 +1,4 @@
+// Independently authored byte-string utilities. Classification is ASCII.
 is_print :: (c: u8) -> bool {
     return c >= 32 && c <= 126;
 }
@@ -6,6 +7,7 @@ is_space :: (c: u8) -> bool {
     return c == 32 || (c >= 9 && c <= 13);
 }
 
+// Identifier characters: letters, digits and the underscore.
 is_alnum :: (c: u8) -> bool {
     if c == #char "_" return true;
     return is_digit(c) || is_alpha(c);
@@ -15,7 +17,7 @@ is_digit :: (c: u8) -> bool {
     return #char "0" <= c && c <= #char "9";
 }
 
-// Identifier characters: letters, digits and the underscore.
+// Setting bit 5 folds ASCII upper case onto lower case; no other byte lands in a..z.
 is_alpha :: (c: u8) -> bool {
     folded := c | 0x20;
     return #char "a" <= folded && folded <= #char "z";
@@ -26,7 +28,6 @@ to_lower :: (c: u8) -> u8 {
     return c;
 }
 
-// Setting bit 5 folds ASCII upper case onto lower case; no other byte lands in a..z.
 to_upper :: (c: u8) -> u8 {
     if c >= #char "a" && c <= #char "z" return c - 32;
     return c;
@@ -81,7 +82,6 @@ to_c_string :: (s: string) -> *u8 {
     return result;
 }
 
-// Independently authored byte-string utilities. Classification is ASCII.
 to_string :: inline (s: *u8, length: s64) -> string {
     assert(length >= 0);
     return string.{ count = length, data = s };
@@ -91,8 +91,10 @@ to_integer :: (s: string) -> result: int, success: bool, remainder: string {
     return string_to_int(s);
 }
 
-// Base 2..36, optional leading whitespace and sign. Overflow is a failure,
-// and the unconsumed suffix begins at the first byte that was not a digit.
+// Decimal significand plus an optional exponent. This intentionally does not
+// recognize hexadecimal floats, NaN/Inf spellings, or locale separators.
+// The digits are gathered as an integer and a power of ten first and converted once at the
+// end (decimal_to_float64), so "0.3" gives the double nearest 0.3 rather than 3 * 0.1.
 string_to_float_type_T :: (_arg: string) -> result: $T, success: bool, remainder: string {
     text := eat_spaces(_arg);
     position: s64 = 0;
@@ -151,28 +153,22 @@ string_to_float_type_T :: (_arg: string) -> result: $T, success: bool, remainder
     return cast(T) value, true, advance(text, position);
 }
 
-#scope_file
-// A decimal number as significand * 10^power_of_ten, keeping at most 19 significant digits
-// (all that fit in a u64). Later digits only move the exponent; the error they leave is far
-// below a float64's precision.
+// The same parse with the success flag first: `ok, value, rest := string_to_float64_new(s);`.
 string_to_float64_new :: (text: string) -> success: bool, result: float64, remainder: string {
     value, ok, rest := string_to_float_type_T(text, T = float64);
     return ok, value, rest;
 }
 
-// Decimal significand plus an optional exponent. This intentionally does not
-// recognize hexadecimal floats, NaN/Inf spellings, or locale separators.
-// The digits are gathered as an integer and a power of ten first and converted once at the
-// end (decimal_to_float64), so "0.3" gives the double nearest 0.3 rather than 3 * 0.1.
 string_to_float64 :: (_s: string) -> result: float64, success: bool, remainder: string {
     return string_to_float_type_T(_s, T = float64);
 }
 
-// The same parse with the success flag first: `ok, value, rest := string_to_float64_new(s);`.
 string_to_float :: (arg: string) -> result: float, success: bool, remainder: string {
     return string_to_float_type_T(arg, T = float);
 }
 
+// Base 2..36, optional leading whitespace and sign. Overflow is a failure,
+// and the unconsumed suffix begins at the first byte that was not a digit.
 string_to_int :: (t: string, base := 10, $T := int) -> result: T, success: bool, remainder: string {
     if base < 2 || base > 36 return 0, false, t;
     info := cast(*Type_Info_Integer) type_info(T);
@@ -211,6 +207,10 @@ string_to_int :: (t: string, base := 10, $T := int) -> result: T, success: bool,
     return cast,no_check(T) value, true, advance(text, position);
 }
 
+#scope_file
+// A decimal number as significand * 10^power_of_ten, keeping at most 19 significant digits
+// (all that fit in a u64). Later digits only move the exponent; the error they leave is far
+// below a float64's precision.
 Decimal_Digits :: struct {
     significand: u64;
     kept: s64;

@@ -1,3 +1,6 @@
+// Classic SDL2 mapping surface. No copied controller database.
+#import "Basic";
+
 SDL_Gamepad_Mapping :: struct {
     guid: string;
     name: string;
@@ -11,9 +14,6 @@ SDL_Input_Map :: struct {
     index: s32 = -1;
     subindex: s32 = -1;
 }
-
-// Classic SDL2 mapping surface. No copied controller database.
-#import "Basic";
 
 SDL_Input_Target :: enum {
     UNINITIALIZED;
@@ -147,12 +147,12 @@ get_guid_string :: (bustype: s16, vendor: s16, product: s16, version: s16) -> te
     return .{ out, 32 };
 }
 
-#scope_file
 SDL_HAT_UP_BIT :: 0x01;
 SDL_HAT_RIGHT_BIT :: 0x02;
 SDL_HAT_DOWN_BIT :: 0x04;
 SDL_HAT_LEFT_BIT :: 0x08;
 
+#scope_file
 mapping_integer :: (input: string, cursor: *s64) -> s32, bool {
     start := cursor.*;
     number: s64 = 0;
@@ -163,6 +163,7 @@ mapping_integer :: (input: string, cursor: *s64) -> s32, bool {
     }
     return cast(s32) number, cursor.* > start;
 }
+
 mapping_token :: (input: string, cursor: *s64, separator: u8) -> string {
     start := cursor.*;
     while cursor.* < input.count && input[cursor.*] != separator cursor.* += 1;
@@ -170,4 +171,3 @@ mapping_token :: (input: string, cursor: *s64, separator: u8) -> string {
     if cursor.* < input.count cursor.* += 1;
     return token;
 }
-

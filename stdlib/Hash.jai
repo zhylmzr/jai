@@ -1,3 +1,4 @@
+// Compatibility hashes are expressed as recurrences with wrapping arithmetic.
 get_hash :: (x: $T, h := HASH_INIT) -> u32
 #modify {
     info := cast(*Type_Info) T;
@@ -21,7 +22,6 @@ get_hash :: (array: [] $T, h := HASH_INIT) -> u32 {
     return sdbm_hash(array.data, array.count * size_of(T), h);
 }
 
-#scope_file
 djb2_hash :: (s: string) -> u32 #no_aoc {
     result := HASH_INIT;
     for byte: s result = result * 33 + byte;
@@ -67,8 +67,8 @@ knuth_hash :: inline (x: u64) -> u64 #no_aoc {
     return x * 11400714819323198485;
 }
 
-// Compatibility hashes are expressed as recurrences with wrapping arithmetic.
 FNV_64_PRIME: u64 : 0x100000001b3;
 FNV_64_OFFSET_BIAS: u64 : 0xcbf29ce484222325;
 
+#scope_file
 HASH_INIT: u32 : 5381;

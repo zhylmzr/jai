@@ -62,14 +62,6 @@ plist_write_bool :: (builder: *String_Builder, value: bool) {
     append(builder, ifx value then "<true/>\n" else "<false/>\n");
 }
 
-#scope_file
-#import "Basic";
-#import "Process";
-#import "File";
-#import "File_Utilities";
-#import "String";
-#import "POSIX";
-
 plist_write_key_value :: (builder: *String_Builder, key: string, value: Any) -> success: bool {
     kind := value.type.type;
     if kind != .BOOL && kind != .STRING return false;
@@ -82,6 +74,20 @@ plist_write_key_value :: (builder: *String_Builder, key: string, value: Any) -> 
 plist_end :: (builder: *String_Builder) {
     append(builder, "</dict>\n</plist>\n");
 }
+
+#scope_file
+
+#import "Basic";
+
+#import "Process";
+
+#import "File";
+
+#import "File_Utilities";
+
+#import "String";
+
+#import "POSIX";
 
 BUNDLE_ICON_NAME :: "icon_data.icns";
 

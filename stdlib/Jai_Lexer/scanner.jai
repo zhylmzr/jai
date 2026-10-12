@@ -1,3 +1,6 @@
+#load "classify.jai";
+
+// Points the lexer at new text (not copied, not owned) and rewinds all scanning state.
 set_input_from_string :: (lexer: *Lexer, input: string) {
     // A buffer from set_input_from_file belongs to us; release it before dropping it.
     if lexer.should_free_input {
@@ -24,11 +27,6 @@ set_input_from_file :: (lexer: *Lexer, file_path: string) -> bool {
     return true;
 }
 
-
-#scope_module
-
-#load "classify.jai";
-
 // Byte cursor and eight-slot lookahead ring. Token text belongs to the atom pool.
 peek_next_token :: (using lexer: *Lexer) -> *Token {
     return peek_token(lexer, 0);
@@ -44,7 +42,6 @@ peek_token :: (lexer: *Lexer, lookahead_index: s32) -> *Token {
     return *lexer.tokens[slot];
 }
 
-// Points the lexer at new text (not copied, not owned) and rewinds all scanning state.
 eat_token :: (lexer: *Lexer) {
     if lexer.num_incoming_tokens <= 0 peek_next_token(lexer);
     token := *lexer.tokens[lexer.token_array_cursor];
@@ -60,7 +57,6 @@ get_last_token :: (lexer: *Lexer) -> Token {
     index := (lexer.token_array_cursor + MAX_CONCURRENT_TOKENS - 1) % MAX_CONCURRENT_TOKENS;
     return lexer.tokens[index];
 }
-
 
 compose_new_token :: (lexer: *Lexer) -> *Token {
     while true {
@@ -115,6 +111,7 @@ compose_new_token :: (lexer: *Lexer) -> *Token {
     }
 }
 
+// Called after the character was consumed, so the token begins one column earlier.
 make_one_character_token :: (lexer: *Lexer, c: Token_Type) -> *Token {
     single := start_token(lexer, c);
     single.c0 = lexer.current_character_index - 1;
@@ -425,7 +422,6 @@ parse_here_string :: (lexer: *Lexer) -> *Token {
     return result;
 }
 
-// Called after the character was consumed, so the token begins one column earlier.
 cached_make_atom :: (lexer: *Lexer, name: string, token_to_fill: *Token) {
     token_to_fill.ident_value.name = cast(Table_String) pooled_text(lexer, name);
     hash: u32;
@@ -465,8 +461,6 @@ unwind_one_character :: (lexer: *Lexer) {
     }
 }
 
-// Hands out the ring slot just past the pending lookahead, cleared and positioned at
-// the current source location. The caller fills in type, value and end position.
 get_hex_digit :: (lexer: *Lexer, type: Hex_Digit_Type) -> (value: u8, success: bool) {
     byte := peek_next_character(lexer);
     digit := digit_value(byte);
@@ -487,6 +481,8 @@ set_end_of_token :: (lexer: *Lexer, token: *Token) {
     token.c1 = lexer.current_character_index;
 }
 
+// Hands out the ring slot just past the pending lookahead, cleared and positioned at
+// the current source location. The caller fills in type, value and end position.
 get_unused_token :: (lexer: *Lexer) -> *Token {
     assert(lexer.num_incoming_tokens < MAX_CONCURRENT_TOKENS, "Jai_Lexer: token lookahead ring overflowed");
     ring_index := lexer.token_array_cursor + lexer.num_incoming_tokens;
@@ -502,15 +498,22 @@ get_unused_token :: (lexer: *Lexer) -> *Token {
 report_detail :: (lexer: *Lexer, format: string, arguments: ..Any) {
     log(format, ..arguments);
 } @PrintLike
-report_parse_error :: (lexer: *Lexer, format: string, arguments: ..Any) {
-    lexer.reported_error = true;
-    log(format, ..arguments);
-} @PrintLike
+
 report_parse_error :: (lexer: *Lexer, token: *Token, format: string, arguments: ..Any) {
     lexer.reported_error = true;
     log("lexer at %:%: ", token.l0, token.c0);
     log(format, ..arguments);
 } @PrintLike
+
+report_parse_error :: (lexer: *Lexer, format: string, arguments: ..Any) {
+    lexer.reported_error = true;
+    log(format, ..arguments);
+} @PrintLike
+
+#scope_module
+
+#import "Basic";
+
 Pool_Module :: #import "Pool";
 
 Pool :: Pool_Module.Pool;
@@ -523,7 +526,6 @@ start_token :: (lexer: *Lexer, type: Token_Type) -> *Token {
     return token;
 }
 
-#import "Basic";
 pooled_text :: (lexer: *Lexer, text: string) -> string {
     storage := cast(*u8) Pool_Module.get(*lexer.atom_pool, text.count + 1);
     memcpy(storage, text.data, text.count);
@@ -555,6 +557,7 @@ compound_tokens: [] struct {
 .{ "&=", .BITWISE_AND_EQUALS }, .{ "|=", .BITWISE_OR_EQUALS }, .{ "^=", .BITWISE_XOR_EQUALS }, .{ ".*", .POSTFIX_DEREFERENCE },
 .{ "--", .DOUBLE_MINUS }, .{ ",,", .DOUBLE_COMMA }, .{ ".{", .BEGIN_STRUCT_LITERAL }, .{ ".[", .BEGIN_ARRAY_LITERAL }
 ];
+
 keywords: [] struct {
     text: string;
     kind: Token_Type;
@@ -569,4 +572,3 @@ keywords: [] struct {
 .{ "push_context", .KEYWORD_PUSH_CONTEXT }, .{ "operator", .KEYWORD_OPERATOR }, .{ "is_constant", .KEYWORD_IS_CONSTANT },
 .{ "enum_flags", .KEYWORD_ENUM_FLAGS }, .{ "union", .KEYWORD_UNION }, .{ "interface", .KEYWORD_INTERFACE }
 ];
-

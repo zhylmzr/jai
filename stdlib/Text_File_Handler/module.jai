@@ -117,8 +117,6 @@ file_to_table :: (filename: string, do_trim := true, skip_blank_lines := true, d
     return success, table;
 }
 
-#scope_file
-// The version header is the first meaningful line and reads "[N]".
 file_to_array :: (filename: string, do_trim := true, skip_blank_lines := true, do_version_number := false, use_data_from_memory := false, data_from_memory := "", loc := #caller_location) -> success: bool, array: [..] string {
     handler: Text_File_Handler;
     handler.do_version_number = do_version_number;
@@ -140,6 +138,8 @@ file_to_array :: (filename: string, do_trim := true, skip_blank_lines := true, d
     return !handler.failed, array;
 }
 
+#scope_file
+// The version header is the first meaningful line and reads "[N]".
 read_version_line :: (handler: *Text_File_Handler) -> bool {
     line, found := consume_next_line(handler);
     if !found || line.count < 3 return false;

@@ -3,6 +3,8 @@ Basic :: #import "Basic";
 #scope_export
 #load "Unicode/utf8-core.jai";
 
+// Classic UTF-8 decoding tables (the ConvertUTF names), exported for callers that
+// decode by hand. Continuation-byte count for each leading byte:
 trailingBytesForUTF8 :: #run -> [256] u8 {
     table: [256] u8;
     for 0..255 {
@@ -21,6 +23,7 @@ utf8_inital_byte_mask :: u8.[0x7F, 0x1F, 0x0F, 0x07, 0x03, 0x01];
 offsetsFromUTF8: [6] u32 : .[0x0, 0x3080, 0xE2080, 0x3C82080, 0xFA082080, 0x82082080];
 // Leading-byte marker for an encoding of N bytes.
 firstByteMark: [7] u8 : .[0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC];
+
 character_utf32_to_utf8 :: (ch: u32) -> string {
     out := Basic.alloc_string(4);
     status := character_utf32_to_utf8(ch, *out);
@@ -62,8 +65,6 @@ utf8_iter :: (s: *string, body: Code, flags: For_Flags) #expand {
     }
 }
 
-// Classic UTF-8 decoding tables (the ConvertUTF names), exported for callers that
-// decode by hand. Continuation-byte count for each leading byte:
 utf8_next_character :: (s: *string) -> code: u32, success: Unicode_Result {
     text := s;
     code, consumed, status := character_utf8_to_utf32(text.data, text.count);
@@ -82,4 +83,3 @@ unicode_next_character :: (s: *u8) -> *u8 {
     else if s[0] >= 0xF0 && s[0] <= 0xF4 length = 4;
     return s + length;
 }
-

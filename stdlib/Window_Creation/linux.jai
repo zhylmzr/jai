@@ -1,3 +1,6 @@
+// Linux windows through X11.
+#import "X11";
+
 get_mouse_pointer_position :: (dpy: *Display, win: Window, right_handed: bool) -> x: int, y: int, success: bool {
     if !dpy || !win return 0, 0, false;
     root, child: Window;
@@ -23,6 +26,7 @@ get_mouse_pointer_position :: (right_handed := false) -> x: int, y: int, success
     XGetInputFocus(x_global_display, *focused, *mode);
     return get_mouse_pointer_position(x_global_display, focused, right_handed);
 }
+
 get_dimensions :: (win: Window, right_handed: bool) -> (x: s32, y: s32, width: s32, height: s32, success := true) {
     if !x_global_display || !win return 0, 0, 0, 0, false;
     attributes: XWindowAttributes;
@@ -98,9 +102,5 @@ toggle_fullscreen :: (win: Window, desire_fullscreen: bool, saved: *Saved_Window
     return accepted != 0 && measured, measured_width, measured_height;
 }
 
-// Linux windows through X11.
-#import "X11";
-
 window_minimized := false;
 Saved_Window_Info :: struct {}
-

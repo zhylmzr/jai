@@ -24,7 +24,6 @@ get_mouse_pointer_position :: (right_handed := false) -> x: int, y: int, success
     return get_mouse_pointer_position(focused, right_handed);
 }
 
-#scope_file
 Saved_Window_Info :: struct {
     mask: NSWindowStyleMask;
     window_frame: NSRect;
@@ -159,6 +158,7 @@ init_mac_app :: () {
     application_initialized = true;
 }
 
+#scope_file
 macos_create_app_delegate_exists :: () -> bool {
     info := cast(*Type_Info_Struct) type_info(#Context);
     member, offset := get_field_with_offset(info, "_macos_create_app_delegate");

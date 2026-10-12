@@ -1,10 +1,10 @@
+// Independent IMA/DVI ADPCM decoder for WAVE channel packets.
 Adpcm_Info :: struct {
     nChannels: s32;
     nBlockAlign: s32;
     wSamplesPerBlock: s32;
 };
 
-// Independent IMA/DVI ADPCM decoder for WAVE channel packets.
 ADPCM_CHANNELS_MAX :: 9;
 
 IMA_ADPCM_decode :: (info: Adpcm_Info, input_block: [] u8, dest_buffer: [] u8) -> s32 {
@@ -57,6 +57,7 @@ IMA_ADPCM_decode :: (info: Adpcm_Info, input_block: [] u8, dest_buffer: [] u8) -
     }
     return written;
 }
+
 Fill_IMA_ADPCM_block :: (dest: [] u8, dest_start_index: s32, encoded: [4] u8, channel: s32, numchannels: s32, state: *ADPCM_State) {
     if !state || numchannels <= 0 || channel < 0 || channel >= numchannels || dest_start_index < 0 return;
     last := cast(s64) dest_start_index + channel * 2 + cast(s64) 14 * numchannels + 1;
@@ -77,7 +78,6 @@ ADPCM_State :: struct {
     index: s8;
 };
 
-// Standard IMA quantizer step sizes and four-bit index adjustments.
 IMA_ADPCM_nibble :: inline (state: *ADPCM_State, nybble: u8) -> s32 {
     if !state return 0;
     if state.index < 0 state.index = 0;
@@ -99,6 +99,7 @@ IMA_ADPCM_nibble :: inline (state: *ADPCM_State, nybble: u8) -> s32 {
 
 index_table: [16] s8 : .[-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
 
+// Standard IMA quantizer step sizes and four-bit index adjustments.
 step_table: [89] s32 : .[
     7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31,
     34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130,
@@ -109,4 +110,3 @@ step_table: [89] s32 : .[
     10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385,
     24623, 27086, 29794, 32767
 ];
-

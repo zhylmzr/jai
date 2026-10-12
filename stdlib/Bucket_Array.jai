@@ -27,6 +27,15 @@ Bucket :: struct(type: Type, items_per_bucket: int) {
     count := 0;
 }
 
+operator *[] :: (array: Bucket_Array, index: int) -> *array.type {
+    assert(index >= 0);
+    bucket_index := index / array.items_per_bucket;
+    slot := index % array.items_per_bucket;
+    assert(bucket_index < array.all_buckets.count);
+    assert(array.all_buckets[bucket_index].occupied[slot]);
+    return *array.all_buckets[bucket_index].data[slot];
+}
+
 for_expansion :: (array: *$T/Bucket_Array, body: Code, flags: For_Flags) #expand {
     REVERSE :: (flags & .REVERSE) != 0;
     POINTER :: ((flags & .POINTER) != 0) || array.always_iterate_by_pointer;
@@ -59,8 +68,6 @@ for_expansion :: (array: *$T/Bucket_Array, body: Code, flags: For_Flags) #expand
         }
     }
 }
-
-#scope_file;
 
 bucket_array_add :: (array: *Bucket_Array, item: array.type) -> (Bucket_Locator, pointer: *array.type) {
     pointer, locator := find_and_occupy_empty_slot(array, false);
@@ -121,14 +128,7 @@ find_and_occupy_empty_slot :: (array: *Bucket_Array, $initialize := true) -> *ar
     return pointer, locator;
 }
 
-operator *[] :: (array: Bucket_Array, index: int) -> *array.type {
-    assert(index >= 0);
-    bucket_index := index / array.items_per_bucket;
-    slot := index % array.items_per_bucket;
-    assert(bucket_index < array.all_buckets.count);
-    assert(array.all_buckets[bucket_index].occupied[slot]);
-    return *array.all_buckets[bucket_index].data[slot];
-}
+#scope_file;
 
 add_bucket :: (array: *Bucket_Array) -> *array.My_Bucket {
     if !array.allocator.proc array.allocator = context.allocator;

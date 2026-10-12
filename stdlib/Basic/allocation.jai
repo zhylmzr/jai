@@ -1,3 +1,5 @@
+// Allocator selection remains ordinary Jai source and follows the active context.
+
 Initialize :: (memory: *$T) {
     initial_value: T;
     memory.* = initial_value;
@@ -50,7 +52,6 @@ talloc_string :: (count: int) -> string {
     return alloc_string(count, temp);
 }
 
-// Allocator selection remains ordinary Jai source and follows the active context.
 // Returns `size` bytes of memory from `allocator`. Release it with [free].
 alloc :: (size: s64, allocator := context.allocator) -> *void {
     if size < 0 || !allocator.proc return null;
@@ -61,7 +62,6 @@ alloc :: (size: s64, allocator := context.allocator) -> *void {
     return memory;
 }
 
-// Gives memory from [alloc] back to `allocator`.
 realloc :: (memory: *void, size: s64, old_size: s64, allocator := context.allocator) -> *void {
     if size < 0 || old_size < 0 || !allocator.proc return null;
     replacement := allocator.proc(.RESIZE, size, old_size, memory, allocator.data);
@@ -71,6 +71,7 @@ realloc :: (memory: *void, size: s64, old_size: s64, allocator := context.alloca
     return replacement;
 }
 
+// Gives memory from [alloc] back to `allocator`.
 free :: (ptr: *void, allocator := context.allocator) {
     if !ptr return;
     assert(allocator.proc != null, "free requires an allocator");
@@ -172,7 +173,6 @@ deinit_temporary_storage :: (ts: *Temporary_Storage, allocator := context.alloca
     ts.* = .{};
 }
 
-#scope_module
 get_temporary_storage_mark :: inline () -> Temporary_Storage_State {
     storage := context.temporary_storage;
     if !storage return .{};
@@ -262,6 +262,7 @@ temporary_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
     return result;
 }
 
+#scope_module
 Temporary_Arena :: struct {
     current_page_bytes_occupied: s64;
     overflow_allocator: Allocator;
@@ -272,6 +273,9 @@ Temporary_Arena :: struct {
 
 #assert size_of(Temporary_Arena) <= size_of(type_of(Temporary_Storage.implementation_data));
 
+// Temporary_Storage (Runtime_Support) has only the public fields plus an opaque
+// `implementation_data` blob, as in Jai 0.2.029+; the arena bookkeeping inside it belongs to Basic.
+// Overflow pages come straight from the overflow allocator, so the memory debugger never sees them.
 Temporary_Page :: struct {
     next: *Temporary_Page;
     allocator: Allocator;
@@ -280,9 +284,6 @@ Temporary_Page :: struct {
 
 ALIGNED_OVERFLOW_PAGE_ALLOCATION :: 32;
 
-// Temporary_Storage (Runtime_Support) has only the public fields plus an opaque
-// `implementation_data` blob, as in Jai 0.2.029+; the arena bookkeeping inside it belongs to Basic.
-// Overflow pages come straight from the overflow allocator, so the memory debugger never sees them.
 add_temporary_page :: (storage: *Temporary_Storage, required: s64) -> bool {
     arena := temporary_arena(storage);
     capacity := arena.original_size;
@@ -322,7 +323,7 @@ release_temporary_pages :: (storage: *Temporary_Storage, stop: *Temporary_Page) 
     }
     return true;
 }
-#scope_export
+
 temporary_arena :: (ts: *Temporary_Storage) -> *Temporary_Arena {
     arena := cast(*Temporary_Arena) ts.implementation_data.data;
     // The runtime only fills `data`/`size`; adopt them as the original page on first use.
@@ -338,3 +339,4 @@ temporary_range_contains :: (base: *u8, size: s64, pointer: *void) -> bool {
     return base != null && p >= base && p < base + size;
 }
 
+#scope_export

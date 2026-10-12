@@ -45,9 +45,6 @@ set_enum_value :: (data: *void, info: *Type_Info_Enum, value: s64) {
     } else assert(false);
 }
 
-#scope_module
-#import "Basic";
-
 // Runtime operations on the compiler-owned Type_Info descriptor ABI.
 get_array_count_and_data :: (pointer: *void, info: *Type_Info_Array) -> (count: s64, data: *void) {
     assert(info && info.type == .ARRAY);
@@ -184,6 +181,10 @@ unsigned_integer_range_from_size :: (size_in_bytes: int) -> (low: u64, high: u64
     assert(size_in_bytes == 8);
     return 0, 0xffff_ffff_ffff_ffff;
 }
+
+#scope_module
+
+#import "Basic";
 
 has_prefix :: (text: string, prefix: string) -> bool {
     if text.count < prefix.count return false;

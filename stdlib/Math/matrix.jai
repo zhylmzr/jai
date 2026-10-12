@@ -37,12 +37,27 @@ Matrix2 :: struct {
 
 Matrix2_Identity :: Matrix2.{ _11 = 1, _22 = 1 };
 
-multiply :: (m: Matrix2, v: Vector2) -> Vector2 {
-    return .{ m._11 * v.x + m._12 * v.y, m._21 * v.x + m._22 * v.y };
+operator * :: (a: Matrix2, t: float) -> Matrix2 #symmetric {
+    result := a;
+    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] *= t;
+    return result;
 }
 
-operator * :: (m: Matrix2, v: Vector2) -> Vector2 {
-    return multiply(m, v);
+operator + :: (a: Matrix2, b: Matrix2) -> Matrix2 {
+    result := a;
+    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] += b.coef[r][c];
+    return result;
+}
+
+operator - :: (a: Matrix2, b: Matrix2) -> Matrix2 {
+    result := a;
+    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] -= b.coef[r][c];
+    return result;
+}
+
+operator == :: (a: Matrix2, b: Matrix2) -> bool {
+    for r: 0..a.coef.count - 1 for c : 0..a.coef[r].count - 1 if a.coef[r][c] != b.coef[r][c] return false;
+    return true;
 }
 
 multiply :: (m: Matrix2, n: Matrix2) -> Matrix2 {
@@ -55,7 +70,11 @@ operator * :: (a: Matrix2, b: Matrix2) -> Matrix2 {
     return multiply(a, b);
 }
 
-operator * :: (m: Matrix3, v: Vector3) -> Vector3 {
+multiply :: (m: Matrix2, v: Vector2) -> Vector2 {
+    return .{ m._11 * v.x + m._12 * v.y, m._21 * v.x + m._22 * v.y };
+}
+
+operator * :: (m: Matrix2, v: Vector2) -> Vector2 {
     return multiply(m, v);
 }
 
@@ -77,6 +96,29 @@ Matrix3 :: struct {
 
 Matrix3_Identity :: Matrix3.{ _11 = 1, _22 = 1, _33 = 1 };
 
+operator * :: (a: Matrix3, t: float) -> Matrix3 #symmetric {
+    result := a;
+    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] *= t;
+    return result;
+}
+
+operator + :: (a: Matrix3, b: Matrix3) -> Matrix3 {
+    result := a;
+    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] += b.coef[r][c];
+    return result;
+}
+
+operator - :: (a: Matrix3, b: Matrix3) -> Matrix3 {
+    result := a;
+    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] -= b.coef[r][c];
+    return result;
+}
+
+operator == :: (a: Matrix3, b: Matrix3) -> bool {
+    for r: 0..a.coef.count - 1 for c : 0..a.coef[r].count - 1 if a.coef[r][c] != b.coef[r][c] return false;
+    return true;
+}
+
 multiply :: (m: Matrix3, n: Matrix3) -> Matrix3 {
     result: Matrix3;
     for r: 0..2 for c : 0..2 for k : 0..2 result.coef[r][c] += m.coef[r][k] * n.coef[k][c];
@@ -87,12 +129,14 @@ operator * :: (a: Matrix3, b: Matrix3) -> Matrix3 {
     return multiply(a, b);
 }
 
-multiply :: (m: Matrix4, v: Vector4) -> Vector4 {
-    return .{ m._11 * v.x + m._12 * v.y + m._13 * v.z + m._14 * v.w, m._21 * v.x + m._22 * v.y + m._23 * v.z + m._24 * v.w, m._31 * v.x + m._32 * v.y + m._33 * v.z + m._34 * v.w, m._41 * v.x + m._42 * v.y + m._43 * v.z + m._44 * v.w };
+operator * :: (m: Matrix3, v: Vector3) -> Vector3 {
+    return multiply(m, v);
 }
 
-operator * :: (m: Matrix4, v: Vector4) -> Vector4 {
-    return multiply(m, v);
+multiply :: (m: $T/interface AnyMatrix3, v: Vector3) -> Vector3 {
+    return .{ m._11 * v.x + m._12 * v.y + m._13 * v.z,
+             m._21 * v.x + m._22 * v.y + m._23 * v.z,
+             m._31 * v.x + m._32 * v.y + m._33 * v.z };
 }
 
 transform_vector :: (m: $T/interface AnyMatrix3, v: Vector3) -> Vector3 {
@@ -118,6 +162,29 @@ Matrix4 :: struct {
 
 Matrix4_Identity :: Matrix4.{ _11 = 1, _22 = 1, _33 = 1, _44 = 1 };
 
+operator * :: (a: Matrix4, t: float) -> Matrix4 #symmetric {
+    result := a;
+    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] *= t;
+    return result;
+}
+
+operator + :: (a: Matrix4, b: Matrix4) -> Matrix4 {
+    result := a;
+    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] += b.coef[r][c];
+    return result;
+}
+
+operator - :: (a: Matrix4, b: Matrix4) -> Matrix4 {
+    result := a;
+    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] -= b.coef[r][c];
+    return result;
+}
+
+operator == :: (a: Matrix4, b: Matrix4) -> bool {
+    for r: 0..a.coef.count - 1 for c : 0..a.coef[r].count - 1 if a.coef[r][c] != b.coef[r][c] return false;
+    return true;
+}
+
 multiply :: (m: Matrix4, n: Matrix4) -> Matrix4 {
     result: Matrix4;
     for r: 0..3 for c : 0..3 for k : 0..3 result.coef[r][c] += m.coef[r][k] * n.coef[k][c];
@@ -128,8 +195,12 @@ operator * :: (a: Matrix4, b: Matrix4) -> Matrix4 {
     return multiply(a, b);
 }
 
-multiply :: (m: Matrix4x3, v: Vector4) -> Vector3 {
-    return .{ m._11 * v.x + m._12 * v.y + m._13 * v.z + m._14 * v.w, m._21 * v.x + m._22 * v.y + m._23 * v.z + m._24 * v.w, m._31 * v.x + m._32 * v.y + m._33 * v.z + m._34 * v.w };
+multiply :: (m: Matrix4, v: Vector4) -> Vector4 {
+    return .{ m._11 * v.x + m._12 * v.y + m._13 * v.z + m._14 * v.w, m._21 * v.x + m._22 * v.y + m._23 * v.z + m._24 * v.w, m._31 * v.x + m._32 * v.y + m._33 * v.z + m._34 * v.w, m._41 * v.x + m._42 * v.y + m._43 * v.z + m._44 * v.w };
+}
+
+operator * :: (m: Matrix4, v: Vector4) -> Vector4 {
+    return multiply(m, v);
 }
 
 row :: (m: Matrix4, i: int) -> Vector4 {
@@ -158,120 +229,6 @@ Matrix4x3 :: struct {
 
 Matrix4x3_Identity :: Matrix4x3.{ _11 = 1, _22 = 1, _33 = 1 };
 
-multiply :: (m: $T/interface AnyMatrix3, v: Vector3) -> Vector3 {
-    return .{ m._11 * v.x + m._12 * v.y + m._13 * v.z,
-             m._21 * v.x + m._22 * v.y + m._23 * v.z,
-             m._31 * v.x + m._32 * v.y + m._33 * v.z };
-}
-
-multiply :: (m: Matrix4, n: Matrix3) -> Matrix4 {
-    return multiply(m, make_matrix4(n));
-}
-
-transform_point :: (m: $T/interface AnyMatrix4x3, v: Vector3) -> Vector3 {
-    return .{ m._11 * v.x + m._12 * v.y + m._13 * v.z + m._14,
-             m._21 * v.x + m._22 * v.y + m._23 * v.z + m._24,
-             m._31 * v.x + m._32 * v.y + m._33 * v.z + m._34 };
-}
-
-multiply :: (m: Matrix4, n: Matrix4x3) -> Matrix4 {
-    return multiply(m, make_matrix4(n));
-}
-
-multiply :: (m: Matrix4x3, n: Matrix4) -> Matrix4 {
-    return multiply(make_matrix4(m), n);
-}
-
-multiply :: (m: Matrix4x3, n: Matrix4x3) -> Matrix4x3 {
-    combined := multiply(make_matrix4(m), make_matrix4(n));
-    return .{ _11 = combined._11, _12 = combined._12, _13 = combined._13, _14 = combined._14, _21 = combined._21, _22 = combined._22, _23 = combined._23, _24 = combined._24, _31 = combined._31, _32 = combined._32, _33 = combined._33, _34 = combined._34 };
-}
-
-operator * :: (a: Matrix4, b: Matrix3) -> Matrix4 {
-    return multiply(a, b);
-}
-
-operator * :: (a: Matrix4, b: Matrix4x3) -> Matrix4 {
-    return multiply(a, b);
-}
-
-operator * :: (a: Matrix4x3, b: Matrix4) -> Matrix4 {
-    return multiply(a, b);
-}
-
-operator * :: (a: Matrix4x3, b: Matrix4x3) -> Matrix4x3 {
-    return multiply(a, b);
-}
-
-operator * :: (a: Matrix2, t: float) -> Matrix2 #symmetric {
-    result := a;
-    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] *= t;
-    return result;
-}
-
-operator + :: (a: Matrix2, b: Matrix2) -> Matrix2 {
-    result := a;
-    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] += b.coef[r][c];
-    return result;
-}
-
-operator - :: (a: Matrix2, b: Matrix2) -> Matrix2 {
-    result := a;
-    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] -= b.coef[r][c];
-    return result;
-}
-
-operator == :: (a: Matrix2, b: Matrix2) -> bool {
-    for r: 0..a.coef.count - 1 for c : 0..a.coef[r].count - 1 if a.coef[r][c] != b.coef[r][c] return false;
-    return true;
-}
-
-operator * :: (a: Matrix3, t: float) -> Matrix3 #symmetric {
-    result := a;
-    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] *= t;
-    return result;
-}
-
-operator + :: (a: Matrix3, b: Matrix3) -> Matrix3 {
-    result := a;
-    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] += b.coef[r][c];
-    return result;
-}
-
-operator - :: (a: Matrix3, b: Matrix3) -> Matrix3 {
-    result := a;
-    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] -= b.coef[r][c];
-    return result;
-}
-
-operator == :: (a: Matrix3, b: Matrix3) -> bool {
-    for r: 0..a.coef.count - 1 for c : 0..a.coef[r].count - 1 if a.coef[r][c] != b.coef[r][c] return false;
-    return true;
-}
-
-operator * :: (a: Matrix4, t: float) -> Matrix4 #symmetric {
-    result := a;
-    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] *= t;
-    return result;
-}
-
-operator + :: (a: Matrix4, b: Matrix4) -> Matrix4 {
-    result := a;
-    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] += b.coef[r][c];
-    return result;
-}
-
-operator - :: (a: Matrix4, b: Matrix4) -> Matrix4 {
-    result := a;
-    for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] -= b.coef[r][c];
-    return result;
-}
-
-operator == :: (a: Matrix4, b: Matrix4) -> bool {
-    for r: 0..a.coef.count - 1 for c : 0..a.coef[r].count - 1 if a.coef[r][c] != b.coef[r][c] return false;
-    return true;
-}
-
 operator * :: (a: Matrix4x3, t: float) -> Matrix4x3 #symmetric {
     result := a;
     for r: 0..result.coef.count - 1 for c : 0..result.coef[r].count - 1 result.coef[r][c] *= t;
@@ -293,6 +250,49 @@ operator - :: (a: Matrix4x3, b: Matrix4x3) -> Matrix4x3 {
 operator == :: (a: Matrix4x3, b: Matrix4x3) -> bool {
     for r: 0..a.coef.count - 1 for c : 0..a.coef[r].count - 1 if a.coef[r][c] != b.coef[r][c] return false;
     return true;
+}
+
+multiply :: (m: Matrix4x3, n: Matrix4x3) -> Matrix4x3 {
+    combined := multiply(make_matrix4(m), make_matrix4(n));
+    return .{ _11 = combined._11, _12 = combined._12, _13 = combined._13, _14 = combined._14, _21 = combined._21, _22 = combined._22, _23 = combined._23, _24 = combined._24, _31 = combined._31, _32 = combined._32, _33 = combined._33, _34 = combined._34 };
+}
+
+operator * :: (a: Matrix4x3, b: Matrix4x3) -> Matrix4x3 {
+    return multiply(a, b);
+}
+
+multiply :: (m: Matrix4x3, v: Vector4) -> Vector3 {
+    return .{ m._11 * v.x + m._12 * v.y + m._13 * v.z + m._14 * v.w, m._21 * v.x + m._22 * v.y + m._23 * v.z + m._24 * v.w, m._31 * v.x + m._32 * v.y + m._33 * v.z + m._34 * v.w };
+}
+
+transform_point :: (m: $T/interface AnyMatrix4x3, v: Vector3) -> Vector3 {
+    return .{ m._11 * v.x + m._12 * v.y + m._13 * v.z + m._14,
+             m._21 * v.x + m._22 * v.y + m._23 * v.z + m._24,
+             m._31 * v.x + m._32 * v.y + m._33 * v.z + m._34 };
+}
+
+multiply :: (m: Matrix4x3, n: Matrix4) -> Matrix4 {
+    return multiply(make_matrix4(m), n);
+}
+
+operator * :: (a: Matrix4x3, b: Matrix4) -> Matrix4 {
+    return multiply(a, b);
+}
+
+multiply :: (m: Matrix4, n: Matrix4x3) -> Matrix4 {
+    return multiply(m, make_matrix4(n));
+}
+
+operator * :: (a: Matrix4, b: Matrix4x3) -> Matrix4 {
+    return multiply(a, b);
+}
+
+multiply :: (m: Matrix4, n: Matrix3) -> Matrix4 {
+    return multiply(m, make_matrix4(n));
+}
+
+operator * :: (a: Matrix4, b: Matrix3) -> Matrix4 {
+    return multiply(a, b);
 }
 
 make_matrix3 :: (m: $T/interface AnyMatrix3) -> Matrix3 #must {
@@ -321,6 +321,7 @@ make_matrix4 :: (values: ..float) -> Matrix4 #must #deprecated "Use a struct lit
     return result;
 }
 
+// Identity matrix whose upper-left 3x3 block holds the three vectors as rows (or columns).
 make_matrix_from_rows :: (xprime: Vector3, yprime: Vector3, zprime: Vector3, $T: Type) -> T #must {
     m := identity_of(T);
     write_basis_block(*m, xprime, yprime, zprime, as_rows = true);
@@ -341,7 +342,6 @@ make_matrix_from_columns :: (xprime: Vector3, yprime: Vector3, zprime: Vector3) 
     return make_matrix_from_columns(xprime, yprime, zprime, Matrix4);
 }
 
-#scope_file
 make_look_at_matrix :: (viewpoint: Vector3, look_at: Vector3, reference_up_vector: Vector3, $x_is_forward := true) -> Matrix4 {
     forward := normalize(look_at - viewpoint, fallback = .{ z = 1 });
     side := normalize(cross(reference_up_vector, forward), fallback = .{ y = 1 });
@@ -492,7 +492,6 @@ rotate :: (m: Matrix4, q: Quaternion) -> Matrix4 #must {
     return m * rotation_matrix(Matrix4, q);
 }
 
-// Identity matrix whose upper-left 3x3 block holds the three vectors as rows (or columns).
 set_rotation :: (using m: *$T/interface AnyMatrix3, q: Quaternion) {
     normalized := normalize(q);
     x := normalized.x;
@@ -535,7 +534,6 @@ get_rotation :: (using m: $T/interface AnyMatrix3) -> Quaternion {
     return normalize(q);
 }
 
-// Gauss-Jordan with partial pivoting; calculations use wider working storage.
 lerp :: (a: Matrix3, b: Matrix3, t: float) -> Matrix3 {
     return a * (1 - t) + b * t;
 }
@@ -560,31 +558,10 @@ transpose :: (m: *Matrix4) {
     m.* = transpose(m.*);
 }
 
-inverse :: (m: Matrix4) -> Matrix4 #must, bool {
-    augmented: [4][8] float64;
-    for r: 0..3 {
-        for c: 0..3 augmented[r][c] = m.coef[r][c];
-        augmented[r][r + 4] = 1;
-    }
-    for column: 0..3 {
-        pivot := column;
-        for r: column + 1..3 if abs(augmented[r][column]) > abs(augmented[pivot][column]) pivot = r;
-        if augmented[pivot][column] == 0 || !is_finite(augmented[pivot][column]) return Matrix4.{}, false;
-        if pivot != column for c: 0..7 {
-            temporary := augmented[pivot][c];
-            augmented[pivot][c] = augmented[column][c];
-            augmented[column][c] = temporary;
-        }
-        divisor := augmented[column][column];
-        for c: 0..7 augmented[column][c] /= divisor;
-        for r: 0..3 if r != column {
-            factor := augmented[r][column];
-            for c: 0..7 augmented[r][c] -= factor * augmented[column][c];
-        }
-    }
-    result: Matrix4;
-    for r: 0..3 for c : 0..3 result.coef[r][c] = cast(float) augmented[r][c + 4];
-    return result, true;
+inverse :: (a: Matrix3, epsilon := 0.001) -> Matrix3 {
+    determinant_value := determinant3(a);
+    if abs(determinant_value) <= epsilon return Matrix3_Identity;
+    return transpose(adjoint_transpose(a)) * (1 / determinant_value);
 }
 
 determinant3 :: (m: Matrix3) -> float {
@@ -644,10 +621,32 @@ inverse_gaussian_elimination :: (m: Matrix4) -> Matrix4 #must {
     return result;
 }
 
-inverse :: (a: Matrix3, epsilon := 0.001) -> Matrix3 {
-    determinant_value := determinant3(a);
-    if abs(determinant_value) <= epsilon return Matrix3_Identity;
-    return transpose(adjoint_transpose(a)) * (1 / determinant_value);
+// Gauss-Jordan with partial pivoting; calculations use wider working storage.
+inverse :: (m: Matrix4) -> Matrix4 #must, bool {
+    augmented: [4][8] float64;
+    for r: 0..3 {
+        for c: 0..3 augmented[r][c] = m.coef[r][c];
+        augmented[r][r + 4] = 1;
+    }
+    for column: 0..3 {
+        pivot := column;
+        for r: column + 1..3 if abs(augmented[r][column]) > abs(augmented[pivot][column]) pivot = r;
+        if augmented[pivot][column] == 0 || !is_finite(augmented[pivot][column]) return Matrix4.{}, false;
+        if pivot != column for c: 0..7 {
+            temporary := augmented[pivot][c];
+            augmented[pivot][c] = augmented[column][c];
+            augmented[column][c] = temporary;
+        }
+        divisor := augmented[column][column];
+        for c: 0..7 augmented[column][c] /= divisor;
+        for r: 0..3 if r != column {
+            factor := augmented[r][column];
+            for c: 0..7 augmented[r][c] -= factor * augmented[column][c];
+        }
+    }
+    result: Matrix4;
+    for r: 0..3 for c : 0..3 result.coef[r][c] = cast(float) augmented[r][c + 4];
+    return result, true;
 }
 
 isometry_inverse :: (m: Matrix4) -> Matrix4 #must {
@@ -729,6 +728,8 @@ polar_decomp :: (M: Matrix3) -> (Q: Matrix3, S: Matrix3, det: float) {
     symmetric = (symmetric + transpose(symmetric)) * 0.5;
     return orthogonal, symmetric, determinant_value;
 }
+
+#scope_file
 
 write_basis_block :: (m: *$T, a: Vector3, b: Vector3, c: Vector3, as_rows: bool) {
     basis: [3] Vector3 = ---;

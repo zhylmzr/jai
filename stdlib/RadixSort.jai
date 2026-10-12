@@ -1,7 +1,9 @@
 // RadixSort: sorts a rank (index) array for u32/u64/float input without moving the data. Ranks come from a
 // stable merge; `valid_ranks` lets a re-sort start from the previous order.
 #scope_file
+
 #import "Basic";
+
 #scope_export
 
 RadixSort :: struct {
@@ -35,20 +37,7 @@ free_resources :: (using radix: *RadixSort) {
     valid_ranks = false;
 }
 
-operator [] :: (using radix: RadixSort, i: int) -> u32 {
-    assert(i >= 0 && i < ranks.count);
-    return ranks[i];
-}
-
 sort :: (using radix: *RadixSort, input: *u32, count: u32) {
-    _merge_ranks(radix, input, count);
-}
-
-sort :: (using radix: *RadixSort, input: *u64, count: u32) {
-    _merge_ranks(radix, input, count);
-}
-
-sort :: (using radix: *RadixSort, input: *float, count: u32) {
     _merge_ranks(radix, input, count);
 }
 
@@ -56,8 +45,16 @@ sort :: (using radix: *RadixSort, input: [] u32) {
     sort(radix, input.data, cast(u32) input.count);
 }
 
+sort :: (using radix: *RadixSort, input: *u64, count: u32) {
+    _merge_ranks(radix, input, count);
+}
+
 sort :: (using radix: *RadixSort, input: [] u64) {
     sort(radix, input.data, cast(u32) input.count);
+}
+
+sort :: (using radix: *RadixSort, input: *float, count: u32) {
+    _merge_ranks(radix, input, count);
 }
 
 sort :: (using radix: *RadixSort, input: [] float) {
@@ -72,6 +69,11 @@ reorder :: (input: *[..] $T, radix: RadixSort) {
     for i: 0..input.count - 1 result[i] = input.*[radix.ranks[i]];
     array_reset(input);
     input.* = result;
+}
+
+operator [] :: (using radix: RadixSort, i: int) -> u32 {
+    assert(i >= 0 && i < ranks.count);
+    return ranks[i];
 }
 
 rank :: (using radix: *RadixSort, i: int) -> u32 {
@@ -90,6 +92,7 @@ radix_tests :: () {
 } @test
 
 #scope_file
+
 _take_left :: (a: $T, b: T) -> bool {
     #if T == float {
         if a != a return b != b;

@@ -1,3 +1,7 @@
+// IEEE binary16 conversion, round to nearest with ties to even.
+#import "Math";
+#load "Float16/conversion.jai";
+
 Matrix3_Float16 :: struct {
     union {
         struct {
@@ -20,9 +24,6 @@ matrix3_float16 :: (s: Matrix3) -> Matrix3_Float16 {
     for i: 0..8 result.floats[i] = float32_to_float16(s.coef[i / 3][i % 3]);
     return result;
 }
-// IEEE binary16 conversion, round to nearest with ties to even.
-#import "Math";
-#load "Float16/conversion.jai";
 
 Vector3_Float16 :: struct {
     x, y, z: Float16;
@@ -35,4 +36,3 @@ vector3_float32 :: (v: Vector3_Float16) -> Vector3 {
 vector3_float16 :: (v: Vector3) -> Vector3_Float16 {
     return .{ float32_to_float16(v.x), float32_to_float16(v.y), float32_to_float16(v.z) };
 }
-

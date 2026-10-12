@@ -1,3 +1,43 @@
+// Sound_Player mixes any number of playing sounds (16-bit PCM WAV, IMA ADPCM WAV and Ogg Vorbis)
+// into the default output device, with per-category levels and listener-relative panning.
+//
+// Layout: load.jai turns files into Sound_Data, spatial.jai computes loudness and speaker gains,
+// block_cache.jai decodes compressed sounds a block at a time, mixer.jai renders the live streams
+// and runs the background worker, and os/*.jai talks to the platform's audio API.
+//
+// OFFLINE := true skips the platform device entirely: nothing is played, and the program pulls the
+// mix itself with render_offline (useful for tests and for rendering to a file).
+#module_parameters (MAX_SOUND_CATEGORIES := DEFAULT_MAX_SOUND_CATEGORIES, VERBOSE := false, OFFLINE := false, OFFLINE_CHANNELS := 2) {
+    DEFAULT_MAX_SOUND_CATEGORIES :: 64;
+}
+
+#scope_module
+#import "Basic";
+#import "Math";
+#import "Thread";
+#import "Atomics";
+
+#load "load.jai";
+#load "spatial.jai";
+#load "block_cache.jai";
+#load "mixer.jai";
+
+#if OFFLINE {
+    #load "os/offline.jai";
+} else #if OS == .WINDOWS {
+    #load "os/win32.jai";
+} else #if OS == .LINUX {
+    #load "os/alsa.jai";
+} else #if OS == .MACOS {
+    #load "os/core_audio.jai";
+} else #if OS == .ANDROID {
+    #load "os/aaudio.jai";
+} else {
+    #load "os/offline.jai";
+}
+
+#scope_export
+
 Sound_Player_Config :: struct {
     update_from_a_thread := true; // Mix and decode on a background worker.
     audible_when_window_is_not_in_focus := false; // Honoured where the API has the notion (DirectSound).
@@ -67,48 +107,6 @@ get_audio_sampling_rate :: () -> s64 {
 set_master_volume :: (value: float) {
     master_volume = value;
 }
-
-// A new stream for `data`, not yet playing. Returns null for data that was not loaded or that has
-// an unsupported layout. Hand it to start_playing; the player frees it when it ends or is stopped.
-// Sound_Player mixes any number of playing sounds (16-bit PCM WAV, IMA ADPCM WAV and Ogg Vorbis)
-// into the default output device, with per-category levels and listener-relative panning.
-//
-// Layout: load.jai turns files into Sound_Data, spatial.jai computes loudness and speaker gains,
-// block_cache.jai decodes compressed sounds a block at a time, mixer.jai renders the live streams
-// and runs the background worker, and os/*.jai talks to the platform's audio API.
-//
-// OFFLINE := true skips the platform device entirely: nothing is played, and the program pulls the
-// mix itself with render_offline (useful for tests and for rendering to a file).
-#module_parameters (MAX_SOUND_CATEGORIES := DEFAULT_MAX_SOUND_CATEGORIES, VERBOSE := false, OFFLINE := false, OFFLINE_CHANNELS := 2) {
-    DEFAULT_MAX_SOUND_CATEGORIES :: 64;
-}
-
-#scope_module
-#import "Basic";
-#import "Math";
-#import "Thread";
-#import "Atomics";
-
-#load "load.jai";
-#load "spatial.jai";
-#load "block_cache.jai";
-#load "mixer.jai";
-
-#if OFFLINE {
-    #load "os/offline.jai";
-} else #if OS == .WINDOWS {
-    #load "os/win32.jai";
-} else #if OS == .LINUX {
-    #load "os/alsa.jai";
-} else #if OS == .MACOS {
-    #load "os/core_audio.jai";
-} else #if OS == .ANDROID {
-    #load "os/aaudio.jai";
-} else {
-    #load "os/offline.jai";
-}
-
-#scope_export
 
 Audio_Channel :: enum u16 {
     FRONT_LEFT :: 0;
@@ -210,6 +208,8 @@ Sound_Stream :: struct {
     voice: Voice; // Mixer bookkeeping.
 }
 
+// A new stream for `data`, not yet playing. Returns null for data that was not loaded or that has
+// an unsupported layout. Hand it to start_playing; the player frees it when it ends or is stopped.
 make_stream :: (data: *Sound_Data, category := Sound_Category.GENERAL_SFX) -> *Sound_Stream {
     push_allocator(SOUND_HEAP);
     if !data || !data.loaded return null;

@@ -2,7 +2,7 @@
 //
 // jaic exports messages, syntax trees and type descriptors as records: a tag naming
 // the struct to build and named fields (see docs/metaprogramming/compiler-records.md). The
-// structs are filled by reflection, member by member, so the layouts in nodes.jai are the
+// structs are filled by reflection, member by member, so the layouts in the *_nodes.jai and messages.jai files are the
 // only place that knows them: each struct type is described to the compiler once, as a plan
 // of its members, and the compiler builds a record and everything it reaches in one call
 // (`__jaic_rec_build`). Each record is built once; pointers to the same record are the same
