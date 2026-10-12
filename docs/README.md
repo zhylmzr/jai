@@ -93,6 +93,7 @@ The LLVM backend, C ABI and linking.
 
 ## Standard library
 
+The clean-room `stdlib/`. Contributors must not read the source of an official Jai distribution at all.
 
 - [Standard library layout](stdlib/architecture.md)
 - [Basic and collection modules](stdlib/basic-and-collections.md)

@@ -16,6 +16,7 @@ Small build-and-debug modules that metaprograms and programs import: `Debug` (ba
 
 - New Debug platform: extend the `#if OS == ...` branches in `backtrace`, `is_debugger_present` and `enable_signal_handler`. On wasm `Debug` builds with no native stack: `backtrace` captures nothing, `backtrace_symbols` names addresses as `0x...`, no debugger is ever present, the signal handler stays off and `is_valid_pointer` only rejects null.
 - Gotcha: `getenv` is libc's and takes a C string (`temp_c_string`).
+- These modules are clean-room implementations.
 - Tests: `tests/stdlib/buildcpp-api.jai` (executable, static and dynamic library, object files, `enum_cpp_files`), `macos-bundler.jai`, `autorun-plugin.jai`, `performance-report-plugin.jai` (synthetic report records), `example-plugin.jai`, `iprof-plugin.jai`.
 
 ## Configuration

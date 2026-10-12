@@ -4,6 +4,7 @@
 
 `stdlib/` is the Jai standard library written for this compiler, and `prelude/` holds the runtime type definitions it builds on. Both are ordinary Jai that `jaic` compiles like user code; the only special thing about them is that `stdlib/` is the default module search root.
 
+It is a clean-room implementation. Contributors must not read the source of an official Jai distribution at all: not its modules, its example programs, or its compiler. Work from public documentation, third-party Jai code and this repository's tests.
 
 ## How it works
 
