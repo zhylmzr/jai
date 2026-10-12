@@ -35,7 +35,7 @@ Most operations are plain loops over `lanes` in `inline` procedures. With `-O1` 
 | --- | --- |
 | Making | `splat($V, x)`, `indices($V)`, `load($V, *T)`, `load($V, []T, start)`, `load($V, string, start)`, `load_partial($V, ptr, count, fill)`, `store(v, *T)`, `store(v, []T, start)`, `v[i]`, `v[i] = x` |
 | Arithmetic | `+ - * /` (vector or scalar operand; integers wrap), unary `-`, `min`, `max`, `abs`, `saturating_add`, `saturating_sub`, `sqrt` |
-| Bits | `& \| ^ ~` (integer lanes), `<< >>` by a count |
+| Bits | `& \| ^ ~` (integer lanes), `<< >>` by a count (taken modulo the lane width, as wasm does) |
 | Compare | `eq ne lt le gt ge` → `Mask` |
 | Masks | `& \| ^ ~`, `m[i]`, `to_bits`, `mask_from_bits($M, bits)`, `any`, `all`, `none`, `count_true`, `first_true`, `last_true` (-1 if none), `select(mask, a, b)` |
 | Reduce | `reduce_add/min/max/and/or/xor` |
