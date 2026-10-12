@@ -32,7 +32,7 @@ main :: () {
 
 `Thread_Group` (`thread_group.jai`, loaded when `LOAD_THREAD_GROUP`) has `init`, `start`, `add_work`, `get_completed_work` and `shutdown(timeout_milliseconds)`. Each worker has locked available and completed queues; `get_completed_work` returns group-owned storage valid until the next call or shutdown.
 
-`Atomics` offers `atomic_add`, `atomic_read`, `atomic_write`, `atomic_swap`, `atomic_and/or/xor`, `atomic_increment/decrement` and `compare_and_swap2`, built on the compiler's compare-and-swap primitive.
+`Atomics` offers `atomic_add`, `atomic_read`, `atomic_write`, `atomic_swap`, `atomic_and/or/xor`, `atomic_increment/decrement` and `compare_and_swap2`, built on the compiler's compare-and-swap primitive. For acquire loads, release stores and the other memory orders see [Atomics](atomics.md).
 
 `Socket` has one generated declaration file per OS (`generated_linux.jai`, `generated_macos.jai`, `generated_windows.jai`, `generated_android.jai`) and a shared wrapper in `module.jai`: `socket_init`, `bind`, `accept`/`accept_v6`, `set_blocking`, `set_keepalive`, `get_last_socket_error`, `close_and_reset`, and address formatting via `to_string`.
 
