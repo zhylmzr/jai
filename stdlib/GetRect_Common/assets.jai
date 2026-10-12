@@ -8,6 +8,7 @@ set_asset_root :: (path: string) {
     if initialized return;
     owner := context.allocator;
     saved := copy_string(path);
+
     right_release_assets();
     right_release_asset_root();
     right_asset_root_allocator = owner;
@@ -39,18 +40,22 @@ right_asset_path :: (filename: string) -> string {
     owner := context.allocator;
     root := getrect_asset_root;
     default_root: string;
+
     defer free(default_root.data, allocator = owner);
+
     if root.count == 0 {
         default_root = String.join(#filepath,"../GetRect/data", separator = "/");
         if default_root.count == 0 return "";
         root = default_root;
     }
+
     return String.join(root, filename, separator = "/");
 }
 
 global_data :: (filename: string) -> (memory: string, success: bool) {
     owner := context.allocator;
     path := right_asset_path(filename);
+
     defer free(path.data, allocator = owner);
     if path.count == 0 return "", false;
     memory, success = RH_Assets_File.read_entire_file(path, log_errors = true);
@@ -63,24 +68,31 @@ right_cached_asset :: (index: int) -> (memory: string, success: bool) {
     owner := context.allocator;
     path := right_asset_path(getrect_asset_filenames[index]);
     transferred := false;
+
     defer {
         if !transferred free(path.data, allocator = owner);
     }
+
     if path.count == 0 return "", false;
+
     if right_asset_buffers[index].count > 0 {
         same := right_asset_paths[index] == path;
         assert(same, "Asset path changed while borrowed data is retained; release asset data before reconfiguration");
         return right_asset_buffers[index], same;
     }
+
     bytes, loaded := RH_Assets_File.read_entire_file(path, log_errors = index != 4);
+
     // The UI font is the one asset every program needs; without the shipped file use a system font.
     if !loaded && index == 4 {
         bytes, loaded = right_read_system_font();
     }
+
     if !loaded || bytes.count == 0 {
         if loaded free(bytes.data, allocator = owner);
         return "", false;
     }
+
     right_asset_allocators[index] = owner;
     right_asset_buffers[index] = bytes;
     right_asset_paths[index] = path;
@@ -94,6 +106,7 @@ right_read_system_font :: () -> (memory: string, success: bool) {
         memory, success := RH_Assets_File.read_entire_file(candidate, log_errors = false);
         if success && memory.count > 0 return memory, true;
     }
+
     return "", false;
 }
 
@@ -102,12 +115,14 @@ get_global_data :: () -> string, string, string, string, string, string, string,
         memory, loaded := right_cached_asset(index);
         assert(loaded && memory.count > 0, tprint("GetRect asset read failed: %. Configure genuine PNG/font resources before calling the nine-blob getter.", name));
     }
+
     return right_asset_buffers[0], right_asset_buffers[1], right_asset_buffers[2], right_asset_buffers[3], right_asset_buffers[4], right_asset_buffers[5], right_asset_buffers[6], right_asset_buffers[7], right_asset_buffers[8];
 }
 
 right_release_assets :: () {
     for index: 0..right_asset_buffers.count - 1 {
         owner := right_asset_allocators[index];
+
         free(right_asset_buffers[index].data, allocator = owner);
         free(right_asset_paths[index].data, allocator = owner);
         right_asset_buffers[index] = "";

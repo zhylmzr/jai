@@ -49,6 +49,7 @@ set_shader_for_images :: (texture: *Texture) {
     CheckInit();
     sprite := *shader_sprite_right_handed;
     if context.simp.coordinate_system == .LEFT_HANDED sprite = *shader_sprite_left_handed;
+
     // Both calls flush queued vertices themselves when the program or the image actually changes.
     bind_builtin_shader(sprite);
     immediate_set_texture(texture);
@@ -68,6 +69,7 @@ set_shader_for_gradient :: (rect: Vector4, mode: u8, value: float) {
     context.simp.specific.gradient_mode = mode;
     context.simp.specific.gradient_value = value;
     bind_builtin_shader(*shader_gradient);
+
     #if render_api == .OPENGL {
         gl_set_gradient(rect, mode, value);
     }
@@ -123,6 +125,7 @@ get_uniform_location :: (gl_handle: GLuint, name: string) -> GLint {
         if !gl_api return -1;
         return gl_api.glGetUniformLocation(gl_handle, temp_c_string(name));
     }
+
     return -1;
 }
 
@@ -139,6 +142,7 @@ render_target_extent :: () -> s32, s32 {
     texture := context.simp.texture_render_target;
     if texture return texture.width, texture.height;
     window := *context.simp.current_window_info;
+
     return window.window_width, window.window_height;
 }
 

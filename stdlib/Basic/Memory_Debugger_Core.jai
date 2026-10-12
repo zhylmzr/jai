@@ -66,10 +66,12 @@ md_find :: (state: *MD_State, pointer: *void) -> *MD_Record {
     if !state.slot_count return null;
     mask := state.slot_count - 1;
     slot := md_slot_hash(pointer) & mask;
+
     while state.slots[slot] {
         if state.slots[slot].allocation.pointer == pointer return state.slots[slot];
         slot = (slot + 1) & mask;
     }
+
     return null;
 }
 
@@ -84,17 +86,21 @@ md_index :: (state: *MD_State, record: *MD_Record) -> bool {
         count := ifx old_count then old_count * 2 else 1024;
         bytes := count * size_of(*MD_Record);
         slots := cast(**MD_Record) state.storage_allocator.proc(.ALLOCATE, bytes, 0, null, state.storage_allocator.data);
+
         if !slots return false;
         memset(slots, 0, bytes);
         state.slots, state.slot_count, state.slots_used = slots, count, 0;
         for 0..old_count - 1 if old[it] md_index(state, old[it]);
         if old state.storage_allocator.proc(.FREE, 0, old_count * size_of(*MD_Record), old, state.storage_allocator.data);
     }
+
     mask := state.slot_count - 1;
     slot := md_slot_hash(record.allocation.pointer) & mask;
+
     while state.slots[slot] && state.slots[slot].allocation.pointer != record.allocation.pointer {
         slot = (slot + 1) & mask;
     }
+
     if !state.slots[slot] state.slots_used += 1;
     state.slots[slot] = record;
     return true;
@@ -110,28 +116,34 @@ md_raw_new :: (state: *MD_State, $T: Type) -> *T {
         initial: T;
         memory.* = initial;
     }
+
     return memory;
 }
 
 md_pack_trace :: (state: *MD_State, trace: *Stack_Trace_Node) -> *Packed_Stack_Trace {
     count: s64;
     cursor := trace;
+
     while cursor {
         count += 1;
         cursor = cursor.next;
     }
+
     bytes := MD_TRACE_BYTES + count * size_of(Stack_Trace_Node);
     block := cast(*MD_Trace_Block) state.storage_allocator.proc(.ALLOCATE, bytes, 0, null, state.storage_allocator.data);
+
     if !block return null;
     block.* = .{};
     block.packed.nodes = .{ count, cast(*Stack_Trace_Node) (cast(*u8) block + MD_TRACE_BYTES) };
     if trace block.packed.hash = trace.hash;
     cursor = trace;
+
     for i: 0..count - 1 {
         block.packed.nodes[i] = cursor.*;
         block.packed.nodes[i].next = null;
         cursor = cursor.next;
     }
+
     block.next = state.traces;
     state.traces = block;
     return *block.packed;
@@ -140,11 +152,13 @@ md_pack_trace :: (state: *MD_State, trace: *Stack_Trace_Node) -> *Packed_Stack_T
 md_trace_matches :: (a: *Packed_Stack_Trace, b: *Packed_Stack_Trace) -> bool {
     if a == b return true;
     if !a || !b || a.nodes.count != b.nodes.count return false;
+
     for i: 0..a.nodes.count - 1 {
         left := a.nodes[i];
         right := b.nodes[i];
         if left.info != right.info || left.line_number != right.line_number return false;
     }
+
     return true;
 }
 
@@ -154,6 +168,7 @@ md_note_frame :: (state: *MD_State, record: *MD_Record, bytes: s64) {
         record.frame_allocations = 0;
         record.frame_bytes = 0;
     }
+
     record.frame_allocations += 1;
     record.frame_bytes += bytes;
     record.allocation.visualization_update_cycle = state.frame_cycle;
@@ -165,6 +180,7 @@ md_note_free_frame :: (state: *MD_State, record: *MD_Record, bytes: s64) {
         record.frame_frees = 0;
         record.frame_freed_bytes = 0;
     }
+
     record.frame_frees += 1;
     record.frame_freed_bytes += bytes;
 }
@@ -181,11 +197,13 @@ md_alloc :: (state: *MD_State, allocator: Allocator, memory: *void, size: s64, t
         state.storage_allocator.proc(.FREE, 0, size_of(MD_Record), record, state.storage_allocator.data);
         return .OUT_OF_MEMORY;
     }
+
     record.allocation.pointer = memory;
     if !md_index(state, record) {
         state.storage_allocator.proc(.FREE, 0, size_of(MD_Record), record, state.storage_allocator.data);
         return .OUT_OF_MEMORY;
     }
+
     record.allocation.size = size;
     record.allocation.index = state.next_index;
     state.next_index += 1;
@@ -206,6 +224,7 @@ md_free :: (state: *MD_State, allocator: Allocator, memory: *void, trace: *Stack
     if !record.allocation.is_live return .ALREADY_FREED;
     if !md_same_allocator(record.allocation.allocator, allocator) return .ALLOCATOR_MISMATCH;
     captured := md_pack_trace(state, trace);
+
     record.allocation.free_site_trace = captured;
     record.allocation.is_live = false;
     md_note_free_frame(state, record, record.allocation.size);
@@ -222,41 +241,51 @@ md_realloc :: (state: *MD_State, allocator: Allocator, old_memory: *void, old_si
     if !md_same_allocator(record.allocation.allocator, allocator) return .ALLOCATOR_MISMATCH;
     if old_size != record.allocation.size return .SIZE_MISMATCH;
     if !new_memory && new_size > 0 return .FAILED_REALLOC;
+
     if new_memory == old_memory {
         record.allocation.size = new_size;
         if new_size > old_size md_note_frame(state, record, new_size - old_size);
+
         if new_size < old_size {
             record.allocation.free_site_trace = md_pack_trace(state, trace);
             md_note_free_frame(state, record, old_size - new_size);
             if !record.allocation.free_site_trace return .OUT_OF_MEMORY;
         }
+
         return .OK;
     }
+
     if new_memory {
         status := md_alloc(state, allocator, new_memory, new_size, trace, thread_index);
+
         // The allocator has already moved the bytes. Retire the old address
         // even if the history storage could not represent the replacement.
         if status != .OK {
             md_free(state, allocator, old_memory, trace);
             return status;
         }
+
         moved := md_find(state, new_memory);
         moved.ignored = record.ignored;
         moved.allocation.propagates_leak_ownership = record.allocation.propagates_leak_ownership;
     }
+
     return md_free(state, allocator, old_memory, trace);
 }
 
 md_destroy_heap :: (state: *MD_State, allocator: Allocator, trace: *Stack_Trace_Node) -> MD_Status {
     result := MD_Status.OK;
     cursor := state.records;
+
     while cursor {
         if cursor.allocation.is_live && md_same_allocator(cursor.allocation.allocator, allocator) {
             status := md_free(state, allocator, cursor.allocation.pointer, trace);
             if status != .OK result = status;
         }
+
         cursor = cursor.next;
     }
+
     return result;
 }
 
@@ -271,15 +300,19 @@ md_deinit :: (state: *MD_State) {
         state.storage_allocator.proc(.FREE, 0, size_of(MD_Record), record, state.storage_allocator.data);
         record = next;
     }
+
     trace := state.traces;
     while trace {
         next := trace.next;
         bytes := MD_TRACE_BYTES + trace.packed.nodes.count * size_of(Stack_Trace_Node);
+
         state.storage_allocator.proc(.FREE, 0, bytes, trace, state.storage_allocator.data);
         trace = next;
     }
+
     if state.slots state.storage_allocator.proc(.FREE, 0, state.slot_count * size_of(*MD_Record), state.slots, state.storage_allocator.data);
     allocator := state.storage_allocator;
+
     state.* = .{};
     state.storage_allocator = allocator;
 }

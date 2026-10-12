@@ -15,14 +15,17 @@ string_from_zero_padded_array :: (padded: [] u8) -> string {
         if result[result.count - 1] != 0 break;
         result.count -= 1;
     }
+
     return result;
 }
 
 is_ar :: (file_content: string) -> bool {
     if file_content.count < AR_FILE_MAGIC.count return false;
+
     for byte, index: AR_FILE_MAGIC {
         if file_content[index] != byte return false;
     }
+
     return true;
 }
 

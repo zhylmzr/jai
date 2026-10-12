@@ -52,10 +52,12 @@ set_report_mode :: (mode: Report_Mode) {
 // by Iprof and rebuilt in place by the next call.
 create_report :: () -> *Report {
     r := *current_report;
+
     array_reset_keeping_memory(*r.records);
     if !live return r;
 
     was_busy := busy;
+
     busy = true;
     defer busy = was_busy;
 
@@ -68,6 +70,7 @@ create_report :: () -> *Report {
         cursor_row = focus_row;
         jump_to_focus_row = false;
     }
+
     cursor_row = clamp(cursor_row, 0, max(r.records.count - 1, 0));
     r.hilight = cursor_row;
 
@@ -97,8 +100,10 @@ select_parent :: () {
         set_report_mode(.SELF_TIME);
         return;
     }
+
     best: *Zone;
     best_ms: float64 = -1;
+
     for every_node {
         if it.zone != graph_focus || !it.parent continue;
         ms := it.smooth[smoothing_level].hier_ms;
@@ -107,6 +112,7 @@ select_parent :: () {
             best = it.parent.zone;
         }
     }
+
     if best focus_zone(best);
 }
 
@@ -120,6 +126,7 @@ log_text_report :: (report: *Report) {
 // The report as text (what log_text_report prints). Allocated with the context allocator.
 text_report :: (report: *Report) -> string {
     b: String_Builder;
+
     print_to_builder(*b, "%", report.title);
     if report.title_right print_to_builder(*b, "    [%]", report.title_right);
     append(*b, "\n");
@@ -135,13 +142,16 @@ text_report :: (report: *Report) -> string {
         cell(*b, it.value_flag & VALUE_CALLS != 0, it.calls, -1);
         append(*b, "  ");
         for 1..it.indent append(*b, "  ");
+
         if it.prefix != #char " " && it.prefix != 0 {
             append(*b, it.prefix);
             append(*b, " ");
         }
+
         append(*b, it.name);
         append(*b, "\n");
     }
+
     return builder_to_string(*b);
 }
 
@@ -149,18 +159,23 @@ text_report :: (report: *Report) -> string {
 // could not be written.
 save_csv_report :: (report: *Report, filename: string) -> bool {
     b: String_Builder;
+
     append(*b, "zone,self_ms,hier_ms,calls,indent,file,line\n");
+
     for report.records {
         csv_quoted(*b, it.name);
         print_to_builder(*b, ",%,%,%,%,", it.self_time, it.hier_time, it.calls, it.indent);
+
         if it.zone {
             csv_quoted(*b, it.zone.full_path);
             print_to_builder(*b, ",%", it.zone.line);
         } else {
             append(*b, ",");
         }
+
         append(*b, "\n");
     }
+
     return write_entire_file(filename, *b);
 }
 
@@ -171,6 +186,7 @@ get_reportmode_str :: (mode: Report_Mode) -> string {
         case .CALL_COUNT; return "call count";
         case .CALL_GRAPH; return "call graph";
     }
+
     return "?";
 }
 
@@ -190,6 +206,7 @@ jump_to_focus_row := false;
 write_exit_report :: (csv_filename: string) {
     update(record_data = true);
     summary := create_report();
+
     log_text_report(summary);
     if csv_filename.count == 0 return;
     saved := save_csv_report(summary, csv_filename);
@@ -209,26 +226,32 @@ pick_zone_values :: () {
     #if DO_HISTORY {
         if display_frame > 0 && frames_recorded > 0 {
             slot := history_slot(display_frame);
+
             for *zones {
                 if !it.entered continue;
                 h := *it.history[slot];
+
                 it.shown = .{ h.self_ms, h.hier_ms, h.calls };
                 it.heat = 0;
             }
+
             return;
         }
     }
 
     // Heat compares the latest frame with the slow average, so it needs both sums.
     column := sort_column();
+
     sum_zone_nodes(0);
     for *zones if it.entered it.heat = column_value(it.shown, column);
     sum_zone_nodes(SMOOTHING_LEVELS - 1);
+
     for *zones {
         if !it.entered continue;
         slow := column_value(it.shown, column);
         it.heat = min(abs(it.heat - slow) / max(slow, 0.001), 1.0);
     }
+
     sum_zone_nodes(smoothing_level);
 }
 
@@ -277,10 +300,12 @@ set_titles :: (r: *Report, subject: string) {
 
 fill_flat :: (r: *Report) {
     set_titles(r, get_reportmode_str(displayed_quantity));
+
     for *zones {
         if !it.entered continue;
         array_add(*r.records, row_for(it, it.shown));
     }
+
     order_rows(r.records, sort_column());
 }
 
@@ -291,10 +316,12 @@ order_rows :: (rows: [] Report_Row, column: s64) {
         row := rows[i];
         key := row_column(row, column);
         j := i - 1;
+
         while j >= 0 && row_column(rows[j], column) < key {
             rows[j + 1] = rows[j];
             j -= 1;
         }
+
         rows[j + 1] = row;
     }
 }
@@ -314,6 +341,7 @@ Edge :: struct {
 add_to_edge :: (edges: *[..] Edge, zone: *Zone, node: *Call_Node) {
     v := node.smooth[smoothing_level];
     if !node.outermost v.hier_ms = 0;
+
     for *edges.* {
         if it.zone != zone continue;
         it.values.self_ms += v.self_ms;
@@ -321,18 +349,22 @@ add_to_edge :: (edges: *[..] Edge, zone: *Zone, node: *Call_Node) {
         it.values.calls += v.calls;
         return;
     }
+
     array_add(edges, .{ zone, v });
 }
 
 fill_call_graph :: (r: *Report) {
     if !graph_focus graph_focus = *zones[0];
     focus := graph_focus;
+
     set_titles(r, tprint("call graph of %", focus.name));
 
     callers: [..] Edge;
     callees: [..] Edge;
+
     callers.allocator = temp;
     callees.allocator = temp;
+
     for every_node {
         if it.zone != focus continue;
         if it.parent && it.parent.zone != focus add_to_edge(*callers, it.parent.zone, it);
@@ -344,11 +376,13 @@ fill_call_graph :: (r: *Report) {
     }
 
     first := r.records.count;
+
     for callers {
         row := row_for(it.zone, it.values);
         row.prefix = #char "<";
         array_add(*r.records, row);
     }
+
     order_rows(array_view(r.records, first, r.records.count - first), 2);
 
     focus_row = r.records.count;
@@ -358,12 +392,14 @@ fill_call_graph :: (r: *Report) {
     array_add(*r.records, centre);
 
     first = r.records.count;
+
     for callees {
         row := row_for(it.zone, it.values);
         row.prefix = #char ">";
         row.indent = 2;
         array_add(*r.records, row);
     }
+
     order_rows(array_view(r.records, first, r.records.count - first), 2);
 }
 
@@ -386,10 +422,12 @@ number_text :: (value: float64, decimals: s64) -> string {
 
 csv_quoted :: (b: *String_Builder, s: string) {
     append(b, "\"");
+
     for 0..s.count - 1 {
         if s[it] == #char "\"" append(b, "\"");
         append(b, s[it]);
     }
+
     append(b, "\"");
 }
 

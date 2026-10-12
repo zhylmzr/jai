@@ -81,14 +81,17 @@ ConvertFromApollo :: inline (t: Apollo_Time, divisor: u64, $DO_ROUNDING: bool) -
     if t == APOLLO_TIME_INVALID || divisor == 0 return 0, false;
     quotient, remainder, error := signed_divide_with_remainder(cast,force(S128) t, to_s128(divisor));
     if error return 0, false;
+
     #if DO_ROUNDING {
         magnitude := to_u128(remainder);
         if remainder.high < 0 magnitude = U128.{} - magnitude;
+
         if magnitude >= U128.{ divisor / 2 + divisor % 2, 0 } {
             if t.high < 0 quotient = quotient - to_s128(1);
             else quotient = quotient + to_s128(1);
         }
     }
+
     if quotient.high == 0 && quotient.low <= 0x7fff_ffff_ffff_ffff return cast(s64) quotient.low, true;
     if quotient.high == -1 && quotient.low >= 0x8000_0000_0000_0000 return cast,no_check(s64) quotient.low, true;
     return 0, false;
@@ -120,6 +123,7 @@ to_float64_seconds_checked :: (input: Apollo_Time) -> (result: float64, success:
     if input == APOLLO_TIME_INVALID return 0, false;
     magnitude := to_u128(cast,force(S128) input);
     negative := input.high < 0;
+
     if negative magnitude = U128.{} - magnitude;
     value := (cast(float64) magnitude.high * 18446744073709551616.0 + cast(float64) magnitude.low) / cast(float64) FEMTOSECONDS;
     if negative value = -value;
@@ -134,13 +138,16 @@ to_apollo :: (seconds: float64) -> Apollo_Time {
     if seconds != seconds return APOLLO_TIME_INVALID;
     negative := seconds < 0;
     magnitude := seconds;
+
     if negative magnitude = -magnitude;
     femtoseconds := magnitude * cast(float64) FEMTOSECONDS;
+
     // The upper bound also rejects infinity before any float-to-integer cast.
     if femtoseconds >= 170141183460469231731687303715884105728.0 return APOLLO_TIME_INVALID;
     high := cast(u64) (femtoseconds / 18446744073709551616.0);
     low := cast(u64) (femtoseconds - cast(float64) high * 18446744073709551616.0);
     bits := U128.{ low, high };
+
     if negative bits = U128.{} - bits;
     return cast,force(Apollo_Time) to_s128(bits);
 }
@@ -181,6 +188,7 @@ civil_days_from_date :: (year: s64, month: s64, day: s64) -> s64 {
     mp := (month + 9) % 12;
     doy := (153 * mp + 2) / 5;
     doe := yoe * 365 + yoe / 4 - yoe / 100 + doy;
+
     return era * 146097 + doe - 719468 + (day - 1);
 }
 
@@ -194,6 +202,7 @@ civil_date_from_days :: (days: s64) -> (year: s64, month: s64, day: s64) {
     mp := (5 * doy + 2) / 153;
     d := doy - (153 * mp + 2) / 5 + 1;
     m := mp + 3;
+
     if m > 12 m -= 12;
     if m <= 2 y += 1;
     return y, m, d;
@@ -203,6 +212,7 @@ calendar_from_unix_milliseconds :: (unix_ms: s64, time_zone: Time_Zone) -> Calen
     total_seconds := civil_floor_div(unix_ms, 1000);
     millis := unix_ms - total_seconds * 1000;
     local_seconds := total_seconds;
+
     if time_zone == .LOCAL local_seconds += os_local_offset_seconds(total_seconds);
     days := civil_floor_div(local_seconds, 86400);
     second_of_day := local_seconds - days * 86400;
@@ -232,13 +242,16 @@ to_calendar :: (at: Apollo_Time, time_zone := Time_Zone.UTC) -> Calendar_Time {
 calendar_to_apollo :: (ct: Calendar_Time) -> Apollo_Time {
     month_index := cast(s64) ct.month_starting_at_0;
     year := cast(s64) ct.year + civil_floor_div(month_index, 12);
+
     month_index -= civil_floor_div(month_index, 12) * 12;
     days := civil_days_from_date(year, month_index + 1, cast(s64) ct.day_of_month_starting_at_0 + 1);
     seconds := days * 86400 + cast(s64) ct.hour * 3600 + cast(s64) ct.minute * 60 + cast(s64) ct.second;
+
     if ct.time_zone == .LOCAL {
         // Treat the fields as UTC first, then correct by the zone offset in effect at the resulting instant.
         guess := seconds - os_local_offset_seconds(seconds);
         seconds -= os_local_offset_seconds(guess);
     }
+
     return APOLLO_TIME_FOR_JAN_1_1970 + seconds_to_apollo(seconds) + milliseconds_to_apollo(cast(s64) ct.millisecond);
 }

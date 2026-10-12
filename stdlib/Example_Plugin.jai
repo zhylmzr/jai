@@ -12,10 +12,12 @@ log_help :: (p: *Metaprogram_Plugin) {
 handle_one_option :: (p: *Metaprogram_Plugin, options: [] string, cursor: int) -> new_cursor: int {
     if cursor < 0 || cursor >= options.count return cursor;
     if options[cursor] != "-option" return cursor;
+
     if cursor + 1 == options.count {
         log_error("Example_Plugin: -option requires an argument.\n");
         return cursor + 1;
     }
+
     log("Example_Plugin: -option %.\n", options[cursor + 1]);
     return cursor + 2;
 }
@@ -44,9 +46,11 @@ before_intercept :: (p: *Metaprogram_Plugin, flags: *Intercept_Flags) {
 
 message :: (p: *Metaprogram_Plugin, message: *Message) {
     num_messages += 1;
+
     if message.kind == {
         case .TYPECHECKED;
             batch := cast(*Message_Typechecked) message;
+
             print("Example_Plugin: typechecked a batch of % (% declarations, % procedure bodies).\n",
                   batch.all.count, batch.declarations.count, batch.procedure_bodies.count);
 

@@ -22,14 +22,18 @@
         while true {
             before := atomic_swap(*guard_state, 1);
             if before == 1 continue;
+
             if before == 0 {
                 push_allocator(context.default_allocator);
                 guard_allocator = get_unmapping_allocator();
             }
+
             result := guard_allocator;
+
             atomic_write(*guard_state, 2);
             return result;
         }
+
         return .{};
     }
 }
@@ -68,11 +72,15 @@ set_allocators :: (pool: *Pool, block_allocator: Allocator = .{}) {
         log_error("Pool %: set_allocators was called after the pool started handing out memory; the call is ignored.\n", pool);
         return;
     }
+
     supplier := block_allocator;
+
     #if USE_UNMAPPING_ALLOCATOR {
         if supplier.proc == null supplier = shared_guard_allocator();
     }
+
     if supplier.proc == null supplier = context.allocator;
+
     // A pool cannot feed itself: asking it for a block would ask it for a block again.
     feeds_itself := supplier.proc == pool_allocator_proc && supplier.data == pool;
     if feeds_itself {
@@ -80,6 +88,7 @@ set_allocators :: (pool: *Pool, block_allocator: Allocator = .{}) {
         assert(false);
         supplier = context.default_allocator;
     }
+
     pool.block_allocator = supplier;
 }
 
@@ -91,6 +100,7 @@ get :: (pool: *Pool, nbytes: s64) -> *void {
     if nbytes >= pool.oversized_size || nbytes + pool.alignment - 1 > pool.memblock_size - HEADER_SIZE {
         wanted := (nbytes + HEADER_SIZE + pool.alignment - 1 + 7) & ~7; // keeps the link field aligned
         raw := cast(*Memblock) alloc(wanted, pool.block_allocator);
+
         if !raw return null;
 
         raw.next = pool.out_of_band_allocations;
@@ -104,6 +114,7 @@ get :: (pool: *Pool, nbytes: s64) -> *void {
         }
 
         start := cast(*u8) *raw.data;
+
         return start + padding_for(start, pool.alignment);
     }
 
@@ -114,6 +125,7 @@ get :: (pool: *Pool, nbytes: s64) -> *void {
     }
 
     result := pool.current_pos + pad;
+
     pool.current_pos += nbytes + pad;
     pool.bytes_left -= nbytes + pad;
 
@@ -139,14 +151,17 @@ reset :: (pool: *Pool) {
         pool.unused_memblocks = null;
     } else if pool.used_memblocks {
         last := pool.used_memblocks;
+
         while true {
             if pool.overwrite_memory stamp(pool, last);
             if !last.next break;
             last = last.next;
         }
+
         last.next = pool.unused_memblocks;
         pool.unused_memblocks = pool.used_memblocks;
     }
+
     free_chain(pool, pool.out_of_band_allocations);
 
     pool.used_memblocks = null;
@@ -179,6 +194,7 @@ pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64
             assert(pool != null, "Pool allocator used without a Pool as its data.");
             moved := get(pool, requested_size);
             keep := ifx old_size < requested_size then old_size else requested_size;
+
             if moved && keep > 0 memcpy(moved, old_memory, keep);
             return moved;
 
@@ -196,6 +212,7 @@ pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64
     // FREE, STARTUP and SHUTDOWN need no work. Thread and heap modes are not meaningful
     // for a single-threaded bump allocator and indicate a caller bug.
     multi := mode == .THREAD_START || mode == .THREAD_STOP || mode == .CREATE_HEAP || mode == .DESTROY_HEAP;
+
     assert(!multi, "Pool: allocator mode % is unsupported; a Pool is single-threaded and is not a heap factory.\n", mode);
     return null;
 }
@@ -218,10 +235,12 @@ Memblock :: struct {
 chain_length :: (chain: *Memblock) -> s64 {
     n := 0;
     link := chain;
+
     while link {
         n += 1;
         link = link.next;
     }
+
     return n;
 }
 
@@ -239,6 +258,7 @@ chain_covers :: (chain: *Memblock, address: *u8, span: s64) -> bool {
         if address >= first && address <= first + span return true;
         link = link.next;
     }
+
     return false;
 }
 
@@ -254,6 +274,7 @@ free_chain :: (pool: *Pool, chain: *Memblock) {
 // Move a block (recycled if possible) to the front of the used chain and make it current.
 take_block :: (pool: *Pool) -> bool {
     block: *Memblock;
+
     if pool.unused_memblocks {
         block = pool.unused_memblocks;
         pool.unused_memblocks = block.next;

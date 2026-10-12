@@ -18,6 +18,7 @@ resize :: (using radix: *RadixSort, new_size: u32) {
     if !allocator.proc allocator = context.allocator;
     replacement := NewArray(new_size, u32,, allocator);
     scratch := NewArray(new_size, u32,, allocator);
+
     if ranks.data free(ranks.data, allocator = allocator);
     if ranks2.data free(ranks2.data, allocator = allocator);
     ranks = replacement;
@@ -84,6 +85,7 @@ rank :: (using radix: *RadixSort, i: int) -> u32 {
 radix_tests :: () {
     data := u32.[8, 3, 3, 0, 9];
     sorter: RadixSort;
+
     defer free_resources(*sorter);
     sort(*sorter, data);
     assert(sorter[0] == 3 && sorter[1] == 1 && sorter[2] == 2);
@@ -98,15 +100,18 @@ _take_left :: (a: $T, b: T) -> bool {
         if a != a return b != b;
         if b != b return true;
     }
+
     return a <= b;
 }
 
 _merge_ranks :: (radix: *RadixSort, input: *$T, count: u32) {
     if input == null || count == 0 return;
     resize(radix, count);
+
     if !radix.valid_ranks {
         for i: 0..cast(int) count - 1 radix.ranks[i] = cast(u32) i;
     }
+
     width: s64 = 1;
     while width < count {
         base: s64 = 0;
@@ -116,6 +121,7 @@ _merge_ranks :: (radix: *RadixSort, input: *$T, count: u32) {
             left := base;
             right := middle;
             output := base;
+
             while output < end {
                 if right == end || (left < middle && _take_left(input[radix.ranks[left]], input[radix.ranks[right]])) {
                     radix.ranks2[output] = radix.ranks[left];
@@ -124,14 +130,19 @@ _merge_ranks :: (radix: *RadixSort, input: *$T, count: u32) {
                     radix.ranks2[output] = radix.ranks[right];
                     right += 1;
                 }
+
                 output += 1;
             }
+
             base = end;
         }
+
         original := radix.ranks;
+
         radix.ranks = radix.ranks2;
         radix.ranks2 = original;
         width *= 2;
     }
+
     radix.valid_ranks = true;
 }

@@ -94,6 +94,7 @@ Prepend_To_Main :: (csv_filename: string) #expand {
 // Call once before measuring. In MANUAL_MODE, name `zones[0]` and the zones you use first.
 init_runtime :: () {
     if live return;
+
     #if !MANUAL_MODE {
         if !zones.count {
             zones.data = cast(*Zone) alloc(MAX_AUTOMATIC_ZONES * size_of(Zone));
@@ -146,6 +147,7 @@ node_allocator: Allocator;
             z.line = line;
             z.hash = fnv1a(name, fnv1a(full_path, FNV_OFFSET));
         }
+
         return true;
     }
 } else {
@@ -186,13 +188,16 @@ pop_zone :: () {
 
     stop := clock_ticks();
     node := current;
+
     if node.nested > 0 {
         node.nested -= 1;
         return;
     }
+
     if !node.parent return; // More ends than begins; ignore the extra one.
 
     spent := stop - node.opened_at;
+
     node.frame_hier += spent;
     node.parent.frame_child += spent;
     current = node.parent;
@@ -220,6 +225,7 @@ child_for :: (parent: *Call_Node, zone: *Zone) -> *Call_Node {
             child.outermost = false;
             break;
         }
+
         above = above.parent;
     }
 
@@ -230,6 +236,7 @@ child_for :: (parent: *Call_Node, zone: *Zone) -> *Call_Node {
 
 mark_entered :: (zone: *Zone) {
     zone.entered = true;
+
     #if DO_HISTORY {
         push_allocator(node_allocator);
         zone.history = NewArray(NUM_FRAME_SLOTS, Frame_Sample);
@@ -251,6 +258,7 @@ fnv1a :: (s: string, h: u64) -> u64 {
         h ^= s[it];
         h *= 0x100_0000_01b3;
     }
+
     return h;
 }
 

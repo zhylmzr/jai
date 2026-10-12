@@ -80,6 +80,7 @@ generate_with_current_atlas :: (input: *Atlas_Input_Mesh, options: *Atlas_Option
     if valid valid = input.vertex_count >= 0 && input.face_count >= 0 &&
                       (input.vertex_count == 0 || input.vertex_array != null) &&
                       (input.face_count == 0 || input.face_array != null);
+
     if valid {
         for face: 0..input.face_count - 1 {
             for corner: 0..2 {
@@ -88,20 +89,25 @@ generate_with_current_atlas :: (input: *Atlas_Input_Mesh, options: *Atlas_Option
             }
         }
     }
+
     if !valid {
         if error error.* = .Invalid_Args;
         atlas_notify_invalid();
         return null;
     }
+
     native_options := to_current_options(options);
     native_error: s32;
     result := native_atlas_generate(input, *native_options, *native_error);
+
     // The old mesh repair option is implemented independently by isolating the
     // faces only when the upstream engine rejects their shared topology.
     if !result && native_error == 4 && options.mesh_options.fix_nonmanifold_meshes {
         result, native_error = atlas_retry_isolated_faces(input, *native_options);
     }
+
     if error error.* = atlas_error_from_current(native_error);
+
     // Current upstream provides an error enum, but no rich native error record.
     return result;
 }
@@ -111,26 +117,33 @@ atlas_retry_isolated_faces :: (input: *Atlas_Input_Mesh, options: *Native_Atlas_
     count := input.face_count * 3;
     vertices := cast(*Atlas_Input_Vertex) Basic.alloc(cast(s64) count * size_of(Atlas_Input_Vertex));
     faces := cast(*Atlas_Input_Face) Basic.alloc(cast(s64) input.face_count * size_of(Atlas_Input_Face));
+
     if !vertices || !faces {
         Basic.free(vertices);
         Basic.free(faces);
         return null, 3;
     }
+
     defer Basic.free(vertices);
     defer Basic.free(faces);
+
     for face: 0..input.face_count - 1 {
         faces[face].material_index = input.face_array[face].material_index;
+
         for corner: 0..2 {
             vertex := face * 3 + corner;
             original := input.face_array[face].vertex_index[corner];
+
             vertices[vertex] = input.vertex_array[original];
             vertices[vertex].first_colocal = cast(s32) vertex;
             faces[face].vertex_index[corner] = cast(s32) vertex;
         }
     }
+
     isolated: Atlas_Input_Mesh = .{ count, input.face_count, vertices, faces };
     error: s32;
     result := native_atlas_generate(*isolated, options, *error);
+
     if result {
         for index: 0..result.vertex_count - 1 {
             clone := result.vertex_array[index].xref;
@@ -138,6 +151,7 @@ atlas_retry_isolated_faces :: (input: *Atlas_Input_Mesh, options: *Native_Atlas_
             result.vertex_array[index].xref = input.face_array[clone / 3].vertex_index[clone % 3];
         }
     }
+
     return result, error;
 }
 

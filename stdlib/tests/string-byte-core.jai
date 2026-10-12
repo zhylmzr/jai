@@ -13,6 +13,7 @@ string_byte_vectors :: () -> bool {
     if !wildcard_match("src/file.jai", "s*/*.jai") || wildcard_match("abc", "a?d") return false;
     path, base, extension, full := path_decomp("a/b/report.txt");
     if path != "a/b/" || base != "report" || extension != "txt" || full != "report.txt" return false;
+
     // Windows counts only drive-rooted paths as absolute.
     rooted :: ifx OS == .WINDOWS then "C:/dir/file" else "/dir/file";
     if !is_absolute_path(rooted) || is_absolute_path("dir/file") return false;
@@ -24,6 +25,7 @@ string_byte_vectors :: () -> bool {
     if !decimal_valid || decimal != -125 return false;
     remaining := " \ttrue;rest";
     boolean, boolean_valid := parse_bool(*remaining);
+
     if !boolean_valid || !boolean || remaining != ";rest" return false;
     return true;
 }

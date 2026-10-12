@@ -17,10 +17,12 @@ crc64_update :: (s: string, accumulator: u64) -> u64 #no_aoc {
         bit: s32 = 0;
         while bit < 8 {
             high_bit := accumulator & 0x8000_0000_0000_0000;
+
             accumulator <<= 1;
             if high_bit accumulator ^= CRC64_ECMA_POLY;
             bit += 1;
         }
     }
+
     return accumulator;
 }

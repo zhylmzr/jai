@@ -35,6 +35,7 @@ check_header :: (header: *Package_Header, name: string, file_size_in_bytes_or_mi
         if size < KNOWN_TABLE_OF_CONTENTS_SIZE return false;
         if header.table_of_contents_offset > size - KNOWN_TABLE_OF_CONTENTS_SIZE return false;
     }
+
     return true;
 }
 

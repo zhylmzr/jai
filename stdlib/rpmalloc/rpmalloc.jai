@@ -261,6 +261,7 @@ global_statistics :: (stats: *rpmalloc_global_statistics_t) {
     dump_statistics :: (builder: *$T) {
         stats: rpmalloc_global_statistics_t;
         per_thread: rpmalloc_thread_statistics_t;
+
         native_global_statistics(*stats);
         native_thread_statistics(*per_thread);
         Basic.print_to_builder(builder, "rpmalloc: mapped=% peak=% cached=% huge=% huge_peak=% mapped_total=% unmapped_total=%\n",
@@ -269,11 +270,13 @@ global_statistics :: (stats: *rpmalloc_global_statistics_t) {
         Basic.print_to_builder(builder, "thread: sizecache=% spancache=% to_global=% from_global=%\n",
                                 per_thread.sizecache, per_thread.spancache,
                                 per_thread.thread_to_global, per_thread.global_to_thread);
+
         for span_index: 0..63 {
             entry := per_thread.span_use[span_index];
             if entry.current != 0 || entry.peak != 0
                 Basic.print_to_builder(builder, "span %: current=% peak=% mapped=%\n", span_index, entry.current, entry.peak, entry.map_calls);
         }
+
         for size_index: 0..127 {
             entry := per_thread.size_use[size_index];
             if entry.alloc_total != 0
@@ -304,6 +307,7 @@ is_in_span :: (memory: *void, span: *Span) -> bool {
     first := cast(u64) span;
     address := cast(u64) memory;
     span_bytes := cast(u64) span.span_count * native_config().span_size;
+
     return address >= first && address - first < span_bytes;
 }
 

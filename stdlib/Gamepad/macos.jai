@@ -7,6 +7,7 @@ ObjC :: #import "Objective_C";
 sample_gamecontroller :: (sample: *Gamepad_Sample) -> bool {
     sample.* = .{};
     pool := ObjC.objc_init(ObjC.objc_alloc(Foundation.NSAutoreleasePool));
+
     defer Foundation.NSAutoreleasePool.drain(pool);
     controllers := GC.GCController_controllers();
     if !controllers return false;
@@ -18,10 +19,12 @@ sample_gamecontroller :: (sample: *Gamepad_Sample) -> bool {
         if !profile continue;
         left := GC.GCExtendedGamepad.leftThumbstick(profile);
         right := GC.GCExtendedGamepad.rightThumbstick(profile);
+
         if left sample.left_stick = .{ GC.GCControllerAxisInput.value(GC.GCControllerDirectionPad.xAxis(left)), GC.GCControllerAxisInput.value(GC.GCControllerDirectionPad.yAxis(left)) };
         if right sample.right_stick = .{ GC.GCControllerAxisInput.value(GC.GCControllerDirectionPad.xAxis(right)), GC.GCControllerAxisInput.value(GC.GCControllerDirectionPad.yAxis(right)) };
         lt := GC.GCExtendedGamepad.leftTrigger(profile);
         rt := GC.GCExtendedGamepad.rightTrigger(profile);
+
         if lt sample.left_trigger = GC.GCControllerButtonInput.value(lt);
         if rt sample.right_trigger = GC.GCControllerButtonInput.value(rt);
         dpad := GC.GCExtendedGamepad.dpad(profile);
@@ -31,6 +34,7 @@ sample_gamecontroller :: (sample: *Gamepad_Sample) -> bool {
             gc_button(sample, GC.GCControllerDirectionPad.left(dpad), .DPAD_LEFT);
             gc_button(sample, GC.GCControllerDirectionPad.right(dpad), .DPAD_RIGHT);
         }
+
         gc_button(sample, GC.GCExtendedGamepad.buttonA(profile), .A);
         gc_button(sample, GC.GCExtendedGamepad.buttonB(profile), .B);
         gc_button(sample, GC.GCExtendedGamepad.buttonX(profile), .X);
@@ -43,6 +47,7 @@ sample_gamecontroller :: (sample: *Gamepad_Sample) -> bool {
         gc_button(sample, gc_optional_button(profile, "buttonOptions\0"), .BACK);
         return true;
     }
+
     return false;
 }
 

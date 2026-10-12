@@ -3,10 +3,12 @@
 get_dimensions :: (hwnd: HWND, right_handed: bool) -> (x: s32, y: s32, width: s32, height: s32, success := true) {
     client: RECT;
     origin: POINT;
+
     if GetClientRect(hwnd, *client) == 0 return 0, 0, 0, 0, false;
     if ClientToScreen(hwnd, *origin) == 0 return 0, 0, 0, 0, false;
     client_width := client.right - client.left;
     client_height := client.bottom - client.top;
+
     if right_handed origin.y += client_height;
     return origin.x, origin.y, client_width, client_height, true;
 }
@@ -15,11 +17,13 @@ get_mouse_pointer_position :: (hwnd: HWND, right_handed: bool) -> (x: int, y: in
     point: POINT;
     if GetCursorPos(*point) == 0 return 0, 0, false;
     if ScreenToClient(hwnd, *point) == 0 return point.x, point.y, false;
+
     if right_handed {
         client: RECT;
         if GetClientRect(hwnd, *client) == 0 return point.x, point.y, false;
         point.y = client.bottom - client.top - point.y;
     }
+
     return point.x, point.y, true;
 }
 
@@ -32,6 +36,7 @@ get_mouse_pointer_position :: (right_handed := false) -> x: int, y: int, success
 toggle_fullscreen :: (hwnd: HWND, desire_fullscreen: bool, saved: *Saved_Window_Info) -> (succcess: bool, width: s32, height: s32) {
     if !hwnd || !saved return false, 0, 0;
     target: RECT;
+
     if desire_fullscreen {
         if GetWindowRect(hwnd, *saved.rect) == 0 return false, 0, 0;
         saved.style = GetWindowLongW(hwnd, GWL_STYLE);
@@ -47,6 +52,7 @@ toggle_fullscreen :: (hwnd: HWND, desire_fullscreen: bool, saved: *Saved_Window_
         SetWindowLongW(hwnd, GWL_STYLE, saved.style);
         SetWindowLongW(hwnd, GWL_EXSTYLE, saved.ex_style);
     }
+
     moved := SetWindowPos(hwnd, null, target.left, target.top, target.right - target.left,
         target.bottom - target.top, SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOOWNERZORDER);
     if moved == 0 return false, 0, 0;
@@ -61,6 +67,7 @@ create_window :: (width: int, height: int, window_name: string, window_x := -1, 
     if !window_class_initted return null;
     class_name, ok_class, _ := utf8_to_wide(WINDOW_CLASS_NAME);
     title, ok_title, _ := utf8_to_wide(window_name);
+
     defer free(class_name);
     defer free(title);
     if !ok_class || !ok_title return null;
@@ -72,6 +79,7 @@ create_window :: (width: int, height: int, window_name: string, window_x := -1, 
     if AdjustWindowRect(*dimensions, style, 0) == 0 return null;
     x := cast(s32) window_x;
     y := cast(s32) window_y;
+
     if window_x == -1 x = cast(s32) CW_USEDEFAULT;
     if window_y == -1 y = cast(s32) CW_USEDEFAULT;
     handle := CreateWindowExW(0, class_name, title, style, x, y, dimensions.right - dimensions.left,
@@ -97,8 +105,10 @@ WINDOW_CLASS_NAME :: "Default Window Class";
 windows_windowproc_exists :: () -> *void {
     fields := cast(*Type_Info_Struct) type_info(#Context);
     member, offset := get_field_with_offset(fields, "_windows_windowproc");
+
     if !member || offset < 0 return null;
     slot := cast(**void) (cast(*u8) *context + offset);
+
     return slot.*;
 }
 
@@ -124,10 +134,12 @@ init_window_class :: (background_color_rgb: [3] float) {
     atom := RegisterClassExW(*descriptor);
     if atom == 0 {
         already_registered := cast(u32) GetLastError() == 1410;
+
         if descriptor.hbrBackground DeleteObject(descriptor.hbrBackground);
         window_class_initted = already_registered;
         return;
     }
+
     window_class_initted = true;
 }
 

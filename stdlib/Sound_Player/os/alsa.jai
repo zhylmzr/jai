@@ -11,13 +11,16 @@ output_open :: (config: Sound_Player_Config) -> channels: s32, rate: s32, ok: bo
         pcm = null;
         return 0, 0, false;
     }
+
     latency_us := cast(u32) (max(config.seconds_to_fill_ahead, 0.02) * 1_000_000);
+
     status = pcm_set_params(pcm, FORMAT_S16_LE, ACCESS_RW_INTERLEAVED, ALSA_CHANNELS, ALSA_RATE, 1, latency_us);
     if status < 0 {
         complain("configure the device", status);
         output_close();
         return 0, 0, false;
     }
+
     return ALSA_CHANNELS, ALSA_RATE, true;
 }
 
@@ -49,6 +52,7 @@ output_write :: (frames: s64) {
         room = pcm_avail_update(pcm);
         if room < 0 return;
     }
+
     remaining := min(frames, room);
     while remaining > 0 {
         count := min(remaining, STAGING_FRAMES);
@@ -70,23 +74,28 @@ output_devices :: () -> [] Output_Device {
         name := take_hint(cursor.*, "NAME");
         direction := take_hint(cursor.*, "IOID");
         description := take_hint(cursor.*, "DESC");
+
         // IOID is absent for devices that do both directions.
         if name.count > 0 && direction != "Input" {
             device: Output_Device;
             device.name = name;
             device.device_index = listed_devices.count;
+
             if description.count > 0 {
                 device.hints = NewArray(1, string);
                 device.hints[0] = description;
             }
+
             array_add(*listed_devices, device);
         } else {
             release_hint(name);
             release_hint(description);
         }
+
         release_hint(direction);
         cursor += 1;
     }
+
     device_name_free_hint(hints);
     return listed_devices;
 }
@@ -104,6 +113,7 @@ listed_devices: [..] Output_Device = .{ allocator = SOUND_HEAP };
 write_all :: (samples: *s16, frames: s64) -> bool {
     written := 0;
     retries := 0;
+
     while written < frames {
         result := pcm_writei(pcm, samples + written * ALSA_CHANNELS, cast(u64) (frames - written));
         if result < 0 {
@@ -112,11 +122,14 @@ write_all :: (samples: *s16, frames: s64) -> bool {
                 complain("write samples", cast(s32) result);
                 return false;
             }
+
             continue;
         }
+
         if result == 0 return false;
         written += result;
     }
+
     return true;
 }
 
@@ -125,6 +138,7 @@ take_hint :: (hint: *void, field: *u8) -> string {
     raw := device_name_get_hint(hint, field);
     if !raw return "";
     text := copy_string(to_string(raw));
+
     libc_free(raw);
     return text;
 }

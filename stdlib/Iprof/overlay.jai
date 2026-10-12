@@ -73,6 +73,7 @@ get_current_graph_scaling :: () -> *Graph_Scaling {
 draw :: (sx: float, sy: float, full_width: float, height: float, config: *Config) {
     report := create_report();
     line := cast(float) config.line_spacing;
+
     if line <= 0 return;
 
     // Value columns on the right, sized for the widest number we expect; the name takes the rest.
@@ -80,24 +81,31 @@ draw :: (sx: float, sy: float, full_width: float, height: float, config: *Config
     name_right := sx + full_width - column_w * (NUM_HEADER - 1);
 
     y := sy;
+
     config.draw_rectangle(sx, y - line, sx + full_width, y, config.title_background_color);
     text_at(config, sx + line * .5, y - line, report.title, config.title_text_color);
+
     if report.title_right {
         w := config.text_width(report.title_right);
         text_at(config, sx + full_width - w - line * .5, y - line, report.title_right, config.title_text_color);
     }
+
     y -= line;
 
     config.draw_rectangle(sx, y - line, sx + full_width, y, config.title_background_color);
+
     for col: 0..NUM_HEADER - 1 {
         color := ifx col == report.hilit_header then config.header_color_hilit else config.header_color_unhilit;
         label := report.header[col];
+
         if col == 0 text_at(config, sx + line * .5, y - line, label, color);
         else text_right(config, name_right + column_w * col, y - line, label, color);
     }
+
     y -= line;
 
     bottom := sy - height;
+
     for report.records {
         if y - line < bottom break;
 
@@ -107,8 +115,10 @@ draw :: (sx: float, sy: float, full_width: float, height: float, config: *Config
 
         color := lerp(config.zone_text_color_cold, config.zone_text_color_hot, cast(float) it.heat);
         label := it.name;
+
         if it.prefix != #char " " && it.prefix != 0 label = tprint("% %", string.{ 1, *it.prefix }, it.name);
         indent := line * (.5 + cast(float) it.indent);
+
         text_at(config, sx + indent, y - line, label, color);
 
         digits := config.zone_time_precision_digits;
@@ -139,10 +149,12 @@ draw_graph :: (sx: float, sy: float, width: float, height: float, config: *Confi
 
         // Rescale to fit the tallest visible sample.
         tallest: float64 = 0;
+
         for *zones {
             if !it.entered || it == *zones[0] continue;
             for f: 0..frames - 1 tallest = max(tallest, history_value(it, f, self));
         }
+
         target: float64 = 0.125;
         while target < tallest target *= 2;
         scaling.target_scale_ms = target;
@@ -150,6 +162,7 @@ draw_graph :: (sx: float, sy: float, width: float, height: float, config: *Confi
         full := max(scaling.full_scale_ms, 0.001);
 
         step := width / cast(float) max(NUM_FRAME_SLOTS - 1, 1);
+
         x_of := (frames_ago: s64, sx: float, width: float, step: float) -> float {
             return sx + width - step * cast(float) frames_ago;
         };
@@ -162,17 +175,21 @@ draw_graph :: (sx: float, sy: float, width: float, height: float, config: *Confi
         my := cast(float) mouse_y;
         mouse_inside := mx >= sx && mx <= sx + width && my >= sy - height && my <= sy;
         mouse_frame := -1;
+
         if mouse_inside {
             mouse_frame = cast(s64) ((sx + width - mx) / step + .5);
             if mouse_frame >= frames mouse_frame = -1;
         }
+
         nearest := FLOAT32_MAX;
 
         color_index := 0;
+
         for *zone: zones {
             if !zone.entered continue;
             is_root := zone == *zones[0];
             color := config.graph_colors[color_index % config.graph_colors.count];
+
             if !is_root color_index += 1;
             if is_root color = config.graph_current_time_history_color;
             if zone == graph_focus color = config.selected_graph_color;
@@ -201,12 +218,15 @@ draw_graph :: (sx: float, sy: float, width: float, height: float, config: *Confi
         if mouse_frame >= 0 {
             current_graph_window_selected_sample = mouse_frame;
             x := x_of(mouse_frame, sx, width, step);
+
             config.draw_rectangle(x - .5, sy - height, x + .5, sy, config.graph_time_cursor_color);
+
             if zone_under_cursor {
                 label := tprint("% (% ms)", zone_under_cursor.name, number_text(history_value(zone_under_cursor, mouse_frame, self), config.zone_time_precision_digits));
                 line := cast(float) config.line_spacing;
                 w := config.text_width(label) + line;
                 left := min(mx + line, sx + width - w);
+
                 config.draw_rectangle(left, my, left + w, my + line, config.graph_zone_under_cursor_background_color);
                 text_at(config, left + line * .5, my, label, config.graph_zone_under_cursor_text_color);
             }
@@ -260,11 +280,13 @@ make_graph_colors :: (config: *Config) {
     COUNT :: 24;
     colors := NewArray(COUNT, Vector4);
     hue := 0.1;
+
     for *colors {
         it.* = hue_to_rgb(hue);
         hue += 0.618034;
         if hue >= 1 hue -= 1;
     }
+
     config.graph_colors = colors;
 }
 
@@ -274,6 +296,7 @@ hue_to_rgb :: (hue: float) -> Vector4 {
         v := abs(t * 6 - 3) - 1;
         return .35 + .6 * clamp(v, 0, 1);
     }
+
     return .{ channel(hue), channel(hue + 2.0 / 3.0), channel(hue + 1.0 / 3.0), 1 };
 }
 

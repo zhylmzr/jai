@@ -15,19 +15,23 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
     child_input: Windows.HANDLE;
     child_output: Windows.HANDLE;
     child_error: Windows.HANDLE;
+
     defer if child_input Windows.CloseHandle(child_input);
     defer if child_output Windows.CloseHandle(child_output);
     defer if child_error Windows.CloseHandle(child_error);
+
     if capture_and_return_output {
         attributes: Windows.SECURITY_ATTRIBUTES;
         attributes.nLength = size_of(Windows.SECURITY_ATTRIBUTES);
         attributes.bInheritHandle = 1;
         if !Windows.CreatePipe(*child_input, *process.input.handle, *attributes, 0) return false;
+
         // Unopened ends still hold the invalid-handle default, which deinit skips.
         if !Windows.CreatePipe(*process.output.handle, *child_output, *attributes, 0) || !Windows.CreatePipe(*process.error.handle, *child_error, *attributes, 0) {
             close_pipe_ends(process);
             return false;
         }
+
         Windows.SetHandleInformation(process.input.handle, 1, 0);
         Windows.SetHandleInformation(process.output.handle, 1, 0);
         Windows.SetHandleInformation(process.error.handle, 1, 0);
@@ -36,15 +40,18 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
         startup.hStdOutput = child_output;
         startup.hStdError = child_error;
     }
+
     directory: *u16;
     if working_directory directory = os_utf8_to_wide(working_directory);
     flags: Windows.Creation_Flags;
     if kill_process_if_parent_exits flags = cast(Windows.Creation_Flags) 4;
+
     if !Windows.CreateProcessW(null, native_command, null, null, xx capture_and_return_output, flags, null, directory, *startup, *process.info) {
         log_error("could not start \"%\": %", args[0], System.get_error_string(System.get_error_value()));
         close_pipe_ends(process);
         return false;
     }
+
     if kill_process_if_parent_exits {
         process.job_handle = Windows.CreateJobObjectA(null, null);
         limits: Windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION;
@@ -58,8 +65,10 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
             close_pipe_ends(process);
             return false;
         }
+
         Windows.ResumeThread(process.info.hThread);
     }
+
     process.launched = true;
     process.saved_result = .{ type = .STILL_RUNNING };
     process.output.eof = !capture_and_return_output;
@@ -87,12 +96,15 @@ init_named_pipe_pair :: (pipe: *Process.Pipe, is_input: bool) -> bool, Windows.H
 
     direction := Windows.PIPE_ACCESS_INBOUND;
     child_access := Windows.GENERIC_WRITE;
+
     if is_input {
         direction = Windows.PIPE_ACCESS_OUTBOUND;
         child_access = Windows.GENERIC_READ;
     }
+
     mode := Windows.PIPE_TYPE_BYTE | Windows.PIPE_READMODE_BYTE | Windows.PIPE_WAIT | Windows.PIPE_REJECT_REMOTE_CLIENTS;
     parent := Windows.CreateNamedPipeW(name, direction | Windows.FILE_FLAG_OVERLAPPED | Windows.FILE_FLAG_FIRST_PIPE_INSTANCE, mode, 1, 65536, 65536, 0, *attributes);
+
     if parent == invalid return false, invalid;
 
     attributes.bInheritHandle = 1;
@@ -108,6 +120,7 @@ init_named_pipe_pair :: (pipe: *Process.Pipe, is_input: bool) -> bool, Windows.H
         Windows.CloseHandle(child);
         return false, invalid;
     }
+
     // Release whatever the slot held before so no earlier handle or record leaks.
     deinit(pipe);
     pipe.overlapped = New(Windows.OVERLAPPED);
@@ -125,9 +138,11 @@ write_to_process :: (process: *Process, data: [] u8) -> success: bool, bytes_wri
 
 read_from_process :: (process: *Process, output_buffer: [] u8, error_buffer: [] u8, timeout_ms := -1) -> success: bool, output_bytes: int, error_bytes: int {
     start := process_monotonic_ms();
+
     while true {
         out_ok, out_count := read_pipe(*process.output, output_buffer);
         err_ok, err_count := read_pipe(*process.error, error_buffer);
+
         if !out_ok || !err_ok return false, out_count, err_count;
         if out_count || err_count || process.output.eof && process.error.eof return true, out_count, err_count;
         if remaining_time(start, timeout_ms) == 0 return true, 0, 0;
@@ -143,12 +158,15 @@ read_pipe :: (pipe: *Process.Pipe, buffer: [] u8) -> success: bool, bytes_read: 
             deinit(pipe);
             return true, 0;
         }
+
         return false, 0;
     }
+
     if available == 0 return true, 0;
     amount: u32;
     request := cast(u32) min(buffer.count, available);
     success := Windows.ReadFile(pipe.handle, buffer.data, request, *amount, null) != 0;
+
     return success, cast(int) amount;
 }
 
@@ -183,16 +201,19 @@ deinit :: (pipe: *Process.Pipe) {
 
 deinit :: (process: *Process) {
     close_pipe_ends(process);
+
     if process.launched {
         if process.saved_result.type == .STILL_RUNNING {
             kill_process(process);
             get_process_result(process);
         }
+
         Windows.CloseHandle(process.info.hThread);
         Windows.CloseHandle(process.info.hProcess);
         if process.job_handle && process.job_handle != cast(Windows.HANDLE) -1 Windows.CloseHandle(process.job_handle);
         Atomics.atomic_decrement(*active_command_count);
     }
+
     process.* = .{};
 }
 
@@ -203,6 +224,7 @@ named_pipe_serial: s64;
 process_monotonic_ms :: () -> s64 {
     counter: s64;
     frequency: s64;
+
     if !Windows.QueryPerformanceCounter(*counter) || !Windows.QueryPerformanceFrequency(*frequency) || frequency <= 0 return 0;
     return counter / frequency * 1000 + (counter % frequency) * 1000 / frequency;
 }

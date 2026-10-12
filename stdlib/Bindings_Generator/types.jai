@@ -434,6 +434,7 @@ maybe_unwrap_bitfield_declaration :: (decl: *Declaration) -> *Declaration {
             return only;
         }
     }
+
     return decl;
 }
 
@@ -630,28 +631,34 @@ MACROS_TO_IGNORE :: string.[
 is_same_type :: (a: CType, b: CType) -> bool {
     x := a;
     y := b;
+
     while true {
         if x.type_of_typedef {
             x = x.type_of_typedef.type.*;
             continue;
         }
+
         if y.type_of_typedef {
             y = y.type_of_typedef.type.*;
             continue;
         }
+
         if x.pointer_to && y.pointer_to {
             x = x.pointer_to.*;
             y = y.pointer_to.*;
             continue;
         }
+
         if x.flags & .REFERENCE {
             x = x.pointer_to.*;
             continue;
         }
+
         if y.flags & .REFERENCE {
             y = y.pointer_to.*;
             continue;
         }
+
         break;
     }
 
@@ -659,9 +666,11 @@ is_same_type :: (a: CType, b: CType) -> bool {
     if x.hardcoded_jai_string && x.hardcoded_jai_string == y.hardcoded_jai_string return true;
     if x.type_of_enum return x.type_of_enum == y.type_of_enum;
     if x.type_of_struct return x.type_of_struct == y.type_of_struct;
+
     if x.array_element_type {
         return x.array_element_type == y.array_element_type && x.array_element_count == y.array_element_count;
     }
+
     if x.type_of_function return same_signature(x.type_of_function, y.type_of_function);
     return x.number_flags == y.number_flags;
 }
@@ -670,9 +679,11 @@ same_signature :: (f: *Function_Type, g: *Function_Type) -> bool {
     if !g || f.arguments.count != g.arguments.count return false;
     if (f.return_type == null) != (g.return_type == null) return false;
     if f.return_type && !is_same_type(f.return_type.*, g.return_type.*) return false;
+
     for f.arguments {
         if !is_same_type(it.type.*, g.arguments[it_index].type.*) return false;
     }
+
     return true;
 }
 
@@ -680,13 +691,17 @@ same_signature :: (f: *Function_Type, g: *Function_Type) -> bool {
 // struct, which only counts as a field when it is an anonymous member.
 is_struct_field :: (decl: *Declaration) -> is_field: bool, is_anon: bool {
     if decl.kind == .BITFIELD return true, false;
+
     if decl.kind == .STRUCT {
         anonymous := ((cast(*Struct) decl).flags & .IS_ANON) != 0;
         return anonymous, true;
     }
+
     if decl.kind != .DECLARATION return false, false;
+
     // `static const int N = 4;` is a constant, not storage.
     is_constant := (decl.decl_flags & .IS_CONST) != 0 && decl.expression != null;
+
     return !is_constant, false;
 }
 
@@ -701,30 +716,38 @@ visit_declarations :: (visitor: Declaration_Visitor, decl: *Declaration, parent:
             if func.type && func.type.type_of_function {
                 args := func.type.type_of_function.arguments;
                 i := 0;
+
                 while i < args.count {
                     visit_declarations(visitor, args[i], decl, depth + 1);
                     i += 1;
                 }
             }
+
         case .STRUCT;
             // Metadata, base classes and virtual functions are visited before the members.
             s := cast(*Struct) decl;
+
             visit_declaration_list(visitor, *s.metadata, decl, depth + 1);
             visit_declaration_list(visitor, *s.parents, decl, depth + 1);
             visit_declaration_list(visitor, cast(*[..] *Declaration) *s.virtual_functions, decl, depth + 1);
             visit_declaration_list(visitor, *s.declarations, decl, depth + 1);
+
         case .ENUM;
             visit_declaration_list(visitor, *(cast(*Enum) decl).enumerates, decl, depth + 1);
+
         case .NAMESPACE;
             n := cast(*Namespace) decl;
             i := 0;
+
             while i < n.declarations.count {
                 visit_declarations(visitor, n.declarations[i], decl, depth + 1);
                 i += 1;
             }
+
         case .BITFIELD;
             b := cast(*Bitfield) decl;
             i := 0;
+
             while i < b.members.count {
                 visit_declarations(visitor, b.members[i], decl, depth + 1);
                 i += 1;

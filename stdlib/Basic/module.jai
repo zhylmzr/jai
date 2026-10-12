@@ -104,11 +104,13 @@ assert_helper :: (message := "", args: ..Any, loc := #caller_location) -> bool {
 
 get_command_line_arguments :: () -> [] string {
     result := NewArray(__command_line_arguments.count, string, true);
+
     for arg, index: __command_line_arguments {
         n: s64;
         while arg[n] != 0 n += 1;
         result[index] = copy_string(string.{ n, arg });
     }
+
     return result;
 }
 
@@ -167,12 +169,14 @@ get_field_with_offset :: (info: *Type_Info_Struct, name: string) -> *Type_Info_S
 
 get_field :: (info: *Type_Info_Struct, name: string) -> *Type_Info_Struct_Member, offset_in_bytes: s64 {
     for *member: info.members if member.name == name return member, member.offset_in_bytes;
+
     for *member: info.members {
         if (member.flags & .USING) && member.type.type == .STRUCT {
             found, inner := get_field(cast(*Type_Info_Struct) member.type, name);
             if found return found, member.offset_in_bytes + inner;
         }
     }
+
     return null, 0;
 }
 
@@ -187,6 +191,7 @@ enum_values_as_s64 :: ($T: Type) -> [] s64 {
 enum_values_as_enum :: ($T: Type) -> [] T {
     values := enum_values_as_s64(T);
     result, base := NewArray(values.count, T, false);
+
     for v, i: values result[i] = cast(T) v;
     return result;
 }
@@ -196,11 +201,13 @@ enum_range_given_info :: (info: *Type_Info_Enum) -> (low: s64, high: s64) {
     values := info.values;
     if values.count == 0 return 0, 0;
     smallest, largest := values[0], values[0];
+
     for index: 1..values.count - 1 {
         candidate := values[index];
         if candidate < smallest smallest = candidate;
         else if candidate > largest largest = candidate;
     }
+
     return smallest, largest;
 }
 
@@ -230,12 +237,15 @@ is_integer_type :: ($T: Type) -> (is_integer: bool, is_signed: bool, bits: u8) {
     info := type_info(T);
     if info.type != .INTEGER return false, false, 0;
     integer := cast(*Type_Info_Integer) info;
+
     return true, integer.signed, cast(u8) (8 * integer.runtime_size);
 }
 
 get_integer_range :: ($T: Type) -> (low: T, high: T) {
     integer, signed, bits := is_integer_type(T);
+
     assert(integer);
+
     if signed {
         high = cast(T) (((cast(u64) 1) << (bits - 1)) - 1);
         low = -high - 1;
@@ -243,20 +253,24 @@ get_integer_range :: ($T: Type) -> (low: T, high: T) {
         low = 0;
         high = cast,trunc(T) ~cast(u64) 0;
     }
+
     return low, high;
 }
 
 clamp_to_another_integer_type :: (value: $SourceType, $TargetType: Type) -> TargetType {
     src, src_signed, src_bits := is_integer_type(SourceType);
     dst, dst_signed, dst_bits := is_integer_type(TargetType);
+
     assert(src && dst);
     low, high := get_integer_range(TargetType);
+
     if src_signed && value < 0 {
         if !dst_signed return low;
         if src_bits > dst_bits && value < cast(SourceType) low return low;
     } else {
         if cast(u64) value > cast(u64) high return high;
     }
+
     return cast(TargetType) value;
 }
 
@@ -267,18 +281,23 @@ pack_stack_trace :: () -> [] Stack_Trace_Node {
 pack_stack_trace :: (node: *Stack_Trace_Node) -> [] Stack_Trace_Node {
     count: s64;
     cursor := node;
+
     while cursor {
         count += 1;
         cursor = cursor.next;
     }
+
     result := NewArray(count, Stack_Trace_Node, true);
+
     cursor = node;
+
     for i: 0..count - 1 {
         result[i] = cursor.*;
         if i + 1 < count result[i].next = result.data + i + 1;
         else result[i].next = null;
         cursor = cursor.next;
     }
+
     return result;
 }
 
@@ -293,10 +312,12 @@ print_stack_trace :: (node: *Stack_Trace_Node, prefix: string = "", to_standard_
 get_stack_trace_string :: (node: *Stack_Trace_Node) -> string {
     builder: String_Builder;
     cursor := node;
+
     while cursor {
         if cursor.info print_to_builder(*builder, "%:% %\n", cursor.info.location.fully_pathed_filename, cursor.line_number, cursor.info.name);
         cursor = cursor.next;
     }
+
     return builder_to_string(*builder);
 }
 
@@ -315,6 +336,7 @@ _remember_allocators_by_info :: (memory: *void, info: *Type_Info) {
         for member: record.members {
             if member.flags & (.CONSTANT | .IMPORTED) continue;
             address := cast(*u8) memory + member.offset_in_bytes;
+
             if member.type == type_info(Allocator) {
                 allocator := cast(*Allocator) address;
                 if !allocator.proc allocator.* = context.allocator;
@@ -324,15 +346,19 @@ _remember_allocators_by_info :: (memory: *void, info: *Type_Info) {
         array := cast(*Type_Info_Array) info;
         count := array.array_count;
         data := cast(*u8) memory;
+
         if array.array_type != .FIXED {
             view := cast(*Array_View_64) memory;
+
             count = view.count;
             data = view.data;
+
             if array.array_type == .RESIZABLE {
                 resizable := cast(*Resizable_Array) memory;
                 if !resizable.allocator.proc resizable.allocator = context.allocator;
             }
         }
+
         for i: 0..count - 1 _remember_allocators_by_info(data + i * array.element_type.runtime_size, array.element_type);
     }
 }

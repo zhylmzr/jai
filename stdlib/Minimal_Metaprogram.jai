@@ -10,6 +10,7 @@ build :: () {
     workspace := compiler_create_workspace("Target Program");
     options := get_build_options(workspace);
     sources: [..] string;
+
     for option: input.compile_time_command_line {
         if option == "-release" set_optimization(*options, .OPTIMIZED);
         else if option == "-debug" set_optimization(*options, .DEBUG);
@@ -19,10 +20,12 @@ build :: () {
         else if option.count > 0 && option[0] == #char "-" compiler_report("Unknown minimal metaprogram option.");
         else Basic.array_add(*sources, option);
     }
+
     if sources.count == 0 {
         compiler_report("No input source was supplied.");
         return;
     }
+
     options.output_executable_name = filename_stem(sources[0]);
     set_build_options(options, workspace);
     for source: sources add_build_file(source, workspace);
@@ -37,11 +40,13 @@ Basic :: #import "Basic";
 filename_stem :: (path: string) -> string {
     begin: s64;
     end := path.count;
+
     for byte, index: path {
         if byte == #char "/" || byte == #char "\\" {
             begin = index + 1;
             end = path.count;
         } else if byte == #char "." end = index;
     }
+
     return .{ end - begin, path.data + begin };
 }

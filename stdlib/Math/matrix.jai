@@ -307,15 +307,18 @@ make_matrix4 :: (m: $T/interface AnyMatrix3) -> Matrix4 #must {
     result._11, result._12, result._13 = m._11, m._12, m._13;
     result._21, result._22, result._23 = m._21, m._22, m._23;
     result._31, result._32, result._33 = m._31, m._32, m._33;
+
     #if T == Matrix4x3 {
         result._14, result._24, result._34 = m._14, m._24, m._34;
     }
+
     return result;
 }
 
 make_matrix4 :: (values: ..float) -> Matrix4 #must #deprecated "Use a struct literal instead." {
     result: Matrix4;
     limit := values.count;
+
     if limit > 16 limit = 16;
     for i: 0..limit - 1 result.coef[i / 4][i % 4] = values[i];
     return result;
@@ -347,10 +350,12 @@ make_look_at_matrix :: (viewpoint: Vector3, look_at: Vector3, reference_up_vecto
     side := normalize(cross(reference_up_vector, forward), fallback = .{ y = 1 });
     up := cross(forward, side);
     result: Matrix4;
+
     if x_is_forward result = make_matrix_from_rows(forward, side, up);
     else result = make_matrix_from_rows(-side, up, -forward); // right-handed: x = forward x up
     transformed := multiply(result, xyzw(viewpoint, 0));
     offset := xyz(-transformed.x, -transformed.y, -transformed.z);
+
     result._14 = offset.x;
     result._24 = offset.y;
     result._34 = offset.z;
@@ -366,6 +371,7 @@ orthographic_projection_matrix :: (left: float, right: float, bottom: float, top
     result._22 = 2 / height;
     result._14 = -(right + left) / width;
     result._24 = -(top + bottom) / height;
+
     if depth_range_01 {
         result._33 = -1 / depth;
         result._34 = -near / depth;
@@ -373,6 +379,7 @@ orthographic_projection_matrix :: (left: float, right: float, bottom: float, top
         result._33 = -2 / depth;
         result._34 = -(far + near) / depth;
     }
+
     return result;
 }
 
@@ -383,6 +390,7 @@ make_frustum_matrix :: (l: float, r: float, b: float, t: float, n: float, f: flo
     result._13 = (r + l) / (r - l);
     result._23 = (t + b) / (t - b);
     result._43 = -1;
+
     if depth_range_01 {
         result._33 = -f / (f - n);
         result._34 = -f * n / (f - n);
@@ -390,6 +398,7 @@ make_frustum_matrix :: (l: float, r: float, b: float, t: float, n: float, f: flo
         result._33 = -(f + n) / (f - n);
         result._34 = -2 * f * n / (f - n);
     }
+
     return result;
 }
 
@@ -498,6 +507,7 @@ set_rotation :: (using m: *$T/interface AnyMatrix3, q: Quaternion) {
     y := normalized.y;
     z := normalized.z;
     w := normalized.w;
+
     _11 = 1 - 2 * (y * y + z * z);
     _12 = 2 * (x * y - z * w);
     _13 = 2 * (x * z + y * w);
@@ -518,6 +528,7 @@ rotation_matrix :: ($T: Type, q: Quaternion) -> T {
 get_rotation :: (using m: $T/interface AnyMatrix3) -> Quaternion {
     trace := _11 + _22 + _33;
     q: Quaternion;
+
     if trace > 0 {
         divisor := 2 * sqrt(trace + 1);
         q = .{ (_32 - _23) / divisor, (_13 - _31) / divisor, (_21 - _12) / divisor, divisor * 0.25 };
@@ -531,6 +542,7 @@ get_rotation :: (using m: $T/interface AnyMatrix3) -> Quaternion {
         divisor := 2 * sqrt(max(0.0, 1 + _33 - _11 - _22));
         q = .{ (_13 + _31) / divisor, (_23 + _32) / divisor, divisor * 0.25, (_21 - _12) / divisor };
     }
+
     return normalize(q);
 }
 
@@ -570,25 +582,31 @@ determinant3 :: (m: Matrix3) -> float {
 
 determinant :: (m: Matrix4) -> float #must {
     result := 0.0;
+
     for c: 0..3 {
         term := m.coef[0][c] * determinant3(minor3(m, 0, c));
         if (c & 1) != 0 term = -term;
         result += term;
     }
+
     return result;
 }
 
 minor3 :: (m: Matrix4, excluded_row: int, excluded_column: int) -> Matrix3 {
     result: Matrix3;
     target_row := 0;
+
     for r: 0..3 if r != excluded_row {
         target_column := 0;
+
         for c: 0..3 if c != excluded_column {
             result.coef[target_row][target_column] = m.coef[r][c];
             target_column += 1;
         }
+
         target_row += 1;
     }
+
     return result;
 }
 
@@ -596,15 +614,18 @@ adjoint_transpose :: (m: Matrix3) -> Matrix3 {
     first := cross(m.v[1], m.v[2]);
     second := cross(m.v[2], m.v[0]);
     third := cross(m.v[0], m.v[1]);
+
     return .{ _11 = first.x, _12 = first.y, _13 = first.z, _21 = second.x, _22 = second.y, _23 = second.z, _31 = third.x, _32 = third.y, _33 = third.z };
 }
 
 adjugate_lengyel :: (m: Matrix4) -> Matrix4 #must {
     result: Matrix4;
+
     for r: 0..3 for c : 0..3 {
         result.coef[c][r] = determinant3(minor3(m, r, c));
         if ((r + c) & 1) != 0 result.coef[c][r] = -result.coef[c][r];
     }
+
     return result;
 }
 
@@ -624,26 +645,32 @@ inverse_gaussian_elimination :: (m: Matrix4) -> Matrix4 #must {
 // Gauss-Jordan with partial pivoting; calculations use wider working storage.
 inverse :: (m: Matrix4) -> Matrix4 #must, bool {
     augmented: [4][8] float64;
+
     for r: 0..3 {
         for c: 0..3 augmented[r][c] = m.coef[r][c];
         augmented[r][r + 4] = 1;
     }
+
     for column: 0..3 {
         pivot := column;
         for r: column + 1..3 if abs(augmented[r][column]) > abs(augmented[pivot][column]) pivot = r;
         if augmented[pivot][column] == 0 || !is_finite(augmented[pivot][column]) return Matrix4.{}, false;
+
         if pivot != column for c: 0..7 {
             temporary := augmented[pivot][c];
             augmented[pivot][c] = augmented[column][c];
             augmented[column][c] = temporary;
         }
+
         divisor := augmented[column][column];
         for c: 0..7 augmented[column][c] /= divisor;
+
         for r: 0..3 if r != column {
             factor := augmented[r][column];
             for c: 0..7 augmented[r][c] -= factor * augmented[column][c];
         }
     }
+
     result: Matrix4;
     for r: 0..3 for c : 0..3 result.coef[r][c] = cast(float) augmented[r][c + 4];
     return result, true;
@@ -668,14 +695,18 @@ isometry_inverse :: (m: Matrix4) -> Matrix4 #must {
 
 mat_norm :: (M: Matrix3, tpose: bool) -> float {
     largest := 0.0;
+
     for r: 0..2 {
         total := 0.0;
+
         for c: 0..2 {
             if tpose total += abs(M.coef[c][r]);
             else total += abs(M.coef[r][c]);
         }
+
         largest = max(largest, total);
     }
+
     return largest;
 }
 
@@ -696,6 +727,7 @@ make_reflector :: (v: Vector3) -> (u: Vector3) {
 
 reflect_cols :: (M: *Matrix3, u: Vector3) {
     components := float.[u.x, u.y, u.z];
+
     for c: 0..2 {
         projection := 0.0;
         for r: 0..2 projection += components[r] * M.coef[r][c];
@@ -710,9 +742,11 @@ reflect_rows :: (M: *Matrix3, u: Vector3) {
 polar_decomp :: (M: Matrix3) -> (Q: Matrix3, S: Matrix3, det: float) {
     orthogonal := M;
     determinant_value := determinant3(M);
+
     if determinant_value == 0 {
         first := normalize(M.v[0], fallback = .{ x = 1 });
         second, third := make_an_orthonormal_basis(first, M.v[1]);
+
         orthogonal.v[0] = first;
         orthogonal.v[1] = second;
         orthogonal.v[2] = third;
@@ -720,10 +754,12 @@ polar_decomp :: (M: Matrix3) -> (Q: Matrix3, S: Matrix3, det: float) {
         for 0..31 {
             next := (orthogonal + transpose(inverse(orthogonal, 0.0))) * 0.5;
             change := norm_inf(next - orthogonal);
+
             orthogonal = next;
             if change <= 0.000001 break;
         }
     }
+
     symmetric := transpose(orthogonal) * M;
     symmetric = (symmetric + transpose(symmetric)) * 0.5;
     return orthogonal, symmetric, determinant_value;
@@ -734,6 +770,7 @@ polar_decomp :: (M: Matrix3) -> (Q: Matrix3, S: Matrix3, det: float) {
 write_basis_block :: (m: *$T, a: Vector3, b: Vector3, c: Vector3, as_rows: bool) {
     basis: [3] Vector3 = ---;
     basis[0], basis[1], basis[2] = a, b, c;
+
     for i: 0..2 for j : 0..2 {
         if as_rows m.coef[i][j] = basis[i].component[j];
         else m.coef[j][i] = basis[i].component[j];

@@ -15,6 +15,7 @@ witness :: () -> bool {
     deinit(*dir);
     if dir.entries.count != 0 || dir.memory_block.count != 0 || dir.name.count != 0 || dir.file.handle.closed return false;
     Files.file_close(*dir.file);
+
     // Invalid end-record disk number must fail with released empty storage.
     bytes[103 + 4] = 1;
     bad_success, bad := load_zip_directory("mock.zip");

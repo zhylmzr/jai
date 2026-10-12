@@ -2,11 +2,13 @@
 #scope_module
 right_divider_rects :: (r: Rect, horizontal: bool, fraction: float, thickness: float) -> Rect, Rect, Rect {
     dimension := ifx horizontal then r.w else r.h;
+
     thickness = right_float_clamp(thickness, 0.0, right_float_max(dimension, 0.0));
     fraction = right_float_clamp(fraction, 0.0, 1.0);
     first := r;
     divider := r;
     second := r;
+
     if horizontal {
         first.w = right_float_max(r.w - thickness, 0.0) * fraction;
         divider.x = r.x + first.w;
@@ -20,6 +22,7 @@ right_divider_rects :: (r: Rect, horizontal: bool, fraction: float, thickness: f
         divider.y = first.y - thickness;
         second.h = right_float_max(divider.y - r.y, 0.0);
     }
+
     return first, divider, second;
 }
 
@@ -30,6 +33,7 @@ right_scroll_nib :: (bar: Rect, vertical: bool, viewport: float, content: float,
     extent := right_float_max(content - viewport, 0.0);
     fraction := ifx extent > 0 then right_float_clamp(scroll / extent, 0.0, 1.0) else 0.0;
     result := bar;
+
     if vertical {
         result.h = size;
         result.y = bar.y + (track - size) * (1 - fraction);
@@ -37,6 +41,7 @@ right_scroll_nib :: (bar: Rect, vertical: bool, viewport: float, content: float,
         result.w = size;
         result.x = bar.x + (track - size) * fraction;
     }
+
     return result;
 }
 
@@ -44,6 +49,7 @@ right_scroll_fraction :: (bar: Rect, vertical: bool, nib_size: float, position: 
     travel := right_float_max((ifx vertical then bar.h else bar.w) - nib_size, 0.0);
     if travel <= 0 return 0;
     along := ifx vertical then bar.y + bar.h - position - nib_size / 2 else position - bar.x - nib_size / 2;
+
     return right_float_clamp(along / travel, 0.0, 1.0);
 }
 
@@ -52,6 +58,7 @@ right_subwindow_rects :: (full: Rect, title_height: float, mx: float, my: float)
     title.h = right_float_clamp(title_height, 0.0, right_float_max(full.h, 0.0));
     title.y = full.y + full.h - title.h;
     content := Rect.{ full.x + mx, full.y + my, right_float_max(full.w - 2 * mx, 0.0), right_float_max(full.h - title.h - 2 * my, 0.0) };
+
     return title, content;
 }
 
@@ -60,6 +67,7 @@ right_resize_edges :: (r: Rect, delta: Vector2, west: bool, east: bool, north: b
     right := r.x + r.w;
     bottom := r.y;
     top := r.y + r.h;
+
     if west left = right_float_min(left + delta.x, right - min_width);
     if east right = right_float_max(right + delta.x, left + min_width);
     if south bottom = right_float_min(bottom + delta.y, top - min_height);
@@ -87,6 +95,7 @@ right_sv_point :: (r: Rect, normalized: Vector2, warp: bool) -> Vector2 {
         radius := right_float_min(r.w, r.h) / 2;
         return xy(r.x + r.w / 2 + normalized.x * radius, r.y + r.h / 2 - normalized.y * radius);
     }
+
     return xy(r.x + (normalized.x + 1) * r.w / 2, r.y + (1 - normalized.y) * r.h / 2);
 }
 
@@ -96,6 +105,7 @@ right_sv_normalized :: (r: Rect, point: Vector2, warp: bool) -> Vector2 {
         if radius <= 0 return .{};
         return xy(point.x - r.x - r.w / 2, r.y + r.h / 2 - point.y) / radius;
     }
+
     return xy((point.x - r.x) * 2 / right_float_max(r.w, 1.0) - 1, 1 - (point.y - r.y) * 2 / right_float_max(r.h, 1.0));
 }
 

@@ -69,33 +69,41 @@ break_command_into_strings :: (input: string) -> [..] string {
         while index < input.count && command_space(input[index]) index += 1;
         if index == input.count break;
         word: String_Builder;
+
         init_string_builder(*word);
         quote: u8;
+
         while index < input.count {
             byte := input[index];
             if quote == 0 && command_space(byte) break;
+
             if byte == #char "\"" || byte == #char "'" {
                 if quote == 0 {
                     quote = byte;
                     index += 1;
                     continue;
                 }
+
                 if quote == byte {
                     quote = 0;
                     index += 1;
                     continue;
                 }
             }
+
             if byte == #char "\\" && quote != #char "'" && index + 1 < input.count {
                 next := input[index + 1];
                 if next == #char "\"" || next == #char "\\" || command_space(next) index += 1;
             }
+
             append(*word, String.slice(input, index, 1));
             index += 1;
         }
+
         array_add(*result, builder_to_string(*word));
         free_buffers(*word);
     }
+
     return result;
 }
 
@@ -104,6 +112,7 @@ run_command_line :: (command: string, capture_and_return_output := false) -> (ex
     arguments := break_command_into_strings(command);
     status, output, error, timeout := run_command(..arguments, capture_and_return_output = capture_and_return_output);
     code: s64 = -1;
+
     if status.type == .EXITED code = status.exit_code;
     else if status.type == .SIGNALED code = 128 + status.signal;
     return code, output, error, timeout;
@@ -113,20 +122,24 @@ run_command :: (args: ..string, working_directory := "", capture_and_return_outp
     process: Process;
     if !create_process(*process, ..args, working_directory, capture_and_return_output, arg_quoting) return .{ type = .FAILED_TO_LAUNCH };
     defer deinit(*process);
+
     // Nothing is ever written to a captured child here: close its input so a child that reads
     // stdin sees the end instead of waiting for us forever.
     deinit(*process.input);
     out: String_Builder;
     err: String_Builder;
+
     init_string_builder(*out);
     init_string_builder(*err);
     defer free_buffers(*out);
     defer free_buffers(*err);
     start := process_monotonic_ms();
     timed_out := false;
+
     if capture_and_return_output {
         output_buffer: [16384] u8;
         error_buffer: [16384] u8;
+
         while !process.output.eof || !process.error.eof {
             remaining := remaining_time(start, timeout_ms);
             if timeout_ms >= 0 && remaining == 0 {
@@ -134,16 +147,19 @@ run_command :: (args: ..string, working_directory := "", capture_and_return_outp
                 kill_process(*process);
                 break;
             }
+
             success, output_bytes, error_bytes := read_from_process(*process, output_buffer, error_buffer, remaining);
             if !success {
                 kill_process(*process);
                 break;
             }
+
             if output_bytes > 0 {
                 bytes: string = .{ output_bytes, output_buffer.data };
                 append(*out, bytes);
                 if print_captured_output write_string(bytes);
             }
+
             if error_bytes > 0 {
                 bytes: string = .{ error_bytes, error_buffer.data };
                 append(*err, bytes);
@@ -151,13 +167,16 @@ run_command :: (args: ..string, working_directory := "", capture_and_return_outp
             }
         }
     }
+
     remaining := remaining_time(start, timeout_ms);
     success, status := get_process_result(*process, remaining);
+
     if success && status.type == .STILL_RUNNING {
         timed_out = true;
         kill_process(*process);
         success, status = get_process_result(*process);
     }
+
     if !success status = .{ type = .FAILED_TO_LAUNCH, exit_code = -1 };
     return status, builder_to_string(*out), builder_to_string(*err), timed_out;
 }
@@ -168,35 +187,43 @@ run_command_arguments :: (args: ..string, working_directory := "", capture_and_r
 
 get_quoted_command_string :: (args: [] string) -> string {
     result: String_Builder;
+
     init_string_builder(*result);
     defer free_buffers(*result);
+
     for argument, index: args {
         if index > 0 append(*result, " ");
         append_quoted(*result, argument);
     }
+
     return builder_to_string(*result);
 }
 
 append_quoted :: (builder: *String_Builder, s: string) {
     quote_needed := s.count == 0;
     for byte: s if command_space(byte) || byte == #char "\"" quote_needed = true;
+
     if !quote_needed {
         append(builder, s);
         return;
     }
+
     append(builder, "\"");
     slashes: int;
+
     for byte, i: s {
         if byte == #char "\\" {
             slashes += 1;
             continue;
         }
+
         repetitions := slashes;
         if byte == #char "\"" repetitions = slashes * 2 + 1;
         for j: 0..repetitions - 1 append(builder, "\\");
         slashes = 0;
         append(builder, String.slice(s, i, 1));
     }
+
     for j: 0..slashes * 2 - 1 append(builder, "\\");
     append(builder, "\"");
 }

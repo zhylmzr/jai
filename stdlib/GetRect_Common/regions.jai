@@ -8,8 +8,10 @@ begin_scrollable_region :: (r: Rect, theme: *Scrollable_Region_Theme = null, ide
     state.theme = theme.*;
     vertical := (theme.direction & .VERTICAL) != 0;
     bar_size := max(theme.scrollbar_size * render_target_height, 1.0);
+
     state.bar_rect = r;
     state.inner_rect = r;
+
     if vertical {
         state.bar_rect.x += max(r.w - bar_size, 0.0);
         state.bar_rect.w = min(bar_size, r.w);
@@ -25,18 +27,22 @@ begin_scrollable_region :: (r: Rect, theme: *Scrollable_Region_Theme = null, ide
             state.inner_rect.h = max(r.h - bar_size, 0.0);
         }
     }
+
     rounded_rectangle(state.inner_rect, theme.region_background.shape, theme.region_background.color, theme.region_background.frame_color);
     inside = state.inner_rect;
     margin_x := theme.horizontal_margin_size * render_target_height;
     margin_y := theme.vertical_margin_size * render_target_height;
+
     if theme.margin_flags & .Horizontal {
         inside.x += margin_x;
         inside.w = max(inside.w - 2 * margin_x, 0.0);
     }
+
     if theme.margin_flags & .Vertical {
         inside.y += margin_y;
         inside.h = max(inside.h - 2 * margin_y, 0.0);
     }
+
     state.inner_rect = inside;
     push_scissor(inside);
     return state, inside;
@@ -69,16 +75,20 @@ end_scrollable_region_shared :: (state: *Scrollable_Region_State, max_x: float, 
     breadth := ifx vertical then state.bar_rect.w else state.bar_rect.h;
     nib_size := min(track, max(breadth * theme.minimum_nib_size, ifx content > 0 then track * viewport / content else track));
     travel := max(track - nib_size, 0.0);
+
     if has_focus(state.outer_rect) for event, index: events_to_handle_this_frame if left_event_window(index) == state.window && event.type == .MOUSE_WHEEL {
         scroll_value.* -= event.wheel_delta * theme.mouse_wheel_increment * render_target_height;
     }
+
     nib := state.bar_rect;
     position := ifx vertical then mouse_y_float else mouse_x_float;
     origin := ifx vertical then nib.y else nib.x;
+
     #if GETRECT_Y_UP {
         nib = right_scroll_nib(state.bar_rect, vertical, viewport, content, scroll_value.*, theme.minimum_nib_size);
     } else {
         fraction := ifx extent > 0 then clamp(scroll_value.* / extent, 0.0, 1.0) else 0.0;
+
         if vertical {
             nib.y += fraction * travel;
             nib.h = nib_size;
@@ -87,16 +97,20 @@ end_scrollable_region_shared :: (state: *Scrollable_Region_State, max_x: float, 
             nib.w = nib_size;
         }
     }
+
     status := get_status_flags(nib, state);
     if status & .PRESSED {
         state.dragging = true;
         active_widget_add(state, true);
     }
+
     if state.dragging && travel > 0 scroll_value.* = extent * scroll_fraction(state.bar_rect, vertical, nib_size, position, origin, travel);
+
     if mouse_button_left_state & .END {
         state.dragging = false;
         active_widget_remove(state);
     }
+
     if !state.dragging {
         track_status := get_status_flags(state.bar_rect, state);
         if track_status & .PRESSED {
@@ -104,6 +118,7 @@ end_scrollable_region_shared :: (state: *Scrollable_Region_State, max_x: float, 
             scroll_value.* = extent * scroll_fraction(state.bar_rect, vertical, nib_size, position, origin, travel);
         } else state.teleporting = false;
     }
+
     scroll_value.* = clamp(scroll_value.*, 0.0, extent);
     rounded_rectangle(state.bar_rect, theme.scrollbar_background.shape, theme.scrollbar_background.color, theme.scrollbar_background.frame_color);
     if state.dragging status |= .DOWN;
@@ -124,23 +139,29 @@ slidable_region :: (r: Rect, theme: *Slidable_Region_Theme = null, identifier: s
     horizontal := theme.orientation == .HORIZONTAL;
     dimension := ifx horizontal then r.w else r.h;
     thickness := clamp(get_float_parameter(r, theme.divider_thickness_type, theme.divider_thickness, global_divider_thickness_in_pixels), 0.0, dimension);
+
     if created state.divider_t = clamp(get_float_parameter(r, theme.initial_divider_position_type, theme.initial_divider_position, global_initial_divider_position_in_pixels) / max(dimension, 1.0), 0.0, 1.0);
     first, divider, second := compute_rects(r, state, thickness);
     status := get_status_flags(divider, state);
+
     if status & .PRESSED {
         state.dragging = true;
         active_widget_add(state, true);
     }
+
     if state.dragging {
         point := ifx horizontal then mouse_x_float - r.x else (ifx GETRECT_Y_UP then r.y + r.h - mouse_y_float else mouse_y_float - r.y);
+
         state.divider_t = clamp((point - thickness / 2) / max(dimension - thickness, 1.0), 0.0, 1.0);
         first, divider, second = compute_rects(r, state, thickness);
         status |= .DOWN;
+
         if mouse_button_left_state & .END {
             state.dragging = false;
             active_widget_remove(state);
         }
     }
+
     state.left_or_top_rect = first;
     state.right_or_bottom_rect = second;
     state.divider_rect = divider;
@@ -157,6 +178,7 @@ compute_rects :: (r: Rect, state: *Slidable_Region_State, divider_thickness_in_p
     divider := r;
     bottom := r;
     thickness := max(divider_thickness_in_pixels, 0.0);
+
     if state.theme.orientation == .HORIZONTAL {
         top.w = max(r.w - thickness, 0.0) * state.divider_t;
         divider.x += top.w;
@@ -170,6 +192,7 @@ compute_rects :: (r: Rect, state: *Slidable_Region_State, divider_thickness_in_p
         bottom.y = divider.y + divider.h;
         bottom.h = max(r.y + r.h - bottom.y, 0.0);
     }
+
     return top, divider, bottom;
 }
 
@@ -192,14 +215,17 @@ number_input :: (_r: Rect, text: string, value: *$T, min_value: T, max_value: T,
     if !value || max_value < min_value return false;
     if !theme theme = *left_default_number_theme;
     state, created := find_or_create_state(Number_Input_State, get_hash(loc, identifier));
+
     defer stop_using_state(state);
     start_using_state(*state.text_input_state);
     defer stop_using_state(*state.text_input_state);
     actions, input, input_state := left_text_input_body(_r, text, *theme.text_input_theme, *state.text_input_state, created, 0, .{});
+
     state.inputting_text = input_state.active;
     if !(actions & .ENTERED) return false;
     candidate: T;
     success: bool;
+
     if parse_proc candidate, success = parse_proc(input);
     else {
         #if type_info(T).type == .FLOAT {
@@ -212,10 +238,12 @@ number_input :: (_r: Rect, text: string, value: *$T, min_value: T, max_value: T,
             success = ok;
         }
     }
+
     if !success return false;
     if theme.clamp_low candidate = max(candidate, min_value);
     if theme.clamp_high candidate = min(candidate, max_value);
     changed := candidate != value.*;
+
     value.* = candidate;
     return changed;
 }
@@ -235,17 +263,20 @@ add_subwindow :: (info: *Subwindow_Info, theme: *Subwindow_Theme = null, identif
     order := left_subwindow_order(state);
     order.z = z;
     order.frame = current_getrect_frame;
+
     if info.wants_a_raise || state.wants_a_raise {
         raise(state);
         info.wants_a_raise = false;
         state.wants_a_raise = false;
     }
+
     if info.open {
         add_popup(left_subwindow_popup, state, z);
         position: s32;
         for other: left_subwindow_orders if other.rank < order.rank position += 1;
         popups[popups.count - 1].serial = position;
     }
+
     stop_using_state(state);
     return state;
 }
@@ -264,6 +295,7 @@ draw_subwindow :: (state: *Subwindow_State) {
     info := state.info;
     full := info.rect;
     title_height := ifx theme.subwindow_flags & .TITLE_BAR then get_title_bar_height(theme) else 0.0;
+
     if info.fixed_aspect_ratio > 0 full.h = full.w / info.fixed_aspect_ratio;
     title := full;
     title.h = min(title_height, full.h);
@@ -273,6 +305,7 @@ draw_subwindow :: (state: *Subwindow_State) {
     if controls != 0 {
         outer := shrink(full, -max(theme.drag_extrusion_east, max(theme.drag_extrusion_west, max(theme.drag_extrusion_north, theme.drag_extrusion_south))) * render_target_height);
         resize_status := get_status_flags(outer, state, ignore = .SCISSOR | .TOOLTIP);
+
         if resize_status & .PRESSED {
             state.dragging = .RESIZE;
             state.dragging_resize_control = controls;
@@ -280,26 +313,32 @@ draw_subwindow :: (state: *Subwindow_State) {
             active_widget_add(state, true);
             raise(state);
         }
+
         left_request_cursor(get_pointer_from_resize_control(controls), state);
     }
+
     // The close button sits inside the title bar and is drawn later, so leave its click to it.
     over_close := theme.subwindow_flags & .CLOSE_BUTTON && title.h > 0 && is_inside(mouse_x_float, mouse_y_float, close_button_rect(theme, title));
     title_status := get_status_flags(title, state, ignore = ifx over_close then .LEFT_CLICK else .NOTHING);
+
     if title_status & .PRESSED {
         state.dragging = .TITLE;
         state.dragging_last = .{ mouse_x_float, mouse_y_float };
         active_widget_add(state, true);
         raise(state);
     }
+
     edge_margin := theme.resize_rect_size * render_target_height;
     corner := Rect.{ full.x + max(full.w - edge_margin, 0.0), full.y + ifx GETRECT_Y_UP then 0.0 else max(full.h - edge_margin, 0.0), min(edge_margin, full.w), min(edge_margin, full.h) };
     corner_status := get_status_flags(corner, state);
+
     if corner_status & .PRESSED && (theme.resize_controls & (.CORNER_SE | .SE)) {
         state.dragging = .RESIZE;
         state.dragging_resize_control = .SE;
         start_resizing(state, full);
         active_widget_add(state, true);
     }
+
     update_dragging(state, *full);
     info.rect = full;
     title = full;
@@ -309,15 +348,18 @@ draw_subwindow :: (state: *Subwindow_State) {
     content := full;
     if !GETRECT_Y_UP content.y += title.h;
     content.h = max(content.h - title.h, 0.0);
+
     #if GETRECT_Y_UP {
         title, state.content_rect = right_subwindow_rects(full, title_height, theme.horizontal_margin_size * render_target_height, theme.vertical_margin_size * render_target_height);
         corner = .{ full.x + max(full.w - edge_margin, 0.0), full.y, min(edge_margin, full.w), min(edge_margin, full.h) };
     } else {
         state.content_rect = shrink_xy(content, theme.horizontal_margin_size * render_target_height, theme.vertical_margin_size * render_target_height);
     }
+
     if theme.subwindow_flags & .FRINGE rounded_rectangle(shrink(full, -theme.fringe_thickness * render_target_height), theme.region_background.shape, theme.fringe_color, .{});
     rounded_rectangle(content, theme.region_background.shape, theme.region_background.color, theme.region_background.frame_color);
     if title.h > 0 core_draw_button(title, info.title_text, *state.base, title_status, *theme.title_bar, null);
+
     if theme.subwindow_flags & .CLOSE_BUTTON && title.h > 0 {
         pressed, button_state, released := button(close_button_rect(theme, title), "x", *theme.close_button, cast(s64) state.hash + 1);
         if pressed {
@@ -327,14 +369,18 @@ draw_subwindow :: (state: *Subwindow_State) {
             return;
         }
     }
+
     if theme.subwindow_flags & .VISIBLE_RESIZE_CORNER draw_resize_corner(theme, state, corner);
+
     #if GETRECT_Y_UP {
         state.draw_proc_adjusted_y = false;
+
         if info.draw {
             push_scissor(state.content_rect);
             info.draw(state, state.content_rect, info.user_data);
             pop_scissor();
         }
+
         if state.draw_proc_adjusted_y {
             // The callback reports a new content bottom; the outer top remains anchored.
             full = right_content_bottom(full, state.draw_proc_new_y1, theme.vertical_margin_size * render_target_height, title.h);
@@ -361,6 +407,7 @@ subwindow_rect_from_content_rect :: (content_rect: Rect, theme: *Subwindow_Theme
     mx := theme.horizontal_margin_size * height;
     my := theme.vertical_margin_size * height;
     title := ifx theme.subwindow_flags & .TITLE_BAR then get_title_bar_height(theme, override_render_target_height) else 0.0;
+
     result.x -= mx;
     result.y -= my + ifx GETRECT_Y_UP then 0.0 else title;
     result.w += 2 * mx;
@@ -382,6 +429,7 @@ start_resizing :: (state: *Subwindow_State, f: Rect) {
 update_dragging :: (state: *Subwindow_State, full: *Rect) {
     if active_widget != state return;
     delta := xy(mouse_x_float, mouse_y_float) - state.dragging_last;
+
     state.dragging_last = .{ mouse_x_float, mouse_y_float };
     if state.dragging == .TITLE {
         full.x += delta.x;
@@ -389,32 +437,39 @@ update_dragging :: (state: *Subwindow_State, full: *Rect) {
     } else if state.dragging == .RESIZE {
         control := state.dragging_resize_control;
         anchored_top := full.y + full.h;
+
         #if GETRECT_Y_UP {
             full.* = right_resize_edges(full.*, delta, (control & .WEST) != 0, (control & .EAST) != 0, (control & .NORTH) != 0, (control & .SOUTH) != 0, state.theme.resize_minimum_size.x * render_target_height, state.theme.resize_minimum_size.y * render_target_height);
         } else {
             if control & .EAST full.w += delta.x;
             if control & .SOUTH full.h += delta.y;
+
             if control & .WEST {
                 full.x += delta.x;
                 full.w -= delta.x;
             }
+
             if control & .NORTH {
                 full.y += delta.y;
                 full.h -= delta.y;
             }
+
             full.w = max(full.w, state.theme.resize_minimum_size.x * render_target_height);
             full.h = max(full.h, state.theme.resize_minimum_size.y * render_target_height);
         }
+
         aspect := state.info.fixed_aspect_ratio;
         if aspect <= 0 && control & .PROPORTIONAL aspect = state.resizing_aspect;
         if aspect > 0 full.h = full.w / aspect;
         snap := state.theme.resize_snap_margin * render_target_height;
         if control & .SNAP_EW && abs(full.w - state.info.snap_to_size.x) < snap full.w = state.info.snap_to_size.x;
         if control & .SNAP_NS && abs(full.h - state.info.snap_to_size.y) < snap full.h = state.info.snap_to_size.y;
+
         #if GETRECT_Y_UP {
             if control & .SOUTH full.y = anchored_top - full.h;
         }
     }
+
     if mouse_button_left_state & .END active_widget_remove(state);
 }
 
@@ -430,11 +485,13 @@ rescale :: (v: Vector2, old_w: s32, old_h: s32) -> Vector2 {
 
 draw_resize_corner :: (theme: *Subwindow_Theme, state: *Subwindow_State, r: Rect) {
     draw_procs.set_shader_for_color(true);
+
     for line: 1..3 {
         offset := r.w * line / 4;
         width := max(r.w * theme.resize_corner_line_thickness, 1.0);
         stripe := Rect.{ r.x + r.w - offset, ifx GETRECT_Y_UP then r.y + offset - width else r.y + r.h - offset, offset, width };
         p0, p1, p2, p3 := get_quad(stripe);
+
         draw_procs.immediate_quad(p0, p1, p2, p3, theme.resize_corner_color);
     }
 }
@@ -472,11 +529,13 @@ left_subwindow_order :: (state: *Subwindow_State) -> *Left_Subwindow_Order {
 
 left_subwindow_hit :: (window: Window_Type, x: float, y: float) -> *Active_Widget {
     best: *Left_Subwindow_Order;
+
     for order: left_subwindow_orders if order.frame == current_getrect_frame && order.state.window == window && order.state.info && order.state.info.open {
         theme := *order.state.theme;
         margin := max(theme.fringe_thickness, max(theme.drag_extrusion_east, max(theme.drag_extrusion_west, max(theme.drag_extrusion_north, theme.drag_extrusion_south)))) * render_target_height;
         if is_inside(x, y, shrink(order.state.info.rect, -margin)) && (!best || order.z > best.z || (order.z == best.z && order.rank > best.rank)) best = order;
     }
+
     if best return *best.state.widget;
     return null;
 }
@@ -490,14 +549,17 @@ left_resize_hit :: (r: Rect, theme: *Subwindow_Theme, x: float, y: float) -> Res
     hi_intr := ifx GETRECT_Y_UP then theme.drag_intrusion_north else theme.drag_intrusion_south;
     lo_flag := ifx GETRECT_Y_UP then Resize_Controls.SOUTH else Resize_Controls.NORTH;
     hi_flag := ifx GETRECT_Y_UP then Resize_Controls.NORTH else Resize_Controls.SOUTH;
+
     if y >= r.y - lo_ext * height && y <= r.y + r.h + hi_ext * height {
         if x >= r.x - theme.drag_extrusion_west * height && x <= r.x + theme.drag_intrusion_west * height result |= .WEST;
         if x >= r.x + r.w - theme.drag_intrusion_east * height && x <= r.x + r.w + theme.drag_extrusion_east * height result |= .EAST;
     }
+
     if x >= r.x - theme.drag_extrusion_west * height && x <= r.x + r.w + theme.drag_extrusion_east * height {
         if y >= r.y + r.h - hi_intr * height && y <= r.y + r.h + hi_ext * height result |= hi_flag;
         if y >= r.y - lo_ext * height && y <= r.y + lo_intr * height result |= lo_flag;
     }
+
     result &= theme.resize_controls;
     if theme.resize_controls & .CORNER_SE && is_inside(x, y, .{ r.x + r.w - theme.resize_rect_size * height, ifx GETRECT_Y_UP then r.y else r.y + r.h - theme.resize_rect_size * height, theme.resize_rect_size * height, theme.resize_rect_size * height }) result |= .SE;
     if result != 0 result |= theme.resize_controls & (.PROPORTIONAL | .SNAP);
@@ -510,6 +572,7 @@ get_pointer_from_resize_control :: (flags: Resize_Controls) -> Pointer_Image {
         if flags & .NE == .NE || flags & .SW == .SW return .DRAGGING_NE_SW;
         return .DRAGGING_NW_SE;
     }
+
     if flags & .EW return .DRAGGING_HORIZONTAL;
     if flags & .NS return .DRAGGING_VERTICAL;
     return .NORMAL;

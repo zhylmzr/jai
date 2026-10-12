@@ -21,16 +21,19 @@ Processor_Query_Type :: enum u8 {
         while capacity <= 32768 {
             buffer := cast(*u16) alloc(cast(s64) capacity * 2, temp);
             length := Windows.GetModuleFileNameW(null, buffer, capacity);
+
             if length == 0 return "";
             if length < capacity return os_wide_to_utf8(buffer, length);
             capacity *= 2;
         }
+
         return "";
     }
 
     get_username :: () -> string, success: bool {
         buffer: [257] u16;
         length: u32 = xx buffer.count;
+
         if !Windows.GetUserNameW(buffer.data, *length) return "", false;
         return os_wide_to_utf8(buffer.data), true;
     }
@@ -45,6 +48,7 @@ Processor_Query_Type :: enum u8 {
     get_machinename :: () -> string {
         buffer: [256] u16;
         length: u32 = xx buffer.count;
+
         if !Windows.GetComputerNameW(buffer.data, *length) return "";
         return os_wide_to_utf8(buffer.data, xx length);
     }
@@ -52,6 +56,7 @@ Processor_Query_Type :: enum u8 {
     get_error_string :: (error_code: OS_Error_Code) -> string {
         buffer: [2048] u16;
         count := Windows.FormatMessageW(0x1000 | 0x200, null, cast(u32) error_code, 0, cast(**u16) buffer.data, xx buffer.count, null);
+
         if count == 0 return tprint("OS error %", error_code);
         return os_wide_to_utf8(buffer.data, count);
     }
@@ -64,6 +69,7 @@ Processor_Query_Type :: enum u8 {
     get_path_of_running_executable :: () -> string {
         #if OS == .MACOS || OS == .IOS {
             count: u32;
+
             system_executable_path(null, *count);
             if count == 0 return "";
             buffer := cast(*u8) alloc(count, temp);
@@ -74,10 +80,12 @@ Processor_Query_Type :: enum u8 {
             while capacity <= 1048576 {
                 buffer := cast(*u8) alloc(capacity, temp);
                 length := P.readlink(temp_c_string("/proc/self/exe"), buffer, xx capacity);
+
                 if length < 0 return "";
                 if length < capacity return .{ length, buffer };
                 capacity *= 2;
             }
+
             return "";
         }
     }
@@ -86,23 +94,29 @@ Processor_Query_Type :: enum u8 {
         // Results live in temporary storage. An empty username means the current user.
         get_passwd_for_user :: (username := "") -> (success: bool, p: P.passwd) {
             buffer_size: s64 = 1024;
+
             while true {
                 buffer := cast(*u8) alloc(buffer_size, temp);
                 result_pwd: *P.passwd;
                 pwd: P.passwd;
                 result: s32;
+
                 if username result = P.getpwnam_r(temp_c_string(username), *pwd, buffer, cast(u64) buffer_size, *result_pwd);
                 else result = P.getpwuid_r(P.getuid(), *pwd, buffer, cast(u64) buffer_size, *result_pwd);
+
                 if result != 0 {
                     if P.errno() == P.ERANGE && buffer_size < 16384 {
                         buffer_size *= 2;
                         continue;
                     }
+
                     return false, .{};
                 }
+
                 if !result_pwd return false, pwd;
                 return true, pwd;
             }
+
             return false, .{};
         }
     }
@@ -161,12 +175,14 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
 #if OS == .WINDOWS {
     system_processor_count :: (query: Processor_Query_Type) -> s64 {
         length: u32;
+
         Windows.GetLogicalProcessorInformationEx(.RelationProcessorCore, null, *length);
         if length == 0 return 0;
         buffer := cast(*u8) alloc(length, temp);
         if !Windows.GetLogicalProcessorInformationEx(.RelationProcessorCore, cast(*Windows.SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) buffer, *length) return 0;
         largest_class: u8;
         offset: u32;
+
         while offset < length {
             if length - offset < 32 return 0;
             record := cast(*Windows.SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) (buffer + offset);
@@ -174,9 +190,11 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
             largest_class = max(largest_class, record.Processor.EfficiencyClass);
             offset += record.Size;
         }
+
         physical := query == .ALL_PHYSICAL || query == .PERFORMANCE_PHYSICAL;
         all := query == .ALL_PHYSICAL || query == .ALL_LOGICAL;
         result: s64;
+
         offset = 0;
         while offset < length {
             record := cast(*Windows.SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) (buffer + offset);
@@ -186,6 +204,7 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
                     groups := record.Processor.GroupCount;
                     if 32 + cast(u32) groups * size_of(Windows.GROUP_AFFINITY) > record.Size return 0;
                     masks := cast(*Windows.GROUP_AFFINITY) (buffer + offset + 32);
+
                     for i: 0..groups - 1 {
                         bits := masks[i].Mask;
                         while bits != 0 {
@@ -195,26 +214,32 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
                     }
                 }
             }
+
             offset += record.Size;
         }
+
         return result;
     }
 } else #if OS == .MACOS || OS == .IOS {
     system_processor_count :: (query: Processor_Query_Type) -> s64 {
         name := "hw.logicalcpu";
         fallback := name;
+
         if query == .ALL_PHYSICAL || query == .PERFORMANCE_PHYSICAL {
             name = "hw.physicalcpu";
             fallback = name;
         }
+
         if query == .PERFORMANCE_PHYSICAL name = "hw.perflevel0.physicalcpu";
         if query == .PERFORMANCE_LOGICAL name = "hw.perflevel0.logicalcpu";
         value: s32;
         bytes: u64 = size_of(s32);
+
         if P.sysctlbyname(temp_c_string(name), *value, *bytes, null, 0) != 0 {
             bytes = size_of(s32);
             if P.sysctlbyname(temp_c_string(fallback), *value, *bytes, null, 0) != 0 return 0;
         }
+
         if bytes != size_of(s32) || value < 0 return 0;
         return value;
     }
@@ -222,6 +247,7 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
     system_processor_count :: (query: Processor_Query_Type) -> s64 {
         logical := max(P.sysconf(._SC_NPROCESSORS_ONLN), 0);
         if query == .ALL_LOGICAL || query == .PERFORMANCE_LOGICAL return logical;
+
         // Without a readable CPU topology (no /sys in a container or sandbox), count each
         // logical processor as a core rather than report none.
         directory := P.opendir(temp_c_string("/sys/devices/system/cpu"));
@@ -229,6 +255,7 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
         defer P.closedir(directory);
         cores: [..] string;
         cores.allocator = temp;
+
         while true {
             entry := P.readdir(directory);
             if !entry break;
@@ -239,17 +266,22 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
             if !valid continue;
             base := String.join("/sys/devices/system/cpu/", name);
             online := topology_text(String.join(base, "/online"));
+
             if online == "0" continue;
             siblings := topology_text(String.join(base, "/topology/thread_siblings_list"));
             if !siblings continue;
             duplicate := false;
+
             for core: cores if core == siblings {
                 duplicate = true;
                 break;
             }
+
             if !duplicate array_add(*cores, siblings);
         }
+
         if cores.count == 0 return logical;
+
         // The topology can list more cores than are usable (a sandbox that reports one
         // processor reads the host's /sys); a core has at least one logical processor.
         if logical > 0 && cores.count > logical return logical;
@@ -262,6 +294,7 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
         defer P.close(descriptor);
         bytes: [1024] u8;
         count := P.read(descriptor, bytes.data, bytes.count);
+
         if count <= 0 || count == bytes.count return "";
         return copy_temporary_string(String.trim(string.{ count, bytes.data }));
     }

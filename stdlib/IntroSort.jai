@@ -5,10 +5,12 @@ intro_sort :: (array: [] $T, f: (T, T) -> int) {
     if array.count < 2 return;
     depth := 0;
     n := array.count;
+
     while n > 1 {
         depth += 2;
         n >>= 1;
     }
+
     introsort_range(array, 0, array.count, depth, f);
     insertion_sort_range(array, 0, array.count, f);
 }
@@ -26,13 +28,16 @@ introsort_range :: (array: [] $T, begin: int, end: int, depth: int, f: (T, T) ->
     lo := begin;
     hi := end;
     budget := depth;
+
     while hi - lo > SMALL_RANGE {
         if budget == 0 {
             heap_sort_range(array, lo, hi, f);
             return;
         }
+
         budget -= 1;
         p := partition(array, lo, hi, f);
+
         // Recurse into the smaller side, loop on the larger one.
         if p - lo < hi - p {
             introsort_range(array, lo, p, budget, f);
@@ -48,12 +53,14 @@ introsort_range :: (array: [] $T, begin: int, end: int, depth: int, f: (T, T) ->
 partition :: (array: [] $T, lo: int, hi: int, f: (T, T) -> int) -> int {
     mid := lo + (hi - lo) / 2;
     last := hi - 1;
+
     if f(array[mid], array[lo]) < 0 swap_items(array, mid, lo);
     if f(array[last], array[lo]) < 0 swap_items(array, last, lo);
     if f(array[last], array[mid]) < 0 swap_items(array, last, mid);
     pivot := array[mid];
     i := lo - 1;
     j := hi;
+
     while true {
         i += 1;
         while f(array[i], pivot) < 0 i += 1;
@@ -62,16 +69,19 @@ partition :: (array: [] $T, lo: int, hi: int, f: (T, T) -> int) -> int {
         if i >= j return j + 1;
         swap_items(array, i, j);
     }
+
     return lo;
 }
 
 heap_sort_range :: (array: [] $T, begin: int, end: int, f: (T, T) -> int) {
     count := end - begin;
     root := count / 2;
+
     while root > 0 {
         root -= 1;
         sift_down(array, begin, root, count, f);
     }
+
     last := count;
     while last > 1 {
         last -= 1;
@@ -95,10 +105,12 @@ insertion_sort_range :: (array: [] $T, begin: int, end: int, f: (T, T) -> int) {
     for i: begin + 1..end - 1 {
         value := array[i];
         j := i;
+
         while j > begin && f(value, array[j - 1]) < 0 {
             array[j] = array[j - 1];
             j -= 1;
         }
+
         array[j] = value;
     }
 }

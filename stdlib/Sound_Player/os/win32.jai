@@ -6,13 +6,16 @@
 
 output_open :: (config: Sound_Player_Config) -> channels: s32, rate: s32, ok: bool {
     if device return 0, 0, false;
+
     if DirectSoundCreate8(null, *device, null) < 0 {
         device = null;
         log_error("Sound_Player: DirectSound is not available.\n");
         return 0, 0, false;
     }
+
     window := GetActiveWindow();
     if !window window = GetDesktopWindow();
+
     if device.vtable.SetCooperativeLevel(device, window, DSSCL_NORMAL) < 0 {
         output_close();
         return 0, 0, false;
@@ -32,6 +35,7 @@ output_open :: (config: Sound_Player_Config) -> channels: s32, rate: s32, ok: bo
     description.buffer_bytes = RING_BYTES;
     description.format = *format;
     if config.audible_when_window_is_not_in_focus description.flags |= DSBCAPS_GLOBALFOCUS;
+
     if device.vtable.CreateSoundBuffer(device, *description, *ring, null) < 0 {
         log_error("Sound_Player: DirectSound refused the output buffer.\n");
         output_close();
@@ -41,11 +45,13 @@ output_open :: (config: Sound_Player_Config) -> channels: s32, rate: s32, ok: bo
     // Start from silence; the buffer's initial contents are undefined.
     first, second: *void;
     first_bytes, second_bytes: u32;
+
     if ring.vtable.Lock(ring, 0, RING_BYTES, *first, *first_bytes, *second, *second_bytes, 0) >= 0 {
         memset(first, 0, first_bytes);
         if second memset(second, 0, second_bytes);
         ring.vtable.Unlock(ring, first, first_bytes, second, second_bytes);
     }
+
     written_up_to = 0;
     return DS_CHANNELS, DS_RATE, true;
 }
@@ -63,6 +69,7 @@ output_close :: () {
         release_com(ring);
         ring = null;
     }
+
     if device {
         release_com(device);
         device = null;
@@ -75,11 +82,13 @@ output_frames_queued :: () -> queued: s64, at_least: s64 {
     if ring.vtable.GetCurrentPosition(ring, *play, *safe) < 0 return S64_MAX, 0;
     ours := ring_distance(written_up_to, play);
     unsafe := ring_distance(safe, play);
+
     // If playback overtook us, continue from the first position that is safe to write.
     if ours < unsafe {
         written_up_to = safe;
         ours = unsafe;
     }
+
     return ours / DS_FRAME_BYTES, unsafe / DS_FRAME_BYTES + 1;
 }
 
@@ -88,13 +97,16 @@ output_write :: (frames: s64) {
     queued, _ := output_frames_queued();
     room := (RING_BYTES / DS_FRAME_BYTES) - queued - 1;
     count := min(frames, room);
+
     if count <= 0 return;
 
     first, second: *void;
     first_bytes, second_bytes: u32;
+
     if ring.vtable.Lock(ring, cast(u32) written_up_to, cast(u32) (count * DS_FRAME_BYTES), *first, *first_bytes, *second, *second_bytes, 0) < 0 return;
     mix_into(as_samples(first, first_bytes));
     if second mix_into(as_samples(second, second_bytes));
+
     if ring.vtable.Unlock(ring, first, first_bytes, second, second_bytes) >= 0 {
         written_up_to = (written_up_to + first_bytes + second_bytes) % RING_BYTES;
     }
@@ -153,12 +165,15 @@ on_device_found :: (guid: *GUID, description: *u8, module_name: *u8, user: *void
         device: Output_Device;
         device.device_index = gathered.devices.count;
         if description device.name = copy_string(to_string(description));
+
         if module_name {
             device.hints = NewArray(1, string);
             device.hints[0] = copy_string(to_string(module_name));
         }
+
         array_add(*gathered.devices, device);
     }
+
     return 1; // Keep enumerating.
 }
 

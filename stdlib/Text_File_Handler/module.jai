@@ -29,11 +29,13 @@ consume_next_line :: (sp: *string) -> string, bool {
     while n < sp.count && sp.data[n] != 10 && sp.data[n] != 13 n += 1;
     line := String.slice(sp.*, 0, n);
     consumed := n;
+
     if consumed < sp.count {
         first := sp.data[consumed];
         consumed += 1;
         if first == 13 && consumed < sp.count && sp.data[consumed] == 10 consumed += 1;
     }
+
     sp.data += consumed;
     sp.count -= consumed;
     return line, true;
@@ -42,10 +44,12 @@ consume_next_line :: (sp: *string) -> string, bool {
 consume_next_line :: (handler: *Text_File_Handler) -> line: string, found: bool {
     while handler.file_data.count > 0 {
         raw := consume_next_line(*handler.file_data);
+
         handler.line_number += 1;
         cleaned, keep := clean_line(handler, raw);
         if keep return cleaned, true;
     }
+
     return "", false;
 }
 
@@ -64,6 +68,7 @@ start_from_memory :: (handler: *Text_File_Handler, _short_name: string, _full_pa
     handler.short_name, handler.full_path = _short_name, _full_path;
     handler.line_number = 0;
     handler.version = -1;
+
     // `failed` is never cleared here: it is sticky across starts, so one check covers a batch.
     if handler.do_version_number && !read_version_line(handler) handler.failed = true;
 }
@@ -80,6 +85,7 @@ start_file :: (handler: *Text_File_Handler, short_name: string, full_path: strin
         handler.file_data = "";
         return;
     }
+
     start_from_memory(handler, short_name, full_path, data, loc);
     handler.file_data_to_free = data;
 }
@@ -105,14 +111,18 @@ error :: (handler: Text_File_Handler, format: string, args: ..Any, flags := Log_
 file_to_table :: (filename: string, do_trim := true, skip_blank_lines := true, do_version_number := false, use_data_from_memory := false, data_from_memory := "", loc := #caller_location) -> success: bool, table: Hash_Table.Table(string, void) {
     success, lines := file_to_array(filename, do_trim, skip_blank_lines, do_version_number, use_data_from_memory, data_from_memory, loc);
     table: Hash_Table.Table(string, void);
+
     for line: lines {
         if Hash_Table.table_contains(*table, line) {
             Basic.free(line);
             continue;
         }
+
         empty: void;
+
         Hash_Table.table_set(*table, line, empty);
     }
+
     Basic.array_free(lines);
     return success, table;
 }
@@ -124,6 +134,7 @@ file_to_array :: (filename: string, do_trim := true, skip_blank_lines := true, d
     if use_data_from_memory start_from_memory(*handler, filename, filename, data_from_memory, loc);
     else start_file(*handler, filename, filename, loc = loc);
     array: [..] string;
+
     while true {
         line, found := consume_next_line(*handler.file_data);
         if !found break;
@@ -134,6 +145,7 @@ file_to_array :: (filename: string, do_trim := true, skip_blank_lines := true, d
         if skip_blank_lines && String.trim(line).count == 0 continue;
         Basic.array_add(*array, Basic.copy_string(line));
     }
+
     deinit(*handler);
     return !handler.failed, array;
 }
@@ -154,12 +166,14 @@ read_version_line :: (handler: *Text_File_Handler) -> bool {
 clean_line :: (handler: *Text_File_Handler, raw: string) -> text: string, keep: bool {
     text := String.trim(raw);
     marker := handler.comment_character;
+
     if handler.strip_comments_from_ends_of_lines {
         cut := String.find_index_from_left(text, marker);
         if cut >= 0 text = String.trim_right(String.slice(text, 0, cut));
     } else if text.count > 0 && text[0] == marker {
         return "", false;
     }
+
     if text.count == 0 && handler.auto_skip_blank_lines return "", false;
     return text, true;
 }

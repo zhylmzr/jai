@@ -5,15 +5,19 @@ gl_parse_version :: (version: string) -> major: s32, minor: s32 {
     while at < version.count && (version[at] < 48 || version[at] > 57) at += 1;
     major: s32 = 0;
     minor: s32 = 0;
+
     while at < version.count && version[at] >= 48 && version[at] <= 57 {
         major = major * 10 + cast(s32) (version[at] - 48);
         at += 1;
     }
+
     if at < version.count && (version[at] == 46 || version[at] == 95) at += 1;
+
     while at < version.count && version[at] >= 48 && version[at] <= 57 {
         minor = minor * 10 + cast(s32) (version[at] - 48);
         at += 1;
     }
+
     return major, minor;
 }
 
@@ -47,20 +51,26 @@ _gl_string :: (data: *u8) -> string {
 _gl_has_extension :: (procs: *GL_Procedures, wanted: string) -> bool {
     if wanted.count == 0 return false;
     for wanted if it == 32 return false;
+
     if procs.gl_version_major >= 3 && procs.glGetStringi != null {
         count: GLint = 0;
+
         procs.glGetIntegerv(GL_NUM_EXTENSIONS, *count);
         if count <= 0 return false;
+
         for index: 0..count - 1 {
             name := procs.glGetStringi(GL_EXTENSIONS, cast(GLuint) index);
             if name && _gl_string(name) == wanted return true;
         }
+
         return false;
     }
+
     names := procs.glGetString(GL_EXTENSIONS);
     if !names return false;
     text := _gl_string(names);
     begin: s64 = 0;
+
     while begin < text.count {
         while begin < text.count && text[begin] == 32 begin += 1;
         end := begin;
@@ -71,6 +81,7 @@ _gl_has_extension :: (procs: *GL_Procedures, wanted: string) -> bool {
         if portion == wanted return true;
         begin = end;
     }
+
     return false;
 }
 

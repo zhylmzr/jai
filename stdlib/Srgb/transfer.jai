@@ -6,6 +6,7 @@ srgb_to_linear :: (x: float) -> float #must {
         shifted := (x + 0.055) / 1.055;
         return pow(shifted, 2.4);
     }
+
     return x / 12.92;
 }
 
@@ -14,6 +15,7 @@ linear_to_srgb :: (x: float) -> float #must {
         curved := pow(x, 1.0 / 2.4);
         return curved * 1.055 - 0.055;
     }
+
     return 12.92 * x;
 }
 

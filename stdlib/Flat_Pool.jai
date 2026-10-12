@@ -21,10 +21,12 @@ init :: (pool: *Flat_Pool, reserve := DEFAULT_VIRTUAL_MEMORY_RESERVE) {
     alignment := checked_alignment(pool);
     if alignment < 8 alignment = 8;
     slack := alignment - 1;
+
     assert(reserve <= MAX_RESERVE_SIZE - slack - RESERVE_GRANULARITY + 1);
     reserve = (reserve + RESERVE_GRANULARITY - 1) & ~(RESERVE_GRANULARITY - 1);
     allocator := backing_allocator(pool);
     raw := alloc(PRIVATE_HEADER_SIZE + slack + reserve, allocator);
+
     assert(raw != null);
     after_header := cast(*u8) raw + PRIVATE_HEADER_SIZE;
     memory := after_header + alignment_padding(after_header, alignment);
@@ -34,6 +36,7 @@ init :: (pool: *Flat_Pool, reserve := DEFAULT_VIRTUAL_MEMORY_RESERVE) {
     pool.memory_base = memory;
     pool.current_point = memory;
     pool.address_limit = memory + reserve;
+
     // All bytes are backed eagerly; there are no inaccessible virtual pages.
     pool.first_uncommitted_page = pool.address_limit;
 }
@@ -41,11 +44,14 @@ init :: (pool: *Flat_Pool, reserve := DEFAULT_VIRTUAL_MEMORY_RESERVE) {
 get :: (pool: *Flat_Pool, nbytes: s64) -> *void {
     assert(pool != null && nbytes >= 0);
     alignment := checked_alignment(pool);
+
     if !pool.memory_base init(pool);
     padding := alignment_padding(pool.current_point, alignment);
     available := pool.address_limit - pool.current_point;
+
     assert(padding <= available && nbytes <= available - padding);
     result := pool.current_point + padding;
+
     pool.current_point = result + nbytes;
     return result;
 }
@@ -53,21 +59,26 @@ get :: (pool: *Flat_Pool, nbytes: s64) -> *void {
 reset :: (pool: *Flat_Pool, overwrite_memory := false) {
     assert(pool != null);
     if !pool.memory_base return;
+
     if overwrite_memory || OVERWRITE_ALL_POOLS_ON_RESET {
         used := pool.current_point - pool.memory_base;
         memset(pool.memory_base, 0xcc, used);
     }
+
     pool.current_point = pool.memory_base;
 }
 
 fini :: (pool: *Flat_Pool) {
     assert(pool != null);
+
     if pool.memory_base {
         header := storage_header(pool.memory_base);
         raw := header.raw;
         allocator := header.allocator;
+
         free(raw, allocator);
     }
+
     pool.memory_base = null;
     pool.current_point = null;
     pool.first_uncommitted_page = null;
@@ -80,26 +91,34 @@ flat_pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
             name := cast(*string) old_memory;
             name.* = CAPS_VERSION_STRING;
         }
+
         return cast(*void) cast(u64) (Allocator_Caps.HINT_I_AM_A_FAST_BUMP_ALLOCATOR | .IS_THIS_YOURS);
     }
+
     if mode == .FREE || mode == .STARTUP || mode == .SHUTDOWN return null;
     pool := cast(*Flat_Pool) allocator_data;
+
     assert(pool != null);
     if mode == .ALLOCATE return get(pool, requested_size);
+
     if mode == .RESIZE {
         assert(requested_size >= 0 && old_size >= 0);
         replacement := get(pool, requested_size);
         count := old_size;
+
         if count > requested_size count = requested_size;
         if replacement && old_memory && count > 0 memcpy(replacement, old_memory, count);
         return replacement;
     }
+
     if mode == .IS_THIS_YOURS {
         if !old_memory || !pool.memory_base return null;
         address := cast(*u8) old_memory;
         ours := address >= pool.memory_base && address < pool.first_uncommitted_page;
+
         return cast(*void) cast(u64) ours;
     }
+
     assert(false, "Flat_Pool does not support this allocator mode");
     return null;
 }

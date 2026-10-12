@@ -79,11 +79,13 @@ thread_init :: (thread: *Thread, proc: Native_Thread_Proc,
     if starting_storage != null thread.starting_temporary_storage = starting_storage.*;
     else if !init_temporary_storage(*thread.starting_temporary_storage, temporary_storage_size,
         allocator = thread.allocator_used_for_temporary_storage) return false;
+
     if !init(*thread.is_alive_semaphore) {
         if thread.owns_temporary_storage deinit_temporary_storage(*thread.starting_temporary_storage,
             thread.allocator_used_for_temporary_storage, true);
         return false;
     }
+
     thread.started = false;
     thread.done = true;
     thread.is_done = true;
@@ -96,6 +98,7 @@ thread_start :: (thread: *Thread) -> bool {
     thread.started = true;
     thread.done = false;
     thread.is_done = false;
+
     #if POSIX_THREADS {
         result := pthread_create(*thread.thread_handle, null, native_thread_entry, thread);
         if result == 0 return true;
@@ -103,6 +106,7 @@ thread_start :: (thread: *Thread) -> bool {
         thread.thread_handle = CreateThread(null, 0, cast(*void) native_windows_thread_entry, thread, .{}, null);
         if thread.thread_handle != null return true;
     }
+
     thread.started = false;
     thread.done = true;
     thread.is_done = true;
@@ -113,6 +117,7 @@ thread_is_done :: (thread: *Thread, milliseconds: s32 = 0) -> bool {
     if thread == null || !thread.initialized return true;
     if atomic_read(*thread.done) return true;
     if milliseconds == 0 return false;
+
     // The liveness semaphore is signaled once the thread finishes. Hand the count straight back
     // after taking it so later waiters (and thread_deinit) still find it signaled.
     if wait_for(*thread.is_alive_semaphore, milliseconds) != .SUCCESS return false;
@@ -122,6 +127,7 @@ thread_is_done :: (thread: *Thread, milliseconds: s32 = 0) -> bool {
 
 thread_deinit :: (thread: *Thread) {
     if thread == null || !thread.initialized return;
+
     if thread.started {
         #if POSIX_THREADS assert(pthread_join(thread.thread_handle, null) == 0);
         else {
@@ -129,6 +135,7 @@ thread_deinit :: (thread: *Thread) {
             CloseHandle(thread.thread_handle);
         }
     }
+
     destroy(*thread.is_alive_semaphore);
     if thread.owns_temporary_storage deinit_temporary_storage(*thread.starting_temporary_storage,
         thread.allocator_used_for_temporary_storage, true);
@@ -209,10 +216,12 @@ cvariable_wake_all :: (condition_variable: *Per_OS_Condition_Variable_Type) {
 init :: (s: *Semaphore, initial_value: s32 = 0) -> bool {
     if s == null || s.initialized || initial_value < 0 return false;
     if !initialize_mutex(*s.mutex) return false;
+
     if !initialize_condition(*s.condition) {
         destroy_mutex(*s.mutex);
         return false;
     }
+
     s.count = initial_value;
     s.initialized = true;
     return true;
@@ -237,9 +246,11 @@ wait_for :: (s: *Semaphore, milliseconds: s32 = -1) -> Wait_For_Result {
     if s == null || !s.initialized return .ERROR;
     csection_lock(*s.mutex);
     defer csection_unlock(*s.mutex);
+
     #if POSIX_THREADS {
         deadline: timespec;
         if milliseconds > 0 deadline = deadline_after(milliseconds);
+
         while s.count == 0 {
             if milliseconds == 0 return .TIMEOUT;
             result: s32;
@@ -250,17 +261,21 @@ wait_for :: (s: *Semaphore, milliseconds: s32 = -1) -> Wait_For_Result {
         }
     } else {
         started := native_tick_count();
+
         while s.count == 0 {
             remaining: u32 = 0xffffffff;
+
             if milliseconds >= 0 {
                 elapsed := native_tick_count() - started;
                 if elapsed >= cast(u64) milliseconds return .TIMEOUT;
                 remaining = cast(u32) (cast(u64) milliseconds - elapsed);
             }
+
             // The wait can time out a little early; the loop checks the clock again.
             if SleepConditionVariableCS(*s.condition, *s.mutex, remaining) == 0 && GetLastError() != 1460 return .ERROR;
         }
     }
+
     s.count -= 1;
     return .SUCCESS;
 }
@@ -308,6 +323,7 @@ wait_condition :: (condition: *Per_OS_Condition_Variable_Type, mutex: *Per_OS_Cr
             deadline := deadline_after(milliseconds);
             result = pthread_cond_timedwait(condition, mutex, *deadline);
         }
+
         if result == 0 return .SUCCESS;
         if result == ETIMEDOUT return .TIMEOUT;
         return .ERROR;
@@ -322,6 +338,7 @@ wait_condition :: (condition: *Per_OS_Condition_Variable_Type, mutex: *Per_OS_Cr
 #if POSIX_THREADS {
     deadline_after :: (milliseconds: s32) -> timespec {
         now: timeval;
+
         assert(gettimeofday(*now, null) == 0);
         result: timespec;
         result.tv_sec = now.tv_sec + milliseconds / 1000;
@@ -330,6 +347,7 @@ wait_condition :: (condition: *Per_OS_Condition_Variable_Type, mutex: *Per_OS_Cr
             result.tv_nsec -= 1000000000;
             result.tv_sec += 1;
         }
+
         return result;
     }
 
@@ -344,6 +362,7 @@ wait_condition :: (condition: *Per_OS_Condition_Variable_Type, mutex: *Per_OS_Cr
             atomic_write(*thread.done, true);
             signal(*thread.is_alive_semaphore);
         }
+
         return null;
     }
 } else {
@@ -364,6 +383,7 @@ wait_condition :: (condition: *Per_OS_Condition_Variable_Type, mutex: *Per_OS_Cr
             atomic_write(*thread.done, true);
             signal(*thread.is_alive_semaphore);
         }
+
         return 0;
     }
 }

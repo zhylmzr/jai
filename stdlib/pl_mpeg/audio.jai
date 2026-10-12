@@ -117,11 +117,13 @@ audio_create_with_buffer :: (buffer: *Buffer, destroy_when_done: bool) -> *Audio
         entry.own_native = true;
         result.destroy_buffer_when_done = destroy_when_done;
     }
+
     return result;
 }
 
 audio_destroy :: (audio: *Audio) {
     entry := audio_state(audio);
+
     assert(entry.own_native, "A borrowed decoder is owned by its parent");
     raw_plm_audio_destroy(entry.native);
     if audio.destroy_buffer_when_done buffer_destroy(audio.buffer);
@@ -130,22 +132,27 @@ audio_destroy :: (audio: *Audio) {
 
 audio_has_header :: (audio: *Audio) -> bool {
     entry := audio_state(audio);
+
     push_audio(entry);
     result := raw_plm_audio_has_header(entry.native);
+
     pull_audio(entry);
     return result != 0;
 }
 
 audio_get_samplerate :: (audio: *Audio) -> u16 {
     entry := audio_state(audio);
+
     push_audio(entry);
     result := raw_plm_audio_get_samplerate(entry.native);
+
     pull_audio(entry);
     return cast(u16) result;
 }
 
 audio_set_time :: (audio: *Audio, time: float64) {
     entry := audio_state(audio);
+
     push_audio(entry);
     raw_plm_audio_set_time(entry.native, time);
     pull_audio(entry);
@@ -153,6 +160,7 @@ audio_set_time :: (audio: *Audio, time: float64) {
 
 audio_rewind :: (audio: *Audio) {
     entry := audio_state(audio);
+
     push_audio(entry);
     raw_plm_audio_rewind(entry.native);
     pull_audio(entry);
@@ -160,38 +168,47 @@ audio_rewind :: (audio: *Audio) {
 
 audio_has_ended :: (audio: *Audio) -> bool {
     entry := audio_state(audio);
+
     push_audio(entry);
     result := raw_plm_audio_has_ended(entry.native);
+
     pull_audio(entry);
     return result != 0;
 }
 
 audio_decode :: (audio: *Audio) -> *Samples {
     entry := audio_state(audio);
+
     push_audio(entry);
     result := raw_plm_audio_decode(entry.native);
+
     pull_audio(entry);
     return result;
 }
 
 audio_find_frame_sync :: (audio: *Audio) -> bool {
     entry := audio_state(audio);
+
     push_audio(entry);
     result := raw_plm_audio_find_frame_sync(entry.native);
+
     pull_audio(entry);
     return result != 0;
 }
 
 audio_decode_header :: (audio: *Audio) -> s32 {
     entry := audio_state(audio);
+
     push_audio(entry);
     result := raw_plm_audio_decode_header(entry.native);
+
     pull_audio(entry);
     return result;
 }
 
 audio_decode_frame :: (audio: *Audio) {
     entry := audio_state(audio);
+
     push_audio(entry);
     raw_plm_audio_decode_frame(entry.native);
     pull_audio(entry);
@@ -199,14 +216,17 @@ audio_decode_frame :: (audio: *Audio) {
 
 audio_read_allocation :: (audio: *Audio, sb: s32, tab3: u8) -> *Quantizer_Spec {
     entry := audio_state(audio);
+
     push_audio(entry);
     result := raw_plm_audio_read_allocation(entry.native, sb, tab3);
+
     pull_audio(entry);
     return result;
 }
 
 audio_read_samples :: (audio: *Audio, ch: s32, sb: s32, part: s32) {
     entry := audio_state(audio);
+
     push_audio(entry);
     raw_plm_audio_read_samples(entry.native, ch, sb, part);
     pull_audio(entry);

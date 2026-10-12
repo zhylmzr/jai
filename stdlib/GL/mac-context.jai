@@ -9,12 +9,15 @@
             NativeGLObjC.release(glc);
             return null;
         }
+
         NativeGLAppKit.NSOpenGLContext.setView(glc, view);
         view_class := NativeGLObjC.object_getClass(cast(NativeGLObjC.id) view);
         setter := NativeGLObjC.sel_registerName(cast(*u8) "setOpenGLContext:\0");
+
         if NativeGLObjC.class_respondsToSelector(view_class, setter) != 0 {
             NativeGLViews.LightweightOpenGLView.setGlContext(cast(*NativeGLViews.LightweightOpenGLView) view, glc);
         }
+
         NativeGLAppKit.NSOpenGLContext.update(glc);
         return glc;
     }
@@ -22,6 +25,7 @@
     nsgl_create_context :: (major_version: s32 = 0, minor_version: s32 = 0, compatibility := false, debug := false, wanted_msaa: s32 = DEFAULT_MSAA) -> *NSOpenGLContext, chosen_msaa: s32 {
         if major_version < 0 || minor_version < 0 || wanted_msaa < 0 return null, 0;
         profile := NativeGLAppKit.NSOpenGLProfileVersion4_1Core;
+
         if compatibility {
             if major_version >= 3 return null, 0;
             profile = NativeGLAppKit.NSOpenGLProfileVersionLegacy;
@@ -36,17 +40,21 @@
                 profile = NativeGLAppKit.NSOpenGLProfileVersion4_1Core;
             } else return null, 0;
         }
+
         // Prefer a hardware renderer; a machine without one (a virtual machine) gets Apple's
         // software renderer, which supports the same profiles.
         samples := wanted_msaa;
         accelerated := true;
+
         while true {
             attributes: [19] NativeGLAppKit.NSOpenGLPixelFormatAttribute;
             count := 0;
+
             add :: (value: u32) #expand {
                 `attributes[`count] = value;
                 `count += 1;
             }
+
             if accelerated add(NativeGLAppKit.NSOpenGLPFAAccelerated);
             add(NativeGLAppKit.NSOpenGLPFADoubleBuffer);
             add(NativeGLAppKit.NSOpenGLPFAOpenGLProfile);
@@ -59,6 +67,7 @@
             add(24);
             add(NativeGLAppKit.NSOpenGLPFAStencilSize);
             add(8);
+
             if samples > 1 {
                 add(NativeGLAppKit.NSOpenGLPFAMultisample);
                 add(NativeGLAppKit.NSOpenGLPFASampleBuffers);
@@ -66,13 +75,16 @@
                 add(NativeGLAppKit.NSOpenGLPFASamples);
                 add(cast(u32) samples);
             }
+
             add(0);
             pixel_class := NativeGLObjC.objc_getClass(cast(*u8) "NSOpenGLPixelFormat\0");
             format := NativeGLAppKit.NSOpenGLPixelFormat.initWithAttributes(NativeGLObjC.objc_alloc(pixel_class), *attributes[0]);
+
             if format != null {
                 context_class := NativeGLObjC.objc_getClass(cast(*u8) "NSOpenGLContext\0");
                 glc := NativeGLAppKit.NSOpenGLContext.initWithFormat(NativeGLObjC.objc_alloc(context_class), format, null);
                 actual: s32 = 0;
+
                 NativeGLAppKit.NSOpenGLPixelFormat.getValues(format, *actual, NativeGLAppKit.NSOpenGLPFASamples, 0);
                 NativeGLObjC.release(format);
                 if glc == null return null, 0;
@@ -81,15 +93,18 @@
                 if debug gl_enable_debug_output();
                 return glc, actual;
             }
+
             if samples > 1 {
                 samples /= 2;
                 if samples <= 1 samples = 0;
                 continue;
             }
+
             if !accelerated return null, 0;
             accelerated = false;
             samples = wanted_msaa;
         }
+
         return null, 0;
     }
 

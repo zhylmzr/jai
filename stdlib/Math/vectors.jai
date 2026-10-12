@@ -381,6 +381,7 @@ normalize :: (v: *$T/MyVectors, epsilon := 0.0, fallback := T.{}) -> float {
         v.* = fallback;
         return original_length;
     }
+
     for i: 0..v.component.count - 1 v.component[i] /= original_length;
     return original_length;
 }
@@ -473,13 +474,16 @@ slerp :: (start: Quaternion, end: Quaternion, t: float) -> Quaternion {
     b := end;
     target := b;
     cosine := dot(a, b);
+
     if cosine < 0 {
         target = -target;
         cosine = -cosine;
     }
+
     if cosine >= 0.9995 return nlerp(a, target, t);
     angle := acos(Basic.clamp(cosine, -1.0, 1.0));
     inverse_sine := 1 / sin(angle);
+
     return a * (sin((1 - t) * angle) * inverse_sine) + target * (sin(t * angle) * inverse_sine);
 }
 
@@ -497,6 +501,7 @@ get_axis_and_angle :: (using q: Quaternion) -> x: float64, y: float64, z: float6
     normalized := normalize(q);
     cosine := Basic.clamp(cast(float64) normalized.w, -1.0, 1.0);
     sine := sqrt(1 - cosine * cosine);
+
     if sine < 1e-12 return 1, 0, 0, 0;
     return normalized.x / sine, normalized.y / sine, normalized.z / sine, 2 * acos(cosine);
 }
@@ -519,11 +524,13 @@ make_an_orthonormal_basis :: (x_axis: Vector3) -> (y_axis: Vector3, z_axis: Vect
 make_an_orthonormal_basis :: (x_axis: Vector3, approximate_axis: Vector3) -> (y_axis: Vector3, z_axis: Vector3) {
     x := normalize(x_axis, fallback = .{ x = 1 });
     y := cross(approximate_axis, x);
+
     if length_squared(y) == 0 {
         auxiliary := xyz(0, 1, 0);
         if abs(x.y) > 0.75 auxiliary = xyz(0, 0, 1);
         y = cross(auxiliary, x);
     }
+
     y = normalize(y);
     return y, normalize(cross(x, y));
 }

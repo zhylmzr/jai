@@ -63,20 +63,24 @@ xxh64_mergeRound :: (acc: u64, val: u64) -> u64 #no_aoc {
 read_u32_le :: (ptr: *u8) -> u32 {
     value: u32 = 0;
     index: u32 = 0;
+
     while index < 4 {
         value |= (cast(u32) ptr[index]) << (index * 8);
         index += 1;
     }
+
     return value;
 }
 
 read_u64_le :: (ptr: *u8) -> u64 {
     value: u64 = 0;
     index: u32 = 0;
+
     while index < 8 {
         value |= (cast(u64) ptr[index]) << (index * 8);
         index += 1;
     }
+
     return value;
 }
 
@@ -92,6 +96,7 @@ XXH32_update :: (state: *XXH32_state_t, input: *void, len: u32) #no_aoc {
     bytes := cast(*u8) input;
     pending := cast(*u8) state.mem32.data;
     index: u32 = 0;
+
     while index < len {
         pending[state.memsize] = bytes[index];
         state.memsize += 1;
@@ -104,6 +109,7 @@ XXH32_update :: (state: *XXH32_state_t, input: *void, len: u32) #no_aoc {
             state.memsize = 0;
             state.large_len = 1;
         }
+
         index += 1;
     }
 }
@@ -114,14 +120,17 @@ XXH32_digest :: (state: *XXH32_state_t) -> u32 #no_aoc {
     hash += state.total_len_32;
     bytes := cast(*u8) state.mem32.data;
     offset: u32 = 0;
+
     while offset + 4 <= state.memsize {
         hash = xxh32_rotl(hash + read_u32_le(bytes + offset) * XXH_PRIME32_3, 17) * XXH_PRIME32_4;
         offset += 4;
     }
+
     while offset < state.memsize {
         hash = xxh32_rotl(hash + cast(u32) bytes[offset] * XXH_PRIME32_5, 11) * XXH_PRIME32_1;
         offset += 1;
     }
+
     hash ^= hash >> 15;
     hash *= XXH_PRIME32_2;
     hash ^= hash >> 13;
@@ -141,6 +150,7 @@ XXH64_update :: (state: *XXH64_state_t, input: *void, len: u32) #no_aoc {
     bytes := cast(*u8) input;
     pending := cast(*u8) state.mem64.data;
     index: u32 = 0;
+
     while index < len {
         pending[state.memsize] = bytes[index];
         state.memsize += 1;
@@ -152,12 +162,14 @@ XXH64_update :: (state: *XXH64_state_t, input: *void, len: u32) #no_aoc {
             state.v4 = xxh64_round(state.v4, read_u64_le(pending + 24));
             state.memsize = 0;
         }
+
         index += 1;
     }
 }
 
 XXH64_digest :: (state: *XXH64_state_t) -> u64 #no_aoc {
     hash := state.v3 + XXH_PRIME64_5;
+
     if state.total_len >= 32 {
         hash = xxh64_rotl(state.v1, 1) + xxh64_rotl(state.v2, 7) + xxh64_rotl(state.v3, 12) + xxh64_rotl(state.v4, 18);
         hash = xxh64_mergeRound(hash, state.v1);
@@ -165,21 +177,26 @@ XXH64_digest :: (state: *XXH64_state_t) -> u64 #no_aoc {
         hash = xxh64_mergeRound(hash, state.v3);
         hash = xxh64_mergeRound(hash, state.v4);
     }
+
     hash += state.total_len;
     bytes := cast(*u8) state.mem64.data;
     offset: u32 = 0;
+
     while offset + 8 <= state.memsize {
         hash = xxh64_rotl(hash ^ xxh64_round(0, read_u64_le(bytes + offset)), 27) * XXH_PRIME64_1 + XXH_PRIME64_4;
         offset += 8;
     }
+
     if offset + 4 <= state.memsize {
         hash = xxh64_rotl(hash ^ (cast(u64) read_u32_le(bytes + offset) * XXH_PRIME64_1), 23) * XXH_PRIME64_2 + XXH_PRIME64_3;
         offset += 4;
     }
+
     while offset < state.memsize {
         hash = xxh64_rotl(hash ^ (cast(u64) bytes[offset] * XXH_PRIME64_5), 11) * XXH_PRIME64_1;
         offset += 1;
     }
+
     hash ^= hash >> 33;
     hash *= XXH_PRIME64_2;
     hash ^= hash >> 29;
@@ -189,6 +206,7 @@ XXH64_digest :: (state: *XXH64_state_t) -> u64 #no_aoc {
 
 native_XXH32 :: (input: *void, len: u32, seed: u32) -> u32 #must {
     state: XXH32_state_t;
+
     XXH32_reset(*state, seed);
     XXH32_update(*state, cast(*u8) input, len);
     return XXH32_digest(*state);
@@ -196,6 +214,7 @@ native_XXH32 :: (input: *void, len: u32, seed: u32) -> u32 #must {
 
 native_XXH64 :: (input: *void, len: u32, seed: u32) -> u64 #must {
     state: XXH64_state_t;
+
     XXH64_reset(*state, seed);
     XXH64_update(*state, cast(*u8) input, len);
     return XXH64_digest(*state);

@@ -88,11 +88,13 @@ window_present_sink: (window: Window_Type, vsync: bool) -> bool = null;
 prepare_window :: (window: Window_Type, wanted_msaa: int) -> chosen_msaa: s32 {
     CheckInit();
     info := track_window(window);
+
     assert(!info.backend_initted_for_this_window, "prepare_window was called after the window had already been drawn to");
     info.wanted_msaa = cast(s32) max(wanted_msaa, 0);
     backend_init(info);
     info.backend_initted_for_this_window = true;
     granted := info.msaa;
+
     return granted;
 }
 
@@ -100,6 +102,7 @@ backend_init :: (info: *Window_Info) {
     assert(info != null);
     if !info return;
     CheckInit();
+
     #if render_api == .OPENGL {
         gl_backend_init(info);
     } else #if render_api == .SOFTWARE {
@@ -111,10 +114,12 @@ backend_init :: (info: *Window_Info) {
 clear_render_target :: (r: float, g: float, b: float, a: float) {
     CheckInit();
     immediate_flush();
+
     #if render_api == .OPENGL {
         gl_clear_target(r, g, b, a);
     } else #if render_api == .SOFTWARE {
         target := context.simp.specific.software_target;
+
         assert(target != null, "Select a render target before clearing");
         if !target return;
         assert(target.format == .RGBA8 || target.format == .BGRA8, "Software clears require RGBA8/BGRA8 targets");
@@ -123,11 +128,13 @@ clear_render_target :: (r: float, g: float, b: float, a: float) {
         green := cast(u8) clamp(floor(cast(float64) g * 255 + 0.5), 0.0, 255.0);
         blue := cast(u8) clamp(floor(cast(float64) b * 255 + 0.5), 0.0, 255.0);
         alpha := cast(u8) clamp(floor(cast(float64) a * 255 + 0.5), 0.0, 255.0);
+
         for y: 0..target.height - 1 for x : 0..target.width - 1 {
             if context.simp.specific.scissor_enabled {
                 bounds := context.simp.specific.scissor;
                 if x < bounds.x || x >= bounds.z || y < bounds.y || y >= bounds.w continue;
             }
+
             pixel := target.data.data + software_row(y, target.height) * target.stride + x * 4;
             pixel[0] = ifx target.format == .BGRA8 then blue else red;
             pixel[1] = green;
@@ -142,10 +149,12 @@ clear_render_target :: (r: float, g: float, b: float, a: float) {
 swap_buffers :: (window: Window_Type, vsync := true) {
     CheckInit();
     if context.simp.current_shader immediate_flush();
+
     if window_present_sink {
         assert(window_present_sink(window, vsync), "The host could not present the window");
         return;
     }
+
     #if render_api == .OPENGL {
         gl_swap_buffers(window, vsync);
     } else {
@@ -155,6 +164,7 @@ swap_buffers :: (window: Window_Type, vsync := true) {
 
 get_render_dimensions :: (window: Window_Type) -> (width: s32, height: s32) {
     if window_dimension_query return window_dimension_query(window);
+
     #if render_api == .OPENGL || render_api == .METAL {
         #if OS == .WINDOWS {
             rectangle: Win.RECT;
@@ -164,6 +174,7 @@ get_render_dimensions :: (window: Window_Type) -> (width: s32, height: s32) {
             root: X11.Window;
             x, y: s32;
             width, height, border_width, depth: u32;
+
             X11.XGetGeometry(X11.x_global_display, window, *root, *x, *y, *width, *height, *border_width, *depth);
             return cast(s32) width, cast(s32) height;
         } else #if OS == .MACOS {
@@ -171,9 +182,11 @@ get_render_dimensions :: (window: Window_Type) -> (width: s32, height: s32) {
             view := AppKit.NSWindow.contentView(window);
             if !view return 0, 0;
             backing := AppKit.NSView.convertRectToBacking(view, AppKit.NSView.frame(view));
+
             return cast(s32) backing.size.width, cast(s32) backing.size.height;
         }
     }
+
     info := find_window_info(window);
     if info return info.window_width, info.window_height;
     return 0, 0;
@@ -183,9 +196,11 @@ set_window_dimensions :: (window: Window_Type, width: s32, height: s32) {
     info := find_or_add_window_info(window);
     info.window_width = max(width, 0);
     info.window_height = max(height, 0);
+
     if context.simp && context.simp.current_window_info.window == window {
         immediate_flush();
         context.simp.current_window_info = info.*;
+
         // As in update_window: the viewport follows, and a bound shader gets the new projection
         // (none may be bound yet, and a texture target keeps its own).
         backend_resize_render_target(info.*);
@@ -202,9 +217,11 @@ Simp_Coordinate_System :: enum u8 {
 set_render_target :: (window: Window_Type, coords := Simp_Coordinate_System.RIGHT_HANDED) {
     CheckInit();
     end_target_pass(coords);
+
     // A host-supplied size query is cheap, so honour it on every switch; the native one only runs
     // when the window is first seen or when update_window is called.
     info := track_window(window, remeasure = window_dimension_query != null);
+
     backend_set_render_target(info);
     context.simp.current_window_info = info.*;
 }
@@ -214,6 +231,7 @@ set_render_target :: (texture: *Texture, coords := Simp_Coordinate_System.RIGHT_
         log_error("Attempt to set_render_target on a null texture!\n");
         return;
     }
+
     assert((texture.flags & .Render_Target) != 0, "Simp requires a render-target texture");
     if !(texture.flags & .Render_Target) return;
     CheckInit();
@@ -228,8 +246,10 @@ update_window :: (window: Window_Type) {
     CheckInit();
     info := track_window(window, remeasure = true);
     drawing := *context.simp.current_window_info;
+
     if drawing.window != window return;
     size_changed := drawing.window_width != info.window_width || drawing.window_height != info.window_height;
+
     drawing.* = info.*;
     if !size_changed return;
     backend_resize_render_target(info.*);
@@ -258,6 +278,7 @@ set_scissor :: (x0: s32, y0: s32, x1: s32, y1: s32) {
     immediate_flush();
     context.simp.specific.scissor_enabled = true;
     context.simp.specific.scissor = .{ cast(float) x0, cast(float) y0, cast(float) x1, cast(float) y1 };
+
     #if render_api == .OPENGL {
         gl_apply_scissor();
     }
@@ -271,6 +292,7 @@ clear_scissor :: () {
     CheckInit();
     immediate_flush();
     context.simp.specific.scissor_enabled = false;
+
     #if render_api == .OPENGL {
         gl_apply_scissor();
     }

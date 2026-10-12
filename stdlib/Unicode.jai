@@ -7,6 +7,7 @@ Basic :: #import "Basic";
 // decode by hand. Continuation-byte count for each leading byte:
 trailingBytesForUTF8 :: #run -> [256] u8 {
     table: [256] u8;
+
     for 0..255 {
         if it >= 0xFC table[it] = 5;
         else if it >= 0xF8 table[it] = 4;
@@ -14,6 +15,7 @@ trailingBytesForUTF8 :: #run -> [256] u8 {
         else if it >= 0xE0 table[it] = 2;
         else if it >= 0xC0 table[it] = 1;
     }
+
     return table;
 };
 
@@ -27,22 +29,26 @@ firstByteMark: [7] u8 : .[0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC];
 character_utf32_to_utf8 :: (ch: u32) -> string {
     out := Basic.alloc_string(4);
     status := character_utf32_to_utf8(ch, *out);
+
     if status != .CONVERSION_OK {
         Basic.free(out);
         return "";
     }
+
     return out;
 }
 
 utf8_iter :: (s: *string, body: Code, flags: For_Flags) #expand {
     `it: u32;
     `it_index: s64;
+
     if flags & .REVERSE {
         // it_index is not tracked backwards.
         `it_index = -1;
         index := s.count;
         while index > 0 {
             end := index;
+
             index -= 1;
             while index > 0 && (s.data[index] & 0xC0) == 0x80 index -= 1;
             code, consumed, status := character_utf8_to_utf32(s.data + index, end - index);
@@ -52,7 +58,9 @@ utf8_iter :: (s: *string, body: Code, flags: For_Flags) #expand {
         }
     } else {
         cursor := s.*;
+
         `it_index = 0;
+
         while cursor.count > 0 {
             code, consumed, status := character_utf8_to_utf32(cursor.data, cursor.count);
             if status != .CONVERSION_OK break;
@@ -68,10 +76,12 @@ utf8_iter :: (s: *string, body: Code, flags: For_Flags) #expand {
 utf8_next_character :: (s: *string) -> code: u32, success: Unicode_Result {
     text := s;
     code, consumed, status := character_utf8_to_utf32(text.data, text.count);
+
     if status == .CONVERSION_OK {
         text.data += consumed;
         text.count -= consumed;
     }
+
     return code, status;
 }
 

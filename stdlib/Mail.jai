@@ -27,6 +27,7 @@ Mail_Message :: struct {
 mail_send :: (smtp: Mail_Server, msg: Mail_Message) -> bool {
     server := smtp;
     message := msg;
+
     if !valid_header(server.host) || !server.host || !valid_header(message.subject) || message.to.count + message.cc.count + message.bcc.count == 0 return false;
     for c: server.host if c == #char "/" || c == #char ":" || c == #char "@" return false;
     port, port_ok, remainder := string_to_int(server.port);
@@ -37,6 +38,7 @@ mail_send :: (smtp: Mail_Server, msg: Mail_Message) -> bool {
     if !transfer return false;
     defer Curl.curl_easy_cleanup(transfer);
     recipients: *Curl.curl_slist;
+
     defer if recipients Curl.curl_slist_free_all(recipients);
     for address: message.to if !add_recipient(*recipients, address) return false;
     for address: message.cc if !add_recipient(*recipients, address) return false;
@@ -45,6 +47,7 @@ mail_send :: (smtp: Mail_Server, msg: Mail_Message) -> bool {
     if !built return false;
     source: Upload_Context = .{ payload, 0 };
     url := tprint("smtp://%:%", server.host, port);
+
     if Curl.curl_easy_setopt(transfer, .URL, temp_c_string(url)) != .OK return false;
     if Curl.curl_easy_setopt(transfer, .USERNAME, temp_c_string(server.username)) != .OK return false;
     if Curl.curl_easy_setopt(transfer, .PASSWORD, temp_c_string(server.password)) != .OK return false;
@@ -62,11 +65,13 @@ get_c_email :: (address: string) -> *u8, bool {
     if !valid_header(address) return null, false;
     candidate := Strings.trim(address);
     left := Strings.find_index_from_left(candidate, #char "<");
+
     if left >= 0 {
         right := Strings.find_index_from_left(candidate, #char ">");
         if right <= left || right != candidate.count - 1 return null, false;
         candidate = Strings.slice(candidate, left + 1, right - left - 1);
     }
+
     if !candidate || Strings.find_index_from_left(candidate, #char "@") <= 0 return null, false;
     for byte: candidate if byte <= 32 || byte == #char "<" || byte == #char ">" return null, false;
     return temp_c_string(candidate), true;
@@ -83,6 +88,7 @@ payload_source :: (ptr: *u8, size: u64, nmemb: u64, userp: *void) -> u64 #c_call
     source := cast(*Upload_Context) userp;
     capacity := size * nmemb;
     remaining := cast(u64) (source.data.count - source.cursor);
+
     if remaining < capacity capacity = remaining;
     if capacity > 0 memcpy(ptr, source.data.data + source.cursor, xx capacity);
     source.cursor += cast(s64) capacity;
@@ -106,22 +112,26 @@ add_recipient :: (list: **Curl.curl_slist, address: string) -> bool {
 append_addresses :: (builder: *String_Builder, header: string, addresses: [] string) -> bool {
     if addresses.count == 0 return true;
     append(builder, header);
+
     for address, index: addresses {
         email, valid := get_c_email(address);
         if !valid return false;
         if index > 0 append(builder, ", ");
         append(builder, to_string(email));
     }
+
     append(builder, "\r\n");
     return true;
 }
 
 append_base64_lines :: (builder: *String_Builder, bytes: string) {
     encoded := Base64.base64_encode(bytes);
+
     defer free(encoded);
     index: int;
     while index < encoded.count {
         count := min(76, encoded.count - index);
+
         append(builder, Strings.slice(encoded, index, count));
         append(builder, "\r\n");
         index += count;
@@ -130,6 +140,7 @@ append_base64_lines :: (builder: *String_Builder, bytes: string) {
 
 build_message :: (message: Mail_Message) -> string, bool {
     builder: String_Builder;
+
     init_string_builder(*builder);
     defer free_buffers(*builder);
     from, valid := get_c_email(message.from);
@@ -138,6 +149,7 @@ build_message :: (message: Mail_Message) -> string, bool {
     append(*builder, to_string(from));
     append(*builder, "\r\n");
     if !append_addresses(*builder, "To: ", message.to) || !append_addresses(*builder, "Cc: ", message.cc) return "", false;
+
     if message.reply_to {
         reply, valid := get_c_email(message.reply_to);
         if !valid return "", false;
@@ -145,18 +157,22 @@ build_message :: (message: Mail_Message) -> string, bool {
         append(*builder, to_string(reply));
         append(*builder, "\r\n");
     }
+
     subject := Base64.base64_encode(message.subject);
+
     defer free(subject);
     append(*builder, "Subject: =?UTF-8?B?");
     append(*builder, subject);
     append(*builder, "?=\r\nMIME-Version: 1.0\r\n");
     boundary :: "jai-mail-boundary-2026";
     multipart := message.attachments.count > 0;
+
     if multipart append(*builder, "Content-Type: multipart/mixed; boundary=\"jai-mail-boundary-2026\"\r\n\r\n--jai-mail-boundary-2026\r\n");
     if message.html append(*builder, "Content-Type: text/html; charset=UTF-8\r\n");
     else append(*builder, "Content-Type: text/plain; charset=UTF-8\r\n");
     append(*builder, "Content-Transfer-Encoding: base64\r\n\r\n");
     append_base64_lines(*builder, message.body);
+
     for path, index: message.attachments {
         if !valid_header(path) return "", false;
         data, success := Files.read_entire_file(path);
@@ -167,6 +183,7 @@ build_message :: (message: Mail_Message) -> string, bool {
         append_base64_lines(*builder, data);
         free(data);
     }
+
     if multipart append(*builder, "\r\n--jai-mail-boundary-2026--\r\n");
     return builder_to_string(*builder), true;
 }

@@ -137,26 +137,32 @@ init_global_display :: () {
     XdndProxy = XInternAtom(display, "XdndProxy", False);
     bitmap: [1] u8;
     pixmap := XCreateBitmapFromData(display, XDefaultRootWindow(display), bitmap.data, 1, 1);
+
     if pixmap {
         blank: XColor;
         x_global_invisible_cursor = XCreatePixmapCursor(display, pixmap, pixmap, *blank, *blank, 0, 0);
         XFreePixmap(display, pixmap);
     }
+
     XFlush(display);
 }
 
 enable_drag_and_drop :: (window: Window, typelist: [] string) {
     if !x_global_display || !window return;
     version: u64 = XDND_VERSION;
+
     XChangeProperty(x_global_display, window, XdndAware, XA_ATOM, 32, PropModeReplace, cast(*u8) *version, 1);
     array_reset(*drop_info.user_typelist);
+
     for mime: typelist {
         label := to_c_string(mime);
         if !label continue;
         type_atom := XInternAtom(x_global_display, label, False);
+
         free(label);
         array_add(*drop_info.user_typelist, type_atom);
     }
+
     if drop_info.user_typelist.count > 0 XChangeProperty(x_global_display, window, XdndTypeList, XA_ATOM,
         32, PropModeReplace, cast(*u8) drop_info.user_typelist.data, cast(s32) drop_info.user_typelist.count);
     array_reset(*drop_info.user_actions);
@@ -190,13 +196,16 @@ x_window_is_ours :: (display: *Display, win: Window) -> bool {
     XLockDisplay(display);
     found := false;
     index: s64 = 0;
+
     while index < x_global_windows.count {
         if x_global_windows[index] == win {
             found = true;
             break;
         }
+
         index += 1;
     }
+
     XUnlockDisplay(display);
     return found;
 }
@@ -235,6 +244,7 @@ do_button :: (using ctx: *Ui_Context, id: ui_id, x: s32, y: s32, width: u32, hei
     else if ctx.hot == id ctx.hot = NOT_ACTIVE;
     if ctx.mouse_went_down && hovered && ctx.active == NOT_ACTIVE ctx.active = id;
     clicked := ctx.mouse_went_up && ctx.active == id && hovered;
+
     if ctx.mouse_went_up && ctx.active == id ctx.active = NOT_ACTIVE;
     return clicked;
 }
@@ -245,35 +255,43 @@ x_toolkit_update_events :: (dpy: *Display, win: Window, ctx: *Ui_Context, window
     ctx.mouse_went_down = false;
     redraw := false;
     event: XEvent;
+
     while XCheckWindowEvent(dpy, win, EVENT_MASK | StructureNotifyMask, *event) != False {
         if event.type == Expose redraw = true;
+
         if event.type == MotionNotify {
             ctx.mouse_x = event.xmotion.x;
             ctx.mouse_y = event.xmotion.y;
         }
+
         if event.type == ButtonPress {
             ctx.mouse_went_down = true;
             ctx.mouse_x = event.xbutton.x;
             ctx.mouse_y = event.xbutton.y;
             redraw = true;
         }
+
         if event.type == ButtonRelease {
             ctx.mouse_went_up = true;
             ctx.mouse_x = event.xbutton.x;
             ctx.mouse_y = event.xbutton.y;
             redraw = true;
         }
+
         if event.type == ConfigureNotify {
             if window_width window_width.* = event.xconfigure.width;
             if window_height window_height.* = event.xconfigure.height;
             redraw = true;
         }
+
         if event.type == DestroyNotify return true, redraw;
     }
+
     while XCheckTypedWindowEvent(dpy, win, ClientMessage, *event) != False {
         if event.xclient.message_type == x_global_wm_protocols &&
             cast(Atom) event.xclient.data.l[0] == x_global_wm_delete_window return true, redraw;
     }
+
     return false, redraw;
 }
 
@@ -286,6 +304,7 @@ x_toolkit_create_simple_window :: (dpy: *Display, parent: Window, width: s32, he
     screen := XDefaultScreen(dpy);
     handle := XCreateSimpleWindow(dpy, parent, 0, 0, cast(u32) width, cast(u32) height, 0,
         XBlackPixel(dpy, screen), XWhitePixel(dpy, screen));
+
     if !handle return None;
     XSelectInput(dpy, handle, EVENT_MASK | StructureNotifyMask);
     label := to_c_string(title);
@@ -293,7 +312,9 @@ x_toolkit_create_simple_window :: (dpy: *Display, parent: Window, width: s32, he
         XStoreName(dpy, handle, label);
         free(label);
     }
+
     close_atom := XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+
     XSetWMProtocols(dpy, handle, *close_atom, 1);
     XMapWindow(dpy, handle);
     XFlush(dpy);
@@ -325,6 +346,7 @@ X_Message_Box_Style :: enum {
 x_message_box :: (parent: Window, msg: string, caption: string, style: X_Message_Box_Style) -> X_Message_Box_Response {
     init_global_display();
     if !x_global_display return .CANCEL;
+
     // A modal dialog owns a separate connection, preserving the application's pending events.
     display := XOpenDisplay(null);
     if !display return .CANCEL;
@@ -332,38 +354,46 @@ x_message_box :: (parent: Window, msg: string, caption: string, style: X_Message
     labels: [3] string;
     responses: [3] X_Message_Box_Response;
     count: s32 = 1;
+
     labels[0] = "OK";
     responses[0] = .OK;
+
     if style == .ST_ABORT_RETRY_IGNORE {
         count = 3;
         labels = .["Abort", "Retry", "Ignore"];
         responses = .[.ABORT, .RETRY, .IGNORE];
     }
+
     if style == .ST_CANCEL_TRY_CONTINUE {
         count = 3;
         labels = .["Cancel", "Try Again", "Continue"];
         responses = .[.CANCEL, .TRY_AGAIN, .CONTINUE];
     }
+
     if style == .ST_OK_CANCEL {
         count = 2;
         labels = .["OK", "Cancel", ""];
         responses = .[.OK, .CANCEL, .CANCEL];
     }
+
     if style == .ST_RETRY_CANCEL {
         count = 2;
         labels = .["Retry", "Cancel", ""];
         responses = .[.RETRY, .CANCEL, .CANCEL];
     }
+
     if style == .ST_YES_NO {
         count = 2;
         labels = .["Yes", "No", ""];
         responses = .[.YES, .NO, .CANCEL];
     }
+
     if style == .ST_YES_NO_CANCEL {
         count = 3;
         labels = .["Yes", "No", "Cancel"];
         responses = .[.YES, .NO, .CANCEL];
     }
+
     window := x_toolkit_create_simple_window(display, None, 600, 220, caption);
     if !window return .CANCEL;
     defer XDestroyWindow(display, window);
@@ -371,23 +401,28 @@ x_message_box :: (parent: Window, msg: string, caption: string, style: X_Message
     if parent != None XSetTransientForHint(display, window, parent);
     ctx: Ui_Context;
     redraw := true;
+
     while true {
         key: XEvent;
         while XCheckTypedWindowEvent(display, window, KeyPress, *key) != False {
             symbol := XLookupKeysym(*key.xkey, 0);
             if symbol == 0xff0d return responses[0];
+
             if symbol == 0xff1b {
                 if style == .ST_OK return .OK;
                 return .CANCEL;
             }
         }
+
         quit, dirty := x_toolkit_update_events(display, window, *ctx);
         if quit return .CANCEL;
         redraw = redraw || dirty;
+
         for button: 0..count - 1 {
             x := 600 - (count * 130) + button * 130;
             if do_button(*ctx, button, x, 175, 120, 30) return responses[button];
         }
+
         if redraw {
             XClearWindow(display, window);
             XSetForeground(display, XDefaultGC(display, XDefaultScreen(display)), XBlackPixel(display, XDefaultScreen(display)));
@@ -396,6 +431,7 @@ x_message_box :: (parent: Window, msg: string, caption: string, style: X_Message
             XFlush(display);
             redraw = false;
         }
+
         sleep_milliseconds(16);
     }
 }
@@ -404,15 +440,18 @@ x_draw_textpanel :: (dpy: *Display, w: Window, x: s32, y: s32, width: s32, heigh
     if !dpy || !w || width <= 0 || height <= 0 return;
     graphics := XDefaultGC(dpy, XDefaultScreen(dpy));
     clip: XRectangle = .{ x = cast(s16) x, y = cast(s16) y, width = cast(u16) min(width, 65535), height = cast(u16) min(height, 65535) };
+
     XSetClipRectangles(dpy, graphics, 0, 0, *clip, 1, 0);
     defer XSetClipMask(dpy, graphics, None);
     columns := max(1, width / 8);
     offset: s64 = 0;
     baseline := y + 14;
+
     while offset < msg.count && baseline <= y + height {
         end := offset;
         while end < msg.count && end - offset < columns && msg[end] != 10 end += 1;
         line := to_string(msg.data + offset, end - offset);
+
         x_draw_string(dpy, w, x, baseline, line);
         offset = end;
         if offset < msg.count && msg[offset] == 10 offset += 1;
@@ -431,15 +470,18 @@ x_draw_button :: (dpy: *Display, w: Window, x: s32, y: s32, width: u32, height: 
     screen := XDefaultScreen(dpy);
     graphics := XDefaultGC(dpy, screen);
     gray := x_color_to_pixel(dpy, XDefaultColormap(dpy, screen), x_rgb_to_color(210, 210, 210));
+
     XSetForeground(dpy, graphics, gray);
     XFillRectangle(dpy, w, graphics, x, y, width, height);
     top := XWhitePixel(dpy, screen);
     bottom := XBlackPixel(dpy, screen);
+
     if pressed {
         temporary := top;
         top = bottom;
         bottom = temporary;
     }
+
     XSetForeground(dpy, graphics, top);
     XDrawLine(dpy, w, graphics, x, y, x + cast(s32) width - 1, y);
     XDrawLine(dpy, w, graphics, x, y, x, y + cast(s32) height - 1);
@@ -449,10 +491,12 @@ x_draw_button :: (dpy: *Display, w: Window, x: s32, y: s32, width: u32, height: 
     XSetForeground(dpy, graphics, XBlackPixel(dpy, screen));
     label_x := x + (cast(s32) width - cast(s32) msg.count * 8) / 2;
     label_y := y + (cast(s32) height + 12) / 2;
+
     if pressed {
         label_x += 1;
         label_y += 1;
     }
+
     x_draw_string(dpy, w, label_x, label_y, msg);
 }
 

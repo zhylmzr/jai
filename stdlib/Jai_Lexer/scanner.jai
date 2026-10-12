@@ -7,6 +7,7 @@ set_input_from_string :: (lexer: *Lexer, input: string) {
         free(lexer.input);
         lexer.should_free_input = false;
     }
+
     lexer.input, lexer.input_cursor = input, 0;
 
     lexer.token_array_cursor, lexer.num_incoming_tokens = 0, 0;
@@ -34,11 +35,14 @@ peek_next_token :: (using lexer: *Lexer) -> *Token {
 
 peek_token :: (lexer: *Lexer, lookahead_index: s32) -> *Token {
     assert(lookahead_index >= 0 && lookahead_index < MAX_CONCURRENT_TOKENS);
+
     while lexer.num_incoming_tokens <= lookahead_index {
         compose_new_token(lexer);
         lexer.num_incoming_tokens += 1;
     }
+
     slot := (lexer.token_array_cursor + lookahead_index) % MAX_CONCURRENT_TOKENS;
+
     return *lexer.tokens[slot];
 }
 
@@ -49,6 +53,7 @@ eat_token :: (lexer: *Lexer) {
         lexer.nonblank_lines_processed += 1;
         lexer.previous_token_line_number = token.l0;
     }
+
     lexer.num_incoming_tokens -= 1;
     lexer.token_array_cursor = (lexer.token_array_cursor + 1) % MAX_CONCURRENT_TOKENS;
 }
@@ -65,25 +70,30 @@ compose_new_token :: (lexer: *Lexer) -> *Token {
             eat_character(lexer);
             continue;
         }
+
         if next == #char "/" && look_byte(lexer, 1) == #char "/" {
             eat_until_newline(lexer);
             continue;
         }
+
         if next == #char "/" && look_byte(lexer, 1) == #char "*" {
             eat_character(lexer);
             eat_character(lexer);
             eat_input_due_to_block_comment(lexer);
             continue;
         }
+
         if next < 0 {
             result := start_token(lexer, .END_OF_INPUT);
             set_end_of_token(lexer, result);
             return result;
         }
+
         if starts_identifier(cast(u8) next) return make_ident_or_keyword(lexer);
         if starts_number(next) || next == #char "." && starts_number(look_byte(lexer, 1)) return make_number(lexer);
         if next == #char "\"" return make_string_constant(lexer);
         if next == #char "@" return make_note(lexer);
+
         if next == #char "`" {
             eat_character(lexer);
             valid := peek_next_character(lexer) >= 0 && starts_identifier(cast(u8) peek_next_character(lexer));
@@ -94,18 +104,22 @@ compose_new_token :: (lexer: *Lexer) -> *Token {
             result.c0 -= 1;
             return result;
         }
+
         if next == #char "#" && ahead_matches(lexer, "#string") && !continues_identifier(look_byte(lexer, 7)) {
             for byte: "#string" eat_character(lexer);
             return parse_here_string(lexer);
         }
+
         for entry: compound_tokens {
             if ahead_matches(lexer, entry.text) {
                 result := start_token(lexer, entry.kind);
+
                 for byte: entry.text eat_character(lexer);
                 set_end_of_token(lexer, result);
                 return result;
             }
         }
+
         eat_character(lexer);
         return make_one_character_token(lexer, cast(Token_Type) next);
     }
@@ -122,11 +136,13 @@ make_one_character_token :: (lexer: *Lexer, c: Token_Type) -> *Token {
 check_for_equals :: (lexer: *Lexer, c: Token_Type, augmented: Token_Type, eat := true, subtractor: s32 = 0) -> *Token {
     if eat eat_character(lexer);
     kind := c;
+
     if peek_next_character(lexer) == #char "=" {
         eat_character(lexer);
         kind = augmented;
         subtractor += 1;
     }
+
     result := make_one_character_token(lexer, kind);
     result.c0 -= subtractor;
     return result;
@@ -143,6 +159,7 @@ eat_input_due_to_block_comment :: (lexer: *Lexer) {
             report_parse_error(lexer, "Unterminated block comment\n");
             return;
         }
+
         if look_byte(lexer, 0) == #char "/" && look_byte(lexer, 1) == #char "*" {
             depth += 1;
             eat_character(lexer);
@@ -169,6 +186,7 @@ check_for_keyword :: (token: *Token) -> Token_Type {
 
 parse_ident :: (lexer: *Lexer, result: *Token) -> string {
     count: s64;
+
     while true {
         byte := peek_next_character(lexer);
         if byte == #char "\\" {
@@ -176,22 +194,27 @@ parse_ident :: (lexer: *Lexer, result: *Token) -> string {
             while peek_next_character(lexer) == #char " " || peek_next_character(lexer) == #char "\t" || peek_next_character(lexer) == #char "\r" || peek_next_character(lexer) == #char "\n" eat_character(lexer);
             continue;
         }
+
         if !continues_identifier(byte) break;
         if count < MAX_IDENTIFIER_LENGTH lexer.scratch_buffer[count] = cast(u8) byte;
         count += 1;
         eat_character(lexer);
     }
+
     if count > MAX_IDENTIFIER_LENGTH {
         report_parse_error(lexer, "Identifier exceeds % bytes\n", MAX_IDENTIFIER_LENGTH);
         result.type = .ERROR;
         count = MAX_IDENTIFIER_LENGTH;
     }
+
     return string.{ count, lexer.scratch_buffer.data };
 }
 
 make_ident_or_keyword :: (lexer: *Lexer) -> *Token {
     result := start_token(lexer, .IDENT);
+
     cached_make_atom(lexer, parse_ident(lexer, result), result);
+
     // Reserved words share the identifier spelling; retag them in place.
     reserved := check_for_keyword(result);
     if reserved != cast(Token_Type) 0 result.type = reserved;
@@ -207,11 +230,14 @@ parse_note :: (lexer: *Lexer) -> string {
 
 make_note :: (lexer: *Lexer) -> *Token {
     result := start_token(lexer, .NOTE);
+
     eat_character(lexer);
+
     if peek_next_character(lexer) == #char "@" {
         result.value_flags = cast(Value_Flags) Note_Flags.IS_SYSTEM_LEVEL;
         eat_character(lexer);
     }
+
     cached_make_atom(lexer, parse_note(lexer), result);
     set_end_of_token(lexer, result);
     return result;
@@ -226,6 +252,7 @@ make_number :: (lexer: *Lexer) -> *Token {
     result.value_flags = .NUMBER;
     beginning := lexer.input_cursor;
     base: u64 = 10;
+
     if look_byte(lexer, 0) == #char "0" {
         marker := look_byte(lexer, 1);
         if marker == #char "x" || marker == #char "X" {
@@ -240,14 +267,17 @@ make_number :: (lexer: *Lexer) -> *Token {
             eat_character(lexer);
         }
     }
+
     count: s64;
     integer: u64;
+
     while true {
         next := peek_next_character(lexer);
         if next == #char "_" {
             eat_character(lexer);
             continue;
         }
+
         digit := digit_value(next);
         if digit < 0 || cast(u64) digit >= base break;
         if integer > (0xffff_ffff_ffff_ffff - cast(u64) digit) / base result.value_flags |= .OVERFLOWED;
@@ -255,6 +285,7 @@ make_number :: (lexer: *Lexer) -> *Token {
         count += 1;
         eat_character(lexer);
     }
+
     if base == 16 && (peek_next_character(lexer) == #char "." || peek_next_character(lexer) == #char "p" || peek_next_character(lexer) == #char "P") return make_hexfloat(lexer, result);
     floating := base == 10 && (peek_next_character(lexer) == #char "." && look_byte(lexer, 1) != #char "." || peek_next_character(lexer) == #char "e" || peek_next_character(lexer) == #char "E");
     if floating {
@@ -262,20 +293,25 @@ make_number :: (lexer: *Lexer) -> *Token {
             eat_character(lexer);
             while starts_number(peek_next_character(lexer)) || peek_next_character(lexer) == #char "_" eat_character(lexer);
         }
+
         if peek_next_character(lexer) == #char "e" || peek_next_character(lexer) == #char "E" {
             eat_character(lexer);
             if peek_next_character(lexer) == #char "+" || peek_next_character(lexer) == #char "-" eat_character(lexer);
             exponent_start := lexer.input_cursor;
+
             while starts_number(peek_next_character(lexer)) || peek_next_character(lexer) == #char "_" eat_character(lexer);
             if exponent_start == lexer.input_cursor report_parse_error(lexer, "Expected exponent digits\n");
         }
+
         // Digit separators are for readers only; drop them before converting.
         spelled := string.{ lexer.input_cursor - beginning, lexer.input.data + beginning };
         digits: [..] u8;
+
         defer array_free(digits);
         for byte: spelled if byte != #char "_" array_add(*digits, byte);
         text := string.{ digits.count, digits.data };
         number, success, rest := string_to_float64(text);
+
         if rest.count success = false;
         result.float64_value = number;
         result.value_flags |= .FLOAT;
@@ -285,6 +321,7 @@ make_number :: (lexer: *Lexer) -> *Token {
         result.integer_value = integer;
         if count == 0 report_parse_error(lexer, "Expected digits in numeric literal\n");
     }
+
     set_end_of_token(lexer, result);
     return result;
 }
@@ -293,20 +330,25 @@ make_hexfloat :: (lexer: *Lexer, result: *Token) -> *Token {
     // Not decoded: flag the token and swallow the rest of the literal so scanning resumes cleanly.
     result.type = .ERROR;
     report_parse_error(lexer, "Hexadecimal floating point literals require a dedicated numeric adapter\n");
+
     while true {
         upcoming := peek_next_character(lexer);
         if upcoming != #char "." && !continues_identifier(upcoming) break;
         eat_character(lexer);
     }
+
     set_end_of_token(lexer, result);
     return result;
 }
 
 make_string_constant :: (lexer: *Lexer) -> *Token {
     result := start_token(lexer, .STRING);
+
     eat_character(lexer);
     decoded: [..] u8;
+
     defer array_free(decoded);
+
     while true {
         character := peek_next_character(lexer);
         if character < 0 || character == #char "\n" {
@@ -314,15 +356,19 @@ make_string_constant :: (lexer: *Lexer) -> *Token {
             result.type = .ERROR;
             break;
         }
+
         eat_character(lexer);
         if character == #char "\"" break;
+
         if character == #char "\\" {
             character = peek_next_character(lexer);
             if character < 0 {
                 result.type = .ERROR;
                 break;
             }
+
             eat_character(lexer);
+
             if character == #char "n" character = #char "\n";
             else if character == #char "r" character = #char "\r";
             else if character == #char "t" character = #char "\t";
@@ -332,19 +378,23 @@ make_string_constant :: (lexer: *Lexer) -> *Token {
                 codepoint: u32;
                 wanted := ifx character == #char "u" then 4 else 8;
                 valid := true;
+
                 for index: 0..wanted - 1 {
                     digit, success := get_hex_digit(lexer, .UNICODE_32);
                     if !success {
                         valid = false;
                         break;
                     }
+
                     codepoint = (codepoint << 4) | digit;
                 }
+
                 if !valid || codepoint > 0x10ffff || (codepoint >= 0xd800 && codepoint <= 0xdfff) {
                     report_parse_error(lexer, "Invalid Unicode scalar escape\n");
                     result.type = .ERROR;
                     break;
                 }
+
                 if codepoint <= 0x7f array_add(*decoded, cast(u8) codepoint);
                 else if codepoint <= 0x7ff {
                     array_add(*decoded, cast(u8) (0xc0 | (codepoint >> 6)));
@@ -359,20 +409,25 @@ make_string_constant :: (lexer: *Lexer) -> *Token {
                     array_add(*decoded, cast(u8) (0x80 | ((codepoint >> 6) & 0x3f)));
                     array_add(*decoded, cast(u8) (0x80 | (codepoint & 0x3f)));
                 }
+
                 continue;
             } else if character == #char "x" {
                 high, high_ok := get_hex_digit(lexer, .ASCII_8_BIT);
                 low, low_ok := get_hex_digit(lexer, .ASCII_8_BIT);
+
                 if !high_ok || !low_ok {
                     report_parse_error(lexer, "Invalid byte escape\n");
                     result.type = .ERROR;
                     break;
                 }
+
                 character = ((cast(s16) high) << 4) | low;
             }
         }
+
         array_add(*decoded, cast(u8) character);
     }
+
     result.string_value = pooled_text(lexer, string.{ decoded.count, decoded.data });
     set_end_of_token(lexer, result);
     return result;
@@ -383,6 +438,7 @@ parse_here_string :: (lexer: *Lexer) -> *Token {
     result.value_flags = .HERE_STRING;
     while peek_next_character(lexer) == #char " " || peek_next_character(lexer) == #char "\t" eat_character(lexer);
     delimiter_start := lexer.input_cursor;
+
     while continues_identifier(peek_next_character(lexer)) eat_character(lexer);
     delimiter := string.{ lexer.input_cursor - delimiter_start, lexer.input.data + delimiter_start };
     if delimiter.count == 0 {
@@ -390,16 +446,20 @@ parse_here_string :: (lexer: *Lexer) -> *Token {
         report_parse_error(lexer, "Expected here-string delimiter\n");
         return result;
     }
+
     eat_until_newline(lexer);
     if peek_next_character(lexer) == #char "\n" eat_character(lexer);
     body_start := lexer.input_cursor;
     body_end := body_start;
     found := false;
+
     while peek_next_character(lexer) >= 0 {
         line_start := lexer.input_cursor;
+
         while peek_next_character(lexer) == #char " " || peek_next_character(lexer) == #char "\t" eat_character(lexer);
         matches := true;
         for byte, index: delimiter if look_byte(lexer, index) != byte matches = false;
+
         if matches {
             after := look_byte(lexer, delimiter.count);
             if after == #char "\n" || after == #char "\r" || after == -1 {
@@ -409,14 +469,17 @@ parse_here_string :: (lexer: *Lexer) -> *Token {
                 break;
             }
         }
+
         eat_until_newline(lexer);
         if peek_next_character(lexer) == #char "\n" eat_character(lexer);
     }
+
     if !found {
         body_end = lexer.input_cursor;
         result.type = .ERROR;
         report_parse_error(lexer, "Missing here-string terminator\n");
     }
+
     result.string_value = pooled_text(lexer, string.{ body_end - body_start, lexer.input.data + body_start });
     set_end_of_token(lexer, result);
     return result;
@@ -432,7 +495,9 @@ cached_make_atom :: (lexer: *Lexer, name: string, token_to_fill: *Token) {
 eat_character :: (using lexer: *Lexer) {
     if input_cursor >= input.count return;
     byte := input[input_cursor];
+
     input_cursor += 1;
+
     if byte == #char "\n" {
         current_line_number += 1;
         current_character_index = 1;
@@ -464,6 +529,7 @@ unwind_one_character :: (lexer: *Lexer) {
 get_hex_digit :: (lexer: *Lexer, type: Hex_Digit_Type) -> (value: u8, success: bool) {
     byte := peek_next_character(lexer);
     digit := digit_value(byte);
+
     if digit < 0 || digit > 15 return 0, false;
     eat_character(lexer);
     return cast(u8) digit, true;
@@ -528,6 +594,7 @@ start_token :: (lexer: *Lexer, type: Token_Type) -> *Token {
 
 pooled_text :: (lexer: *Lexer, text: string) -> string {
     storage := cast(*u8) Pool_Module.get(*lexer.atom_pool, text.count + 1);
+
     memcpy(storage, text.data, text.count);
     storage[text.count] = 0;
     return .{ text.count, storage };

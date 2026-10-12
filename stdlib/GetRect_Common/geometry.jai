@@ -60,6 +60,7 @@ intersect :: (a: Rect, b: Rect) -> Rect {
     y := Math.max(a.y, b.y);
     right := Math.min(a.x + a.w, b.x + b.w);
     far := Math.min(a.y + a.h, b.y + b.h);
+
     return .{ x, y, Math.max(0.0, right - x), Math.max(0.0, far - y) };
 }
 
@@ -68,6 +69,7 @@ bound :: (a: Rect, b: Rect) -> Rect {
     y := Math.min(a.y, b.y);
     right := Math.max(a.x + a.w, b.x + b.w);
     far := Math.max(a.y + a.h, b.y + b.h);
+
     return .{ x, y, right - x, far - y };
 }
 
@@ -76,12 +78,14 @@ get_quad :: (using r: Rect, snap_coordinates := false) -> (p0: Vector2, p1: Vect
     x1 := x + w;
     y0 := y;
     y1 := y + h;
+
     if snap_coordinates {
         x0 = Math.round(x0);
         x1 = Math.round(x1);
         y0 = Math.round(y0);
         y1 = Math.round(y1);
     }
+
     return xy(cast(float) x0, cast(float) y0), xy(cast(float) x1, cast(float) y0), xy(cast(float) x1, cast(float) y1), xy(cast(float) x0, cast(float) y1);
 }
 
@@ -145,7 +149,9 @@ brighten :: (color: $T/interface VBase3, value: float) -> T {
         result.z = value;
         return result;
     }
+
     multiplier := value / current;
+
     result.x *= multiplier;
     result.y *= multiplier;
     result.z *= multiplier;
@@ -159,6 +165,7 @@ hsv_to_rgb :: (cx: float, cy: float, cz: float) -> (r: float, g: float, b: float
     low := cz * (1 - cy);
     falling := cz * (1 - cy * fraction);
     rising := cz * (1 - cy * (1 - fraction));
+
     if whole == 0 return cz, rising, low;
     if whole == 1 return falling, cz, low;
     if whole == 2 return low, cz, rising;

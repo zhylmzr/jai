@@ -57,6 +57,7 @@ draw_arrow :: (state: *Button_State, p4: Vector3, p5: Vector3, p6: Vector3, them
 
 set_initial_value :: (state: *Slider_State, value: $T) {
     state.value_type = type_info(T);
+
     #if type_info(T).type == .FLOAT {
         #if size_of(T) == 4 {
             state.initial_value_float32 = cast(float32) value;
@@ -70,6 +71,7 @@ set_initial_value :: (state: *Slider_State, value: $T) {
 
 get_initial_value :: (state: *Slider_State, $T: Type) -> T {
     assert(state.value_type == type_info(T), "Slider initial value type changed");
+
     #if type_info(T).type == .FLOAT {
         #if size_of(T) == 4 {
             return cast(T) state.initial_value_float32;
@@ -87,10 +89,12 @@ set_and_maybe_clamp :: (new_value: $ValueType, pointer: *$T, min_value: T, max_v
         pointer.* = min_value;
         return;
     }
+
     if clamp_high && candidate > max_value {
         pointer.* = max_value;
         return;
     }
+
     pointer.* = cast(T) candidate;
 }
 
@@ -119,6 +123,7 @@ press_escape :: (using state: *Text_Input_State) {
         reset_auto_complete(state);
         return;
     }
+
     state.pending_result_actions |= .ESCAPED;
 }
 
@@ -127,28 +132,34 @@ break_into_lines :: (s: string, between_lines_string := "") -> [] string {
     pieces.allocator = Basic.temp;
     begin := 0;
     at := 0;
+
     while at < s.count {
         if s[at] != 10 && s[at] != 13 {
             at += 1;
             continue;
         }
+
         array_add(*pieces, string.{ at - begin, s.data + begin });
         if between_lines_string.count > 0 array_add(*pieces, between_lines_string);
         if s[at] == 13 && at + 1 < s.count && s[at + 1] == 10 at += 1;
         at += 1;
         begin = at;
     }
+
     array_add(*pieces, string.{ s.count - begin, s.data + begin });
     return pieces;
 }
 
 sanitize :: (s: string) -> string {
     builder: String_Builder;
+
     defer free_buffers(*builder);
+
     for part: break_into_lines(s, " ") for byte : part {
         if byte == 9 append(*builder, cast(u8) 32);
         else if byte >= 32 && byte != 127 append(*builder, byte);
     }
+
     return builder_to_string(*builder);
 }
 
@@ -160,13 +171,16 @@ get_insert_point_for_cursor :: (state: *Text_Input_State, font: *Font, text: str
     width_before: float;
     at := 0;
     x := cursor_x - current_frame_text_x;
+
     while at < text.count {
         next := seek_right_one_utf8_character(text, at);
         width_after := cast(float) draw_procs.prepare_text(font, string.{ next, text.data }, effect);
+
         if x < (width_before + width_after) / 2 return at;
         at = next;
         width_before = width_after;
     }
+
     return text.count;
 }
 

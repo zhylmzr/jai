@@ -109,11 +109,13 @@ reader_create_channel :: (name: string, bytes: s64) -> (success: bool, channel: 
     if bytes < 2 * PER_MESSAGE_OVERHEAD_SIZE || bytes > 0x7fff_ffff_ffff_ffff - OFFSET_TO_MESSAGE_DATA return false, .{};
     success, result := reader_create_channel_os_specific(name, bytes);
     if !success return false, .{};
+
     // Region layout: this header, the OS-specific block, the queue cursors, then `bytes` of
     // message ring. Everything starts zeroed; the channel magic is stored last, atomically,
     // because a writer treats a nonzero magic as "the reader finished setting up".
     region_size := OFFSET_TO_MESSAGE_DATA + bytes;
     header := result.header;
+
     memset(header, 0, region_size);
     header.* = .{
         version = PROTOCOL_VERSION,
@@ -139,9 +141,11 @@ reader_poll_for_message :: (channel: *Read_Channel) -> (found: bool, fatal_error
     queue := get_message_queue_header(header);
     offset := A.atomic_read(*queue.read_cursor);
     write := A.atomic_read(*queue.write_cursor);
+
     if offset == write return false, false, .{};
     begin := cast(s64) header.offset_to_message_data;
     end := header.full_memory_region_size_in_bytes;
+
     if offset < begin || offset >= end || write < begin || write >= end return false, true, .{};
     if end - offset < PER_MESSAGE_OVERHEAD_SIZE offset = begin;
     length, valid := read_stamp(header, offset);
@@ -149,6 +153,7 @@ reader_poll_for_message :: (channel: *Read_Channel) -> (found: bool, fatal_error
         offset = begin;
         length, valid = read_stamp(header, offset);
     }
+
     if !valid || length < 0 || length > end - offset - PER_MESSAGE_OVERHEAD_SIZE return false, true, .{};
     total := length + PER_MESSAGE_OVERHEAD_SIZE;
     if offset < write && total > write - offset return false, true, .{};
@@ -161,6 +166,7 @@ reader_poll_for_message :: (channel: *Read_Channel) -> (found: bool, fatal_error
 reader_done_with_message :: (message: *Read_Message) -> bool {
     if !message || !message.channel || !message.channel.header return false;
     header := message.channel.header;
+
     if message.offset != message.channel.active_offset || message.total_bytes != message.channel.active_bytes return false;
     if A.atomic_read(*header.reader_status) != .ACTIVELY_READING || message.total_bytes != message.user_read_bytes + PER_MESSAGE_OVERHEAD_SIZE return false;
     if message.user_read_pointer != cast(*u8) header + message.offset + PER_MESSAGE_OVERHEAD_SIZE || message.offset + message.total_bytes > header.full_memory_region_size_in_bytes return false;
@@ -184,18 +190,22 @@ writer_reserve_message :: (channel: *Write_Channel, data_bytes: s64) -> (success
     write := A.atomic_read(*queue.write_cursor);
     begin := cast(s64) header.offset_to_message_data;
     end := header.full_memory_region_size_in_bytes;
+
     if read < begin || read >= end || write < begin || write >= end return false, .{};
     needed := data_bytes + PER_MESSAGE_OVERHEAD_SIZE;
     available := read - write - 1;
+
     if write >= read available = end - write + read - begin - 1;
     if needed > available return false, .{};
     offset := write;
+
     if needed > end - write {
         if needed >= read - begin return false, .{};
         offset = begin;
     } else if write < read && needed >= read - write {
         return false, .{};
     }
+
     channel.reserved_offset = offset;
     channel.reserved_bytes = needed;
     channel.prior_write_cursor = write;
@@ -208,9 +218,11 @@ writer_commit_message :: (channel: *Write_Channel, message: Reserved_Message) ->
     header := channel.header;
     if A.atomic_read(*header.writer_status) != .ACTIVELY_WRITING || message.offset + message.total_bytes > header.full_memory_region_size_in_bytes return false;
     if message.user_write_pointer != cast(*u8) header + message.offset + PER_MESSAGE_OVERHEAD_SIZE return false;
+
     if channel.prior_write_cursor != message.offset && header.full_memory_region_size_in_bytes - channel.prior_write_cursor >= PER_MESSAGE_OVERHEAD_SIZE {
         write_stamp(header, channel.prior_write_cursor, cast,no_check(s64) WRAPPING_SENTINEL);
     }
+
     write_stamp(header, message.offset, message.total_bytes - PER_MESSAGE_OVERHEAD_SIZE);
     next := message.offset + message.total_bytes;
     if next == header.full_memory_region_size_in_bytes next = header.offset_to_message_data;
@@ -244,6 +256,7 @@ get_size_of_full_mapping_from_stub_header :: (pointer: *void) -> (success: bool,
 write_stamp :: (header: *Header, offset: s64, length: s64) {
     pointer := cast(*u8) header + offset;
     magic := message_magic();
+
     memcpy(pointer, *magic, 8);
     memcpy(pointer + 8, *length, 8);
 }
@@ -252,6 +265,7 @@ read_stamp :: (header: *Header, offset: s64) -> s64, bool {
     magic: u64;
     length: s64;
     pointer := cast(*u8) header + offset;
+
     memcpy(*magic, pointer, 8);
     memcpy(*length, pointer + 8, 8);
     return length, magic == message_magic();

@@ -8137,6 +8137,7 @@ vkEnumeratePhysicalDevices :: (instance: VkInstance) -> [] VkPhysicalDevice, VkR
     data: [] VkPhysicalDevice;
     count: u32 = 0;
     status := vkEnumeratePhysicalDevices(instance, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkPhysicalDevice) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkPhysicalDevice));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8148,6 +8149,7 @@ vkEnumeratePhysicalDevices :: (instance: VkInstance) -> [] VkPhysicalDevice, VkR
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8155,6 +8157,7 @@ vkEnumeratePhysicalDevices :: (instance: VkInstance) -> [] VkPhysicalDevice, VkR
 vkGetPhysicalDeviceQueueFamilyProperties :: (physicalDevice: VkPhysicalDevice) -> [] VkQueueFamilyProperties {
     data: [] VkQueueFamilyProperties;
     count: u32 = 0;
+
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, *count, null);
     if count == 0 return data;
     data.data = cast(*VkQueueFamilyProperties) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkQueueFamilyProperties));
@@ -8169,6 +8172,7 @@ vkEnumerateInstanceExtensionProperties :: (pLayerName: *u8) -> [] VkExtensionPro
     data: [] VkExtensionProperties;
     count: u32 = 0;
     status := vkEnumerateInstanceExtensionProperties(pLayerName, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkExtensionProperties) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkExtensionProperties));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8180,6 +8184,7 @@ vkEnumerateInstanceExtensionProperties :: (pLayerName: *u8) -> [] VkExtensionPro
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8188,6 +8193,7 @@ vkEnumerateDeviceExtensionProperties :: (physicalDevice: VkPhysicalDevice, pLaye
     data: [] VkExtensionProperties;
     count: u32 = 0;
     status := vkEnumerateDeviceExtensionProperties(physicalDevice, pLayerName, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkExtensionProperties) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkExtensionProperties));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8199,6 +8205,7 @@ vkEnumerateDeviceExtensionProperties :: (physicalDevice: VkPhysicalDevice, pLaye
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8207,6 +8214,7 @@ vkEnumerateInstanceLayerProperties :: () -> [] VkLayerProperties, VkResult {
     data: [] VkLayerProperties;
     count: u32 = 0;
     status := vkEnumerateInstanceLayerProperties(*count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkLayerProperties) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkLayerProperties));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8218,6 +8226,7 @@ vkEnumerateInstanceLayerProperties :: () -> [] VkLayerProperties, VkResult {
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8226,6 +8235,7 @@ vkEnumerateDeviceLayerProperties :: (physicalDevice: VkPhysicalDevice) -> [] VkL
     data: [] VkLayerProperties;
     count: u32 = 0;
     status := vkEnumerateDeviceLayerProperties(physicalDevice, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkLayerProperties) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkLayerProperties));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8237,6 +8247,7 @@ vkEnumerateDeviceLayerProperties :: (physicalDevice: VkPhysicalDevice) -> [] VkL
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8244,6 +8255,7 @@ vkEnumerateDeviceLayerProperties :: (physicalDevice: VkPhysicalDevice) -> [] VkL
 vkGetImageSparseMemoryRequirements :: (device: VkDevice, image: VkImage) -> [] VkSparseImageMemoryRequirements {
     data: [] VkSparseImageMemoryRequirements;
     count: u32 = 0;
+
     vkGetImageSparseMemoryRequirements(device, image, *count, null);
     if count == 0 return data;
     data.data = cast(*VkSparseImageMemoryRequirements) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkSparseImageMemoryRequirements));
@@ -8257,6 +8269,7 @@ vkGetImageSparseMemoryRequirements :: (device: VkDevice, image: VkImage) -> [] V
 vkGetPhysicalDeviceSparseImageFormatProperties :: (physicalDevice: VkPhysicalDevice, format: VkFormat, type: VkImageType, samples: VkSampleCountFlagBits, usage: VkImageUsageFlags, tiling: VkImageTiling) -> [] VkSparseImageFormatProperties {
     data: [] VkSparseImageFormatProperties;
     count: u32 = 0;
+
     vkGetPhysicalDeviceSparseImageFormatProperties(physicalDevice, format, type, samples, usage, tiling, *count, null);
     if count == 0 return data;
     data.data = cast(*VkSparseImageFormatProperties) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkSparseImageFormatProperties));
@@ -8271,6 +8284,7 @@ vkEnumeratePhysicalDeviceGroups :: (instance: VkInstance) -> [] VkPhysicalDevice
     data: [] VkPhysicalDeviceGroupProperties;
     count: u32 = 0;
     status := vkEnumeratePhysicalDeviceGroups(instance, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkPhysicalDeviceGroupProperties) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkPhysicalDeviceGroupProperties));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8284,6 +8298,7 @@ vkEnumeratePhysicalDeviceGroups :: (instance: VkInstance) -> [] VkPhysicalDevice
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8291,6 +8306,7 @@ vkEnumeratePhysicalDeviceGroups :: (instance: VkInstance) -> [] VkPhysicalDevice
 vkGetImageSparseMemoryRequirements2 :: (device: VkDevice, pInfo: *VkImageSparseMemoryRequirementsInfo2) -> [] VkSparseImageMemoryRequirements2 {
     data: [] VkSparseImageMemoryRequirements2;
     count: u32 = 0;
+
     vkGetImageSparseMemoryRequirements2(device, pInfo, *count, null);
     if count == 0 return data;
     data.data = cast(*VkSparseImageMemoryRequirements2) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkSparseImageMemoryRequirements2));
@@ -8306,6 +8322,7 @@ vkGetImageSparseMemoryRequirements2 :: (device: VkDevice, pInfo: *VkImageSparseM
 vkGetPhysicalDeviceQueueFamilyProperties2 :: (physicalDevice: VkPhysicalDevice) -> [] VkQueueFamilyProperties2 {
     data: [] VkQueueFamilyProperties2;
     count: u32 = 0;
+
     vkGetPhysicalDeviceQueueFamilyProperties2(physicalDevice, *count, null);
     if count == 0 return data;
     data.data = cast(*VkQueueFamilyProperties2) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkQueueFamilyProperties2));
@@ -8321,6 +8338,7 @@ vkGetPhysicalDeviceQueueFamilyProperties2 :: (physicalDevice: VkPhysicalDevice) 
 vkGetPhysicalDeviceSparseImageFormatProperties2 :: (physicalDevice: VkPhysicalDevice, pFormatInfo: *VkPhysicalDeviceSparseImageFormatInfo2) -> [] VkSparseImageFormatProperties2 {
     data: [] VkSparseImageFormatProperties2;
     count: u32 = 0;
+
     vkGetPhysicalDeviceSparseImageFormatProperties2(physicalDevice, pFormatInfo, *count, null);
     if count == 0 return data;
     data.data = cast(*VkSparseImageFormatProperties2) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkSparseImageFormatProperties2));
@@ -8337,6 +8355,7 @@ vkGetPhysicalDeviceSurfaceFormatsKHR :: (physicalDevice: VkPhysicalDevice, surfa
     data: [] VkSurfaceFormatKHR;
     count: u32 = 0;
     status := vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkSurfaceFormatKHR) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkSurfaceFormatKHR));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8348,6 +8367,7 @@ vkGetPhysicalDeviceSurfaceFormatsKHR :: (physicalDevice: VkPhysicalDevice, surfa
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8356,6 +8376,7 @@ vkGetPhysicalDeviceSurfacePresentModesKHR :: (physicalDevice: VkPhysicalDevice, 
     data: [] VkPresentModeKHR;
     count: u32 = 0;
     status := vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkPresentModeKHR) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkPresentModeKHR));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8367,6 +8388,7 @@ vkGetPhysicalDeviceSurfacePresentModesKHR :: (physicalDevice: VkPhysicalDevice, 
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8375,6 +8397,7 @@ vkGetSwapchainImagesKHR :: (device: VkDevice, swapchain: VkSwapchainKHR) -> [] V
     data: [] VkImage;
     count: u32 = 0;
     status := vkGetSwapchainImagesKHR(device, swapchain, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkImage) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkImage));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8386,6 +8409,7 @@ vkGetSwapchainImagesKHR :: (device: VkDevice, swapchain: VkSwapchainKHR) -> [] V
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8394,6 +8418,7 @@ vkGetPhysicalDevicePresentRectanglesKHR :: (physicalDevice: VkPhysicalDevice, su
     data: [] VkRect2D;
     count: u32 = 0;
     status := vkGetPhysicalDevicePresentRectanglesKHR(physicalDevice, surface, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkRect2D) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkRect2D));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8405,6 +8430,7 @@ vkGetPhysicalDevicePresentRectanglesKHR :: (physicalDevice: VkPhysicalDevice, su
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8413,6 +8439,7 @@ vkGetPhysicalDeviceDisplayPropertiesKHR :: (physicalDevice: VkPhysicalDevice) ->
     data: [] VkDisplayPropertiesKHR;
     count: u32 = 0;
     status := vkGetPhysicalDeviceDisplayPropertiesKHR(physicalDevice, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkDisplayPropertiesKHR) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkDisplayPropertiesKHR));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8424,6 +8451,7 @@ vkGetPhysicalDeviceDisplayPropertiesKHR :: (physicalDevice: VkPhysicalDevice) ->
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8432,6 +8460,7 @@ vkGetPhysicalDeviceDisplayPlanePropertiesKHR :: (physicalDevice: VkPhysicalDevic
     data: [] VkDisplayPlanePropertiesKHR;
     count: u32 = 0;
     status := vkGetPhysicalDeviceDisplayPlanePropertiesKHR(physicalDevice, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkDisplayPlanePropertiesKHR) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkDisplayPlanePropertiesKHR));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8443,6 +8472,7 @@ vkGetPhysicalDeviceDisplayPlanePropertiesKHR :: (physicalDevice: VkPhysicalDevic
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8451,6 +8481,7 @@ vkGetDisplayPlaneSupportedDisplaysKHR :: (physicalDevice: VkPhysicalDevice, plan
     data: [] VkDisplayKHR;
     count: u32 = 0;
     status := vkGetDisplayPlaneSupportedDisplaysKHR(physicalDevice, planeIndex, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkDisplayKHR) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkDisplayKHR));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8462,6 +8493,7 @@ vkGetDisplayPlaneSupportedDisplaysKHR :: (physicalDevice: VkPhysicalDevice, plan
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8470,6 +8502,7 @@ vkGetDisplayModePropertiesKHR :: (physicalDevice: VkPhysicalDevice, display: VkD
     data: [] VkDisplayModePropertiesKHR;
     count: u32 = 0;
     status := vkGetDisplayModePropertiesKHR(physicalDevice, display, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkDisplayModePropertiesKHR) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkDisplayModePropertiesKHR));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8481,6 +8514,7 @@ vkGetDisplayModePropertiesKHR :: (physicalDevice: VkPhysicalDevice, display: VkD
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8489,6 +8523,7 @@ vkGetPhysicalDeviceDisplayProperties2KHR :: (physicalDevice: VkPhysicalDevice) -
     data: [] VkDisplayProperties2KHR;
     count: u32 = 0;
     status := vkGetPhysicalDeviceDisplayProperties2KHR(physicalDevice, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkDisplayProperties2KHR) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkDisplayProperties2KHR));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8502,6 +8537,7 @@ vkGetPhysicalDeviceDisplayProperties2KHR :: (physicalDevice: VkPhysicalDevice) -
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8510,6 +8546,7 @@ vkGetPhysicalDeviceDisplayPlaneProperties2KHR :: (physicalDevice: VkPhysicalDevi
     data: [] VkDisplayPlaneProperties2KHR;
     count: u32 = 0;
     status := vkGetPhysicalDeviceDisplayPlaneProperties2KHR(physicalDevice, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkDisplayPlaneProperties2KHR) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkDisplayPlaneProperties2KHR));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8523,6 +8560,7 @@ vkGetPhysicalDeviceDisplayPlaneProperties2KHR :: (physicalDevice: VkPhysicalDevi
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
@@ -8531,6 +8569,7 @@ vkGetDisplayModeProperties2KHR :: (physicalDevice: VkPhysicalDevice, display: Vk
     data: [] VkDisplayModeProperties2KHR;
     count: u32 = 0;
     status := vkGetDisplayModeProperties2KHR(physicalDevice, display, *count, null);
+
     if cast(s32) status < 0 || count == 0 return data, status;
     data.data = cast(*VkDisplayModeProperties2KHR) Vulkan_Enumeration_Memory.alloc(cast(s64) count * size_of(VkDisplayModeProperties2KHR));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
@@ -8544,6 +8583,7 @@ vkGetDisplayModeProperties2KHR :: (physicalDevice: VkPhysicalDevice, display: Vk
         data.count = 0;
         return data, status;
     }
+
     data.count = cast(s64) count;
     return data, status;
 }
