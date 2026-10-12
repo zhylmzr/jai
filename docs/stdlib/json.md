@@ -28,6 +28,7 @@ value, error := parse_json(text);               // a Json_Value tree when the sh
 | `parse_json(text, options) -> Json_Value, Json_Error` | untyped tree |
 | `json_null/bool/int/uint/float/string/array/object`, `json_push`, `json_set` | build a `Json_Value` |
 | `json_get`, `json_at`, `json_count`, `json_as_bool`, `json_as_string`, `json_free` | read one |
+| `free_json(*value)` | release what `from_json` allocated for a decoded value (strings, arrays, pointers and what they point to, tables, `Json_Value`s) |
 | `json_error_text`, `free_json_error` | format and release errors |
 
 `Json_Options` has `max_depth` (256) and `max_size` (1 GiB); exceeding either is a `.LIMIT` error.
@@ -58,7 +59,9 @@ Unknown fields are ignored unless denied; a missing field with no `default` is a
 
 ## Parsing rules
 
-Strict RFC 8259: no BOM, trailing commas, leading zeros, lone surrogates, invalid UTF-8 or raw control characters in strings. Line and column count characters. Encoding replaces invalid UTF-8 with U+FFFD. A failed decode can leak partial allocations of the half-built value; decode untrusted input under an arena or `push_allocator`.
+Strict RFC 8259: no BOM, trailing commas, leading zeros, lone surrogates, invalid UTF-8 or raw control characters in strings. Line and column count characters. Encoding replaces invalid UTF-8 with U+FFFD. A failed decode frees everything it had allocated and returns a default `T`, wherever it fails.
+
+**Freeing.** Generated per type next to the decoder: `free_json(*value)` calls `json_free_value(value, defaults)`, whose body comes from `generate_freer` in `generate.jai`. It compares each field with the type's declared default first, so a field that kept `nick := "guest"` because the document omitted it is not freed (a string literal would crash `free`); it resets the fields it frees, so a second call is harmless. Fields with a `with=` handler belong to the handler, which must free its own allocations when it fails; `free_json` does not touch them. Do not call it on values that were not decoded (their strings may not come from the allocator). On failure a struct decoder tracks which fields it has finished (`seen[i] == 2`) and frees exactly those in a `defer`; arrays, views, tables and pointers decode elements into locals and free what they hold before reporting; a repeated key in a `Hash_Table` object replaces and frees the earlier value. The success path pays one byte store per struct field. `tests/leaks.jai` runs a valid document cut at every byte, with every byte replaced, and with trailing data under a counting allocator in both reader paths and checks that no block is left.
 
 ### JSONTestSuite
 
@@ -114,6 +117,8 @@ Gains are modest (about 1.0 to 1.1x, 1.4x for long clean strings): the parser is
 - New type: add cases to `emit_encode` and `emit_decode`.
 - Runtime helpers (`json_read_*`, `json_key`, ...) live in `reader.jai` and `writer.jai`; float printing in `number.jai` (reading a validated token calls Basic); stage 1 in `index.jai`.
 - Vector paths stay behind `simd_enabled()` and must give identical results; run `tests/differential.jai`.
+- A new owning type in the decoder needs a matching case in `emit_free` (generate.jai), or a failed decode leaks it; `tests/leaks.jai` shows it.
+- The random sweeps in `tests/numbers.jai` and `tests/stdlib/basic-float-parse-correct-rounding.jai` are small by default so they run in seconds under a debug jaic; set their `FULL_SWEEP` constant to `true` for the large sweep.
 
 ## Configuration
 
