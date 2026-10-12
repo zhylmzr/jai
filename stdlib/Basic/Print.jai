@@ -52,6 +52,10 @@ FormatStruct :: struct {
     end_string := "}";
     indentation_width: s32 = 4;
     use_newlines_if_long_form := false;
+    // How many levels of structs nested inside a long-form struct are printed with this same
+    // format, forced to long form, instead of with the default format. 0 turns it off; negative
+    // means every level.
+    recursive_long_form_depth: s32 = 0;
 }
 
 FormatArray :: struct {
@@ -77,6 +81,9 @@ Print_Style :: struct {
     struct_printer: (builder: *String_Builder, any: Any, struct_printer_data: *void) -> bool;
     struct_printer_data: *void;
     indentation_depth: s32;
+    // Set while a struct with recursive_long_form_depth is being printed: the format its nested
+    // structs take. Internal.
+    nested_struct_format: *FormatStruct;
     log_runtime_errors := true;
 }
 
@@ -145,6 +152,7 @@ __default_format_struct :: () -> FormatStruct {
     result.end_string = source.end_string;
     result.indentation_width = source.indentation_width;
     result.use_newlines_if_long_form = source.use_newlines_if_long_form;
+    result.recursive_long_form_depth = source.recursive_long_form_depth;
     return result;
 }
 
@@ -913,6 +921,12 @@ __append_struct :: (builder: *String_Builder, info: *Type_Info_Struct, pointer: 
     long_form := format.use_long_form_if_more_than_this_many_members < 0 || count > format.use_long_form_if_more_than_this_many_members;
     newlines := long_form && format.use_newlines_if_long_form;
     if newlines append(builder, "\n");
+    nested_format := format;
+    nested_format.use_long_form_if_more_than_this_many_members = -1;
+    if nested_format.recursive_long_form_depth > 0 nested_format.recursive_long_form_depth -= 1;
+    outer_nested := context.print_style.nested_struct_format;
+    context.print_style.nested_struct_format = null;
+    if long_form && format.recursive_long_form_depth != 0 context.print_style.nested_struct_format = *nested_format;
     printed := 0;
     end_of_last = -1;
     for *member: info.members {
@@ -931,6 +945,7 @@ __append_struct :: (builder: *String_Builder, info: *Type_Info_Struct, pointer: 
         else if printed < count append(builder, format.short_form_separator_between_fields);
         if newlines append(builder, "\n");
     }
+    context.print_style.nested_struct_format = outer_nested;
     if newlines for i: 0..depth * format.indentation_width - 1 append(builder, cast(u8) #char " ");
     append(builder, format.end_string);
 }
@@ -1071,6 +1086,8 @@ __append_item :: (builder: *String_Builder, item: Any, nested: bool, uninitializ
             return;
         }
         settings := __default_format_struct();
+        inherited := context.print_style.nested_struct_format;
+        if inherited settings = inherited.*;
         __append_struct(builder, info, item.value_pointer, settings, depth);
     } else if tag == .ARRAY __append_array(builder, item, cast(*Type_Info_Array) item.type, __default_format_array(), false, depth);
     else if tag == .ENUM {
