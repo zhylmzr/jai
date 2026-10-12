@@ -22,6 +22,7 @@ A program imports them by path, so the import itself says the code is jaic-only:
 | `Jai_Format` | `#import "Extensions/Jai_Format";` | The Jai source formatter behind `jaifmt` and the playground's Format button: text in, text out. | [jaifmt](../tools/jaifmt.md) |
 | `WebGPU` | `#import "Extensions/WebGPU";` | The standard WebGPU C API (`webgpu.h`), generated from `webgpu.yml`: wgpu-native natively, the page's WebGPU in the playground. | [WebGPU](webgpu.md) |
 | `Io` | `#import "Extensions/Io";` | Cooperative fibers on a per-thread scheduler: `spawn`, `sleep`, `cancel`, bounded channels, wait groups and fiber mutexes. Not available on wasm. | [Io](io-fibers.md) |
+| `Io_Uring` | `#import "Extensions/Io_Uring";` | Linux io_uring: constants and structs generated from the kernel header, `io_uring_setup/enter/register`, and a mapped `Ring` with submit, completion and probe helpers. Linux only. | [Io_Uring](io-uring.md) |
 | `Wasi_Runtime` | `#import "Extensions/Wasi_Runtime";` | The C library entry points (threads included, as green threads) and `_start` a wasm64 program needs to run as a WASI command. jaic adds it to `-os wasm` builds itself; a program rarely imports it. | [wasm target](../native/wasm-target.md) |
 
 ## How it works
