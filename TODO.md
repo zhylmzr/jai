@@ -42,8 +42,3 @@ Not needed yet. These could live in a separate repo (server and client together)
   - Cache each query's types keyed on its SQL plus the schema hash, so a migration that changes a column type invalidates it automatically. Record the tables and columns each query uses so a migration only invalidates the queries it affects.
   - The cache can be committed (like sqlx's offline mode) so CI and fresh clones build without booting the database, with a check that fails when it's stale.
   - Fallback if PGlite's extension set is too limited: per-platform Postgres binaries, like the `embedded-postgres` packages.
-- **Build a compile-time regex** (e.g. a `regex` `#expand` macro) that generates optimized matching code, so no regex library is needed at runtime.
-  - Returns a generated type with named captures and exact sizes.
-  - Infers capture types where it can: a group that can only match a few strings becomes an enum, and `[0-9]+` parses as a number.
-  - Can match into a struct you declare: `stuff: Result; re.match(text, *stuff)` (or `re.match(text, Result)`). Fields map to groups by name and each field's type decides the parsing (`color: Color` parses the enum by member name, `count: u8` is range-checked). A field without a group, or a group without a field, is a compile error.
-  - Chooses the best strategy for each part: DFA, exact match or backtracking.

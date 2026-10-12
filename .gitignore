@@ -11,3 +11,4 @@
 
 # npm and pnpm (editors/vscode and any stray installs)
 node_modules/
+/tools/regex_oracle/target/
