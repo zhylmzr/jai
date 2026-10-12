@@ -118,7 +118,7 @@ Gotchas:
 
 - `stdlib/Extensions/Regex/tests/matching.jai`: the run-time API, errors, options and linear time.
 - `tests/typed.jai`: `Static`, the type inference, `parse_into`.
-- `tests/differential.jai`: 1,413 random pattern/text pairs, with the matches and capture spans that Rust's regex 1.13.1 found (`tests/data/differential_cases.jai`).
+- `tests/differential.jai`: 313 random pattern/text pairs, with the matches and capture spans that Rust's regex 1.13.1 found (`tests/data/differential_cases.jai`).
 - `tests/unicode.jai`: the tables.
 - `tests/corpus/negative/regex-*.jai`: the compile errors.
 
