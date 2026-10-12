@@ -6,9 +6,11 @@ Utf8 :: #import "Windows_Utf8";
 
 create_process :: (process: *Process, args: ..string, working_directory := "", capture_and_return_output := false, arg_quoting := Process_Argument_Quoting.QUOTE_IF_NEEDED, kill_process_if_parent_exits := true) -> success: bool {
     if process.launched || args.count == 0 || !args[0] return false;
+
     command: string;
     if arg_quoting == .NEVER_QUOTE command = String.join(..args, separator = " ");
     else command = get_quoted_command_string(args);
+
     native_command := os_utf8_to_wide(command);
     startup: Windows.STARTUPINFOW;
     startup.cb = size_of(Windows.STARTUPINFOW);
@@ -43,6 +45,7 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
 
     directory: *u16;
     if working_directory directory = os_utf8_to_wide(working_directory);
+
     flags: Windows.Creation_Flags;
     if kill_process_if_parent_exits flags = cast(Windows.Creation_Flags) 4;
 
@@ -61,8 +64,10 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
             Windows.CloseHandle(process.info.hThread);
             Windows.CloseHandle(process.info.hProcess);
             if process.job_handle Windows.CloseHandle(process.job_handle);
+
             process.job_handle = cast(Windows.HANDLE) -1;
             close_pipe_ends(process);
+
             return false;
         }
 
@@ -74,6 +79,7 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
     process.output.eof = !capture_and_return_output;
     process.error.eof = !capture_and_return_output;
     Atomics.atomic_increment(*active_command_count);
+
     return true;
 }
 
@@ -127,6 +133,7 @@ init_named_pipe_pair :: (pipe: *Process.Pipe, is_input: bool) -> bool, Windows.H
     pipe.overlapped.hEvent = event;
     pipe.handle = parent;
     pipe.eof = false;
+
     return true, child;
 }
 
@@ -146,12 +153,14 @@ read_from_process :: (process: *Process, output_buffer: [] u8, error_buffer: [] 
         if !out_ok || !err_ok return false, out_count, err_count;
         if out_count || err_count || process.output.eof && process.error.eof return true, out_count, err_count;
         if remaining_time(start, timeout_ms) == 0 return true, 0, 0;
+
         Windows.Sleep(1);
     }
 }
 
 read_pipe :: (pipe: *Process.Pipe, buffer: [] u8) -> success: bool, bytes_read: int {
     if pipe.eof || buffer.count == 0 return true, 0;
+
     available: u32;
     if !Windows.PeekNamedPipe(pipe.handle, null, 0, null, *available, null) {
         if cast(u32) Windows.GetLastError() == 109 {
@@ -163,6 +172,7 @@ read_pipe :: (pipe: *Process.Pipe, buffer: [] u8) -> success: bool, bytes_read: 
     }
 
     if available == 0 return true, 0;
+
     amount: u32;
     request := cast(u32) min(buffer.count, available);
     success := Windows.ReadFile(pipe.handle, buffer.data, request, *amount, null) != 0;
@@ -173,14 +183,19 @@ read_pipe :: (pipe: *Process.Pipe, buffer: [] u8) -> success: bool, bytes_read: 
 get_process_result :: (process: *Process, timeout_ms := -1) -> success: bool, Process_Result {
     if !process.launched return true, .{ type = .UNSTARTED };
     if process.saved_result.type != .STILL_RUNNING return true, process.saved_result;
+
     native_timeout: u32 = 0xffff_ffff;
     if timeout_ms >= 0 native_timeout = cast(u32) timeout_ms;
+
     result := Windows.WaitForSingleObject(process.info.hProcess, native_timeout);
     if result == 258 return true, process.saved_result;
     if result != 0 return false, process.saved_result;
+
     code: u32;
     if !Windows.GetExitCodeProcess(process.info.hProcess, *code) return false, process.saved_result;
+
     process.saved_result = .{ type = .EXITED, exit_code = cast,no_check(s32) code };
+
     return true, process.saved_result;
 }
 
@@ -190,6 +205,7 @@ kill_process :: (process: *Process) -> bool {
 
 deinit :: (pipe: *Process.Pipe) {
     if pipe.handle && pipe.handle != cast(Windows.HANDLE) -1 Windows.CloseHandle(pipe.handle);
+
     pipe.handle = cast(Windows.HANDLE) -1;
     pipe.eof = true;
     if pipe.overlapped {
@@ -211,6 +227,7 @@ deinit :: (process: *Process) {
         Windows.CloseHandle(process.info.hThread);
         Windows.CloseHandle(process.info.hProcess);
         if process.job_handle && process.job_handle != cast(Windows.HANDLE) -1 Windows.CloseHandle(process.job_handle);
+
         Atomics.atomic_decrement(*active_command_count);
     }
 

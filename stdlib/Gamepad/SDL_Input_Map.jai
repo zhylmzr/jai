@@ -61,12 +61,14 @@ parse_gamepad_mapping_string :: (input: string) -> map: SDL_Gamepad_Mapping, suc
     if guid.count != 32 && guid != "xinput" return map, false;
     if guid.count == 32 for byte: guid if !((byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 70) || (byte >= 97 && byte <= 102)) return map, false;
     if name.count == 0 return map, false;
+
     map.guid = copy_string(guid);
     map.name = copy_string(name);
 
     while cursor < input.count {
         field := mapping_token(input, *cursor, 44);
         if field.count == 0 continue;
+
         split: s64 = 0;
         while split < field.count && field[split] != 58 split += 1;
 
@@ -86,6 +88,7 @@ parse_gamepad_mapping_string :: (input: string) -> map: SDL_Gamepad_Mapping, suc
 
         // SDL metadata does not alter the classic hardware mapping record.
         if target_name == "crc" || target_name == "hint" || target_name == "sdk" continue;
+
         target := input_name_to_input_target(target_name);
         if target == .UNINITIALIZED || value.count < 2 {
             deinit(map);
@@ -157,6 +160,7 @@ get_guid_string :: (bustype: s16, vendor: s16, product: s16, version: s16) -> te
 
     out := cast(*u8) talloc(32);
     if !out return "";
+
     digits :: "0123456789abcdef";
 
     for byte, index: bytes {
@@ -190,8 +194,10 @@ mapping_token :: (input: string, cursor: *s64, separator: u8) -> string {
     start := cursor.*;
 
     while cursor.* < input.count && input[cursor.*] != separator cursor.* += 1;
+
     token: string = .{ input.data + start, cursor.* - start };
 
     if cursor.* < input.count cursor.* += 1;
+
     return token;
 }

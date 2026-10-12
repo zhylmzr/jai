@@ -24,8 +24,10 @@ file_read_line :: (file: File) -> line: string, ok: bool {
     while true {
         success, received := file_read_checked(file, *byte, 1);
         if !success || received == 0 break;
+
         got_any = true;
         if byte == #char "\n" break;
+
         array_add(*bytes, byte);
     }
 
@@ -52,11 +54,14 @@ read_entire_file :: (f: File, zero_terminated := false) -> string, bool {
     length, measured := file_length_checked(f);
     if !measured || length < 0 || length == 0x7fff_ffff_ffff_ffff return "", false;
     if !file_set_position(f, 0) return "", false;
+
     allocation_size := length;
     if zero_terminated allocation_size += 1;
     if allocation_size == 0 return "", true;
+
     bytes := cast(*u8) alloc(allocation_size);
     if !bytes return "", false;
+
     success, received := file_read_checked(f, bytes, length);
     if !success || received != length {
         free(bytes);
@@ -64,6 +69,7 @@ read_entire_file :: (f: File, zero_terminated := false) -> string, bool {
     }
 
     if zero_terminated bytes[length] = 0;
+
     return .{ length, bytes }, true;
 }
 
@@ -84,8 +90,10 @@ write_entire_file :: inline (name: string, data: string) -> bool {
 
 write_entire_file :: (name: string, data: *void, count: int) -> bool {
     if count < 0 return false;
+
     output, opened := file_open(name, for_writing = true);
     if !opened return false;
+
     written := file_write(*output, data, count);
     closed := file_close(*output);
 
@@ -96,6 +104,7 @@ write_entire_file :: (name: string, builder: *String_Builder, do_reset := true) 
     defer if do_reset reset(builder);
     output, opened := file_open(name, for_writing = true);
     if !opened return false;
+
     written := file_write(*output, builder, false);
     closed := file_close(*output);
 

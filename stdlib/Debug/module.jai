@@ -29,6 +29,7 @@ ignored_asserts: Table(Source_Code_Location, bool, hash_scl, compare_scl);
 hash_scl :: (loc: Source_Code_Location) -> u32 {
     hash: u32 = 2166136261;
     for byte: loc.fully_pathed_filename hash = cast,no_check(u32) (cast(u64) (hash ^ byte) * 16777619);
+
     line := cast,no_check(u64) loc.line_number;
     column := cast,no_check(u64) loc.character_number;
 
@@ -70,11 +71,13 @@ backtrace :: (trace: [] *void, maxcount: int, skip := 0) -> int {
 
         if first < 0 first = 0;
         if first > count first = count;
+
         available := count - first;
         if maxcount < available available = maxcount;
         if trace.count < available available = trace.count;
         if available < 0 available = 0;
         for index: 0..available - 1 trace[index] = frames[first + index];
+
         return available;
     } else #if OS == .WINDOWS {
         wanted := min(maxcount, trace.count);
@@ -90,6 +93,7 @@ backtrace :: (trace: [] *void, maxcount: int, skip := 0) -> int {
 backtrace_symbols :: (trace: [] *void, n: int) -> [] string {
     if n < 0 n = 0;
     if n > trace.count n = trace.count;
+
     result: [] string;
     result.count = n;
     result.data = cast(*string) alloc(n * size_of(string));
@@ -109,7 +113,9 @@ backtrace_symbols :: (trace: [] *void, n: int) -> [] string {
         }
 
         for index: 0..n - 1 result[index] = copy_string(to_string(symbols[index]));
+
         host_free(symbols);
+
         return result;
     }
 }
@@ -154,15 +160,18 @@ is_debugger_present :: inline () -> bool {
         count: u64 = size_of(POSIX.kinfo_proc);
 
         if POSIX.sysctl(query.data, query.count, *process, *count, null, 0) != 0 return false;
+
         return cast(bool) (process.kp_proc.p_flag & POSIX.P_TRACED);
     } else #if OS == .LINUX || OS == .ANDROID {
         descriptor := host_open("/proc/self/status".data, 0);
         if descriptor < 0 return false;
+
         defer host_close(descriptor);
         bytes: [4096] u8;
         count := host_read(descriptor, bytes.data, bytes.count);
 
         if count <= 0 return false;
+
         text := string.{ count, bytes.data };
         label := "TracerPid:";
 
@@ -170,8 +179,10 @@ is_debugger_present :: inline () -> bool {
             matching := true;
             for byte, index: label if text[start + index] != byte matching = false;
             if !matching continue;
+
             cursor := start + label.count;
             while cursor < text.count && (text[cursor] == #char " " || text[cursor] == #char "\t") cursor += 1;
+
             return cursor < text.count && text[cursor] >= #char "1" && text[cursor] <= #char "9";
         }
 
@@ -244,6 +255,7 @@ print_assert :: (loc: Source_Code_Location, message: string) -> bool {
     output(": assertion failed: ");
     output(message);
     output("\n");
+
     return false;
 }
 
@@ -259,6 +271,7 @@ trace_assert :: (loc: Source_Code_Location, message: string) -> bool {
     }
 
     free_backtrace(frames);
+
     return false;
 }
 
@@ -283,9 +296,11 @@ is_valid_pointer :: (ptr: *void) -> bool {
         // Ask for the page's state rather than touching it: IsBadReadPtr reads the byte and
         // catches the fault, which a debugger or crash handler sees first.
         if !ptr return false;
+
         info: Windows.MEMORY_BASIC_INFORMATION;
         if Windows.VirtualQuery(ptr, *info, size_of(Windows.MEMORY_BASIC_INFORMATION)) == 0 return false;
         if info.State != Windows.MEM_COMMIT || (info.Protect & Windows.PAGE_GUARD) return false;
+
         READABLE :: 0x02 | 0x04 | 0x08 | 0x20 | 0x40 | 0x80;
 
         return (info.Protect & READABLE) != 0;
@@ -293,6 +308,7 @@ is_valid_pointer :: (ptr: *void) -> bool {
         // The kernel reads the byte for us: writing it into a pipe fails with EFAULT, rather
         // than crashing, when the address cannot be read.
         if !ptr return false;
+
         ends: [2] s32;
         if host_pipe(ends.data) != 0 return false;
 
@@ -365,6 +381,7 @@ minidump_state := Minidump_State.Mini;
         }
 
         Windows.ExitProcess(code);
+
         return Windows.EXCEPTION_EXECUTE_HANDLER;
     }
 
@@ -374,6 +391,7 @@ minidump_state := Minidump_State.Mini;
         flags :: Windows.GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | Windows.GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
 
         if !Windows.GetModuleHandleExW(flags, cast(*u16) address, *module) return sprint("0x%", formatInt(cast(u64) address, base = 16));
+
         wide: [260] u16;
         length := Windows.GetModuleFileNameW(module, wide.data, wide.count);
         name: String_Builder;
@@ -382,7 +400,9 @@ minidump_state := Minidump_State.Mini;
         for index: 0..length - 1 if wide[index] == #char "\\" || wide[index] == #char "/" start = index + 1;
         // Module file names are ASCII in practice; anything else shows as '?'.
         for index: start..length - 1 append(*name, ifx wide[index] < 0x80 then cast(u8) wide[index] else #char "?");
+
         print_to_builder(*name, "+0x%", formatInt(cast(u64) address - cast(u64) module, base = 16));
+
         return builder_to_string(*name);
     }
 }

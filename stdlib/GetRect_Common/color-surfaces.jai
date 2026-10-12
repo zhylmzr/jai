@@ -4,6 +4,7 @@ left_sv_surface :: (r: Rect, state: *Color_Picker_State, warp: bool) {
     radius := min(r.w, r.h) / 2;
 
     if radius <= 0 return;
+
     draw_procs.set_shader_for_color(true);
 
     if warp {
@@ -51,6 +52,7 @@ left_sv_surface :: (r: Rect, state: *Color_Picker_State, warp: bool) {
 
     marker := state.disc_point;
     if !warp marker = .{ state.current_hsv_color.y * 2 - 1, 1 - state.current_hsv_color.z * 2 };
+
     point := left_sv_point(r, marker, warp);
 
     left_color_fill(.{ point.x - 3, point.y - 3, 6, 6 }, .{ 0, 0, 0, 1 });
@@ -67,6 +69,7 @@ left_sv_drag :: (r: Rect, state: *Color_Picker_State, warp: bool) {
     radius := min(r.w, r.h) / 2;
 
     if radius <= 0 return;
+
     point := left_sv_normalized(r, xy(mouse_x_float, mouse_y_float), warp);
     q := left_disc_square(point, warp);
     hsv := state.current_hsv_color;

@@ -12,9 +12,11 @@ gamepad_evdev_scan_limit: s32 = 64;
 open_evdev_gamepad :: (path: string) -> bool {
     name := to_c_string(path);
     if !name return false;
+
     defer free(name);
     fd := Unix.open(name, Unix.O_RDONLY | Unix.O_NONBLOCK | Unix.O_CLOEXEC);
     if fd < 0 return false;
+
     device: *Evdev.libevdev;
     status := Evdev.libevdev_new_from_fd(fd, *device);
 
@@ -34,6 +36,7 @@ open_evdev_gamepad :: (path: string) -> bool {
     close_evdev_gamepad();
     evdev_device = device;
     evdev_fd = fd;
+
     return true;
 }
 
@@ -70,6 +73,7 @@ sample_evdev :: (sample: *Gamepad_Sample) -> bool {
         flags := Evdev.LIBEVDEV_READ_FLAG_NORMAL;
 
         if sync flags = Evdev.LIBEVDEV_READ_FLAG_SYNC;
+
         result := Evdev.libevdev_next_event(evdev_device, flags, *native);
         if result == 1 {
             sync = true;
@@ -98,6 +102,7 @@ sample_evdev :: (sample: *Gamepad_Sample) -> bool {
     codes: [14] Gamepad_Code = .[.DPAD_UP, .DPAD_DOWN, .DPAD_LEFT, .DPAD_RIGHT, .START, .BACK, .LEFT_SHOULDER, .RIGHT_SHOULDER, .A, .B, .X, .Y, .LEFT_STICK_CLICK, .RIGHT_STICK_CLICK];
 
     for key, index: keys if Evdev.libevdev_get_event_value(evdev_device, 1, key) != 0 sample.buttons |= (cast(u32) 1) << cast(s64) codes[index];
+
     hat_x := Evdev.libevdev_get_event_value(evdev_device, 3, 0x10);
     hat_y := Evdev.libevdev_get_event_value(evdev_device, 3, 0x11);
 
@@ -105,10 +110,12 @@ sample_evdev :: (sample: *Gamepad_Sample) -> bool {
     if hat_x > 0 sample.buttons |= (cast(u32) 1) << cast(s64) Gamepad_Code.DPAD_RIGHT;
     if hat_y < 0 sample.buttons |= (cast(u32) 1) << cast(s64) Gamepad_Code.DPAD_UP;
     if hat_y > 0 sample.buttons |= (cast(u32) 1) << cast(s64) Gamepad_Code.DPAD_DOWN;
+
     sample.left_stick = .{ evdev_axis(0, false), -evdev_axis(1, false) };
     sample.right_stick = .{ evdev_axis(3, false), -evdev_axis(4, false) };
     sample.left_trigger = evdev_axis(2, true);
     sample.right_trigger = evdev_axis(5, true);
+
     return true;
 }
 
@@ -116,9 +123,11 @@ sample_evdev :: (sample: *Gamepad_Sample) -> bool {
 evdev_axis :: (code: u32, trigger: bool) -> float {
     range := Evdev.libevdev_get_abs_info(evdev_device, code);
     if !range || range.maximum <= range.minimum return 0;
+
     value := Evdev.libevdev_get_event_value(evdev_device, 3, code);
     unit := cast(float) (cast(s64) value - range.minimum) / cast(float) (cast(s64) range.maximum - range.minimum);
     unit = clamp(unit, 0.0, 1.0);
     if trigger return unit;
+
     return unit * 2 - 1;
 }

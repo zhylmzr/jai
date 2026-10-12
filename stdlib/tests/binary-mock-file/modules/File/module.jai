@@ -16,6 +16,7 @@ file_open :: (name: string, for_writing := false, keep_existing_content := false
     stream.closed = false;
     result: File;
     result.handle = *stream;
+
     return result, true;
 }
 

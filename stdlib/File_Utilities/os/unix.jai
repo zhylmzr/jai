@@ -33,6 +33,7 @@ directory_entries :: (path: string) -> [] File_Visit_Info, bool {
     result.allocator = temp;
     stream := opendir(temp_c_string(path));
     if !stream return result, false;
+
     defer closedir(stream);
 
     while true {
@@ -45,6 +46,7 @@ directory_entries :: (path: string) -> [] File_Visit_Info, bool {
 
         short_name := to_string(native_entry.d_name.data);
         if short_name == "." || short_name == ".." continue;
+
         info: File_Visit_Info;
         info.short_name = copy_temporary_string(short_name);
         info.full_name = Strings.join(path, "/", short_name);

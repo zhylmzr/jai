@@ -30,6 +30,7 @@ check_header :: (header: *Package_Header, name: string, file_size_in_bytes_or_mi
     if !header return false;
     if header.magic != MAGIC || header.version > FILE_VERSION return false;
     if header.table_of_contents_offset < KNOWN_HEADER_SIZE return false;
+
     size := file_size_in_bytes_or_minus_1;
     if size >= 0 {
         if size < KNOWN_TABLE_OF_CONTENTS_SIZE return false;

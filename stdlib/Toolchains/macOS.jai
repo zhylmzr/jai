@@ -46,6 +46,7 @@ get_macos_sdk_path :: () -> string, bool {
     }
 
     cached_macos_sdk_path = copy_string(path);
+
     return cached_macos_sdk_path, true;
 }
 

@@ -40,6 +40,7 @@ DXC_Compile :: (args: Dxc_Shader_Compiler_Args) -> [..] u8 {
     }
 
     if args.shader_name.count > 0 _dxc_argument(*arguments, args.shader_name);
+
     DXCMemory.assert(args.shader_model_version.count > 0, "DXC requires a shader model version");
 
     if args.shader_type != .Library {
@@ -72,6 +73,7 @@ DXC_Compile :: (args: Dxc_Shader_Compiler_Args) -> [..] u8 {
     }
 
     for argument: args.extra_args _dxc_argument(*arguments, argument);
+
     DXCMemory.assert(arguments.count <= 0xffff_ffff);
     source: DxcBuffer;
     source.Ptr = args.shader_source.data;
@@ -108,6 +110,7 @@ DXC_Compile :: (args: Dxc_Shader_Compiler_Args) -> [..] u8 {
 
     status = IDxcOperationResult_GetStatus(cast(*IDxcOperationResult) result, *compilation);
     if status < 0 || compilation < 0 return output;
+
     binary: *IDxcBlob;
 
     status = IDxcOperationResult_GetResult(cast(*IDxcOperationResult) result, *binary);
@@ -123,6 +126,7 @@ DXC_Compile :: (args: Dxc_Shader_Compiler_Args) -> [..] u8 {
     DXCMemory.assert(size <= 0x7fff_ffff_ffff_ffff);
     DXCMemory.array_resize(*output, cast(s64) size);
     if size > 0 memcpy(output.data, IDxcBlob_GetBufferPointer(binary), cast(s64) size);
+
     return output;
 }
 
@@ -132,6 +136,7 @@ DXC_Reflect :: (dxil: [] u8) -> *ID3D12ShaderReflection, bool {
 
     defer _dxc_release(utils);
     if status < 0 || utils == null return null, false;
+
     source: DxcBuffer;
     source.Ptr = dxil.data;
     source.Size = cast(SIZE_T) dxil.count;
@@ -166,6 +171,7 @@ _dxc_argument :: (arguments: *[..] *s16, argument: string) {
         DXCMemory.assert(empty != null);
         empty.* = 0;
         DXCMemory.array_add(arguments, empty);
+
         return;
     }
 
@@ -183,6 +189,8 @@ _dxc_stage_prefix :: (kind: Shader_Type) -> string {
     if kind == .Domain return "ds";
     if kind == .Mesh return "ms";
     if kind == .Amplification return "as";
+
     DXCMemory.assert(kind == .Library, "Unsupported DXC shader stage");
+
     return "lib";
 }

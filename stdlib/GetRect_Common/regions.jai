@@ -3,6 +3,7 @@
 
 begin_scrollable_region :: (r: Rect, theme: *Scrollable_Region_Theme = null, identifier: s64 = 0, loc := #caller_location) -> (state: *Scrollable_Region_State, inside: Rect) {
     if !theme theme = *default_overall_theme.scrollable_region_theme;
+
     state = find_or_create_state(Scrollable_Region_State, get_hash(loc, identifier));
     state.outer_rect = r;
     state.theme = theme.*;
@@ -45,6 +46,7 @@ begin_scrollable_region :: (r: Rect, theme: *Scrollable_Region_Theme = null, ide
 
     state.inner_rect = inside;
     push_scissor(inside);
+
     return state, inside;
 }
 
@@ -63,6 +65,7 @@ begin_scrollable_region :: (r: Rect, theme: *Scrollable_Region_Theme = null, ide
 end_scrollable_region_shared :: (state: *Scrollable_Region_State, max_x: float, y_limit: float, scroll_value: *float) {
     assert(state && scroll_value);
     if !state || !scroll_value return;
+
     pop_scissor();
     defer stop_using_state(state);
     theme := *state.theme;
@@ -122,6 +125,7 @@ end_scrollable_region_shared :: (state: *Scrollable_Region_State, max_x: float, 
     scroll_value.* = clamp(scroll_value.*, 0.0, extent);
     rounded_rectangle(state.bar_rect, theme.scrollbar_background.shape, theme.scrollbar_background.color, theme.scrollbar_background.frame_color);
     if state.dragging status |= .DOWN;
+
     core_draw_button(shrink(nib, breadth * theme.nib_margin), "", *state.nib_state, status, *theme.scrollbar_nib_theme, null);
 }
 
@@ -134,6 +138,7 @@ scroll_fraction :: (bar: Rect, vertical: bool, nib_size: float, position: float,
 #scope_export
 slidable_region :: (r: Rect, theme: *Slidable_Region_Theme = null, identifier: s64 = 0, loc := #caller_location) -> (state: *Slidable_Region_State, left_or_top_rect: Rect, right_or_bottom_rect: Rect, divider_rect: Rect) {
     if !theme theme = *default_overall_theme.slidable_region_theme;
+
     state, created := find_or_create_state(Slidable_Region_State, get_hash(loc, identifier));
     state.theme = theme;
     horizontal := theme.orientation == .HORIZONTAL;
@@ -141,6 +146,7 @@ slidable_region :: (r: Rect, theme: *Slidable_Region_Theme = null, identifier: s
     thickness := clamp(get_float_parameter(r, theme.divider_thickness_type, theme.divider_thickness, global_divider_thickness_in_pixels), 0.0, dimension);
 
     if created state.divider_t = clamp(get_float_parameter(r, theme.initial_divider_position_type, theme.initial_divider_position, global_initial_divider_position_in_pixels) / max(dimension, 1.0), 0.0, 1.0);
+
     first, divider, second := compute_rects(r, state, thickness);
     status := get_status_flags(divider, state);
 
@@ -169,11 +175,13 @@ slidable_region :: (r: Rect, theme: *Slidable_Region_Theme = null, identifier: s
     rounded_rectangle(second, theme.second_background.shape, theme.second_background.color, theme.second_background.frame_color);
     core_draw_button(divider, "", *state.divider_state, status, *theme.divider_theme, null);
     push_scissor(first);
+
     return state, first, second, divider;
 }
 
 compute_rects :: (r: Rect, state: *Slidable_Region_State, divider_thickness_in_pixels: float) -> (top: Rect, divider: Rect, bottom: Rect) {
     if GETRECT_Y_UP return right_divider_rects(r, state.theme.orientation == .HORIZONTAL, state.divider_t, divider_thickness_in_pixels);
+
     top := r;
     divider := r;
     bottom := r;
@@ -214,6 +222,7 @@ finish :: (state: *Slidable_Region_State) {
 number_input :: (_r: Rect, text: string, value: *$T, min_value: T, max_value: T, theme: *Number_Input_Theme, identifier: s64 = 0, loc := #caller_location,parse_proc: (string) -> (T, bool) = null) -> bool {
     if !value || max_value < min_value return false;
     if !theme theme = *left_default_number_theme;
+
     state, created := find_or_create_state(Number_Input_State, get_hash(loc, identifier));
 
     defer stop_using_state(state);
@@ -223,6 +232,7 @@ number_input :: (_r: Rect, text: string, value: *$T, min_value: T, max_value: T,
 
     state.inputting_text = input_state.active;
     if !(actions & .ENTERED) return false;
+
     candidate: T;
     success: bool;
 
@@ -242,9 +252,11 @@ number_input :: (_r: Rect, text: string, value: *$T, min_value: T, max_value: T,
     if !success return false;
     if theme.clamp_low candidate = max(candidate, min_value);
     if theme.clamp_high candidate = min(candidate, max_value);
+
     changed := candidate != value.*;
 
     value.* = candidate;
+
     return changed;
 }
 
@@ -252,12 +264,14 @@ add_subwindow :: (info: *Subwindow_Info, theme: *Subwindow_Theme = null, identif
     assert(info != null);
     if !info return null;
     if !theme theme = *default_overall_theme.subwindow_theme;
+
     state := find_or_create_state(Subwindow_State, get_hash(loc, identifier));
     state.info = info;
     state.theme = theme.*;
     state.hash = get_hash(loc, identifier);
     state.wants_draw = info.open;
     if state.render_target_width > 0 && state.render_target_height > 0 && (state.render_target_width != render_target_width || state.render_target_height != render_target_height) info.rect = rescale(info.rect, state.render_target_width, state.render_target_height);
+
     state.render_target_width = render_target_width;
     state.render_target_height = render_target_height;
     order := left_subwindow_order(state);
@@ -278,6 +292,7 @@ add_subwindow :: (info: *Subwindow_Info, theme: *Subwindow_Theme = null, identif
     }
 
     stop_using_state(state);
+
     return state;
 }
 
@@ -287,6 +302,7 @@ close_button_rect :: (theme: *Subwindow_Theme, title: Rect) -> Rect {
 
 draw_subwindow :: (state: *Subwindow_State) {
     if !state.info || !state.info.open return;
+
     start_using_state(state);
     defer stop_using_state(state);
     occluder_start(state, state.info.rect);
@@ -297,9 +313,11 @@ draw_subwindow :: (state: *Subwindow_State) {
     title_height := ifx theme.subwindow_flags & .TITLE_BAR then get_title_bar_height(theme) else 0.0;
 
     if info.fixed_aspect_ratio > 0 full.h = full.w / info.fixed_aspect_ratio;
+
     title := full;
     title.h = min(title_height, full.h);
     if GETRECT_Y_UP title.y = full.y + full.h - title.h;
+
     state.title_bar_rect = title;
     controls := adjust_resize_control(theme, state, left_resize_hit(full, theme, mouse_x_float, mouse_y_float));
     if controls != 0 {
@@ -344,9 +362,11 @@ draw_subwindow :: (state: *Subwindow_State) {
     title = full;
     title.h = min(title_height, full.h);
     if GETRECT_Y_UP title.y = full.y + full.h - title.h;
+
     state.title_bar_rect = title;
     content := full;
     if !GETRECT_Y_UP content.y += title.h;
+
     content.h = max(content.h - title.h, 0.0);
 
     #if GETRECT_Y_UP {
@@ -357,6 +377,7 @@ draw_subwindow :: (state: *Subwindow_State) {
     }
 
     if theme.subwindow_flags & .FRINGE rounded_rectangle(shrink(full, -theme.fringe_thickness * render_target_height), theme.region_background.shape, theme.fringe_color, .{});
+
     rounded_rectangle(content, theme.region_background.shape, theme.region_background.color, theme.region_background.frame_color);
     if title.h > 0 core_draw_button(title, info.title_text, *state.base, title_status, *theme.title_bar, null);
 
@@ -412,6 +433,7 @@ subwindow_rect_from_content_rect :: (content_rect: Rect, theme: *Subwindow_Theme
     result.y -= my + ifx GETRECT_Y_UP then 0.0 else title;
     result.w += 2 * mx;
     result.h += 2 * my + title;
+
     return result;
 }
 
@@ -428,6 +450,7 @@ start_resizing :: (state: *Subwindow_State, f: Rect) {
 
 update_dragging :: (state: *Subwindow_State, full: *Rect) {
     if active_widget != state return;
+
     delta := xy(mouse_x_float, mouse_y_float) - state.dragging_last;
 
     state.dragging_last = .{ mouse_x_float, mouse_y_float };
@@ -461,6 +484,7 @@ update_dragging :: (state: *Subwindow_State, full: *Rect) {
         aspect := state.info.fixed_aspect_ratio;
         if aspect <= 0 && control & .PROPORTIONAL aspect = state.resizing_aspect;
         if aspect > 0 full.h = full.w / aspect;
+
         snap := state.theme.resize_snap_margin * render_target_height;
         if control & .SNAP_EW && abs(full.w - state.info.snap_to_size.x) < snap full.w = state.info.snap_to_size.x;
         if control & .SNAP_NS && abs(full.h - state.info.snap_to_size.y) < snap full.h = state.info.snap_to_size.y;
@@ -519,11 +543,13 @@ left_raise_serial: u64;
 
 left_subwindow_order :: (state: *Subwindow_State) -> *Left_Subwindow_Order {
     for order: left_subwindow_orders if order.state == state return order;
+
     order := New(Left_Subwindow_Order, allocator = GETRECT_HEAP);
     order.state = state;
     left_raise_serial += 1;
     order.rank = left_raise_serial;
     array_add(*left_subwindow_orders, order);
+
     return order;
 }
 
@@ -537,6 +563,7 @@ left_subwindow_hit :: (window: Window_Type, x: float, y: float) -> *Active_Widge
     }
 
     if best return *best.state.widget;
+
     return null;
 }
 
@@ -563,6 +590,7 @@ left_resize_hit :: (r: Rect, theme: *Subwindow_Theme, x: float, y: float) -> Res
     result &= theme.resize_controls;
     if theme.resize_controls & .CORNER_SE && is_inside(x, y, .{ r.x + r.w - theme.resize_rect_size * height, ifx GETRECT_Y_UP then r.y else r.y + r.h - theme.resize_rect_size * height, theme.resize_rect_size * height, theme.resize_rect_size * height }) result |= .SE;
     if result != 0 result |= theme.resize_controls & (.PROPORTIONAL | .SNAP);
+
     return result;
 }
 
@@ -575,6 +603,7 @@ get_pointer_from_resize_control :: (flags: Resize_Controls) -> Pointer_Image {
 
     if flags & .EW return .DRAGGING_HORIZONTAL;
     if flags & .NS return .DRAGGING_VERTICAL;
+
     return .NORMAL;
 }
 

@@ -22,6 +22,7 @@ base64url_encode :: (input: string) -> string {
 base64_encode_with_alphabet :: (input: string, alphabet: string, padding: bool) -> string {
     if alphabet.count != 64 return "";
     for i: 0..63 for j : 0..i - 1 if alphabet[i] == alphabet[j] return "";
+
     builder: Basic.String_Builder;
     i := 0;
 
@@ -33,12 +34,14 @@ base64_encode_with_alphabet :: (input: string, alphabet: string, padding: bool) 
 
         if left > 1 b = input[i + 1];
         if left > 2 c = input[i + 2];
+
         Basic.append(*builder, alphabet[a >> 2]);
         Basic.append(*builder, alphabet[((a & 3) << 4) | (b >> 4)]);
         if left > 1 Basic.append(*builder, alphabet[((b & 15) << 2) | (c >> 6)]);
         else if padding Basic.append(*builder, cast(u8) 61);
         if left > 2 Basic.append(*builder, alphabet[c & 63]);
         else if padding Basic.append(*builder, cast(u8) 61);
+
         i += 3;
     }
 
@@ -57,6 +60,7 @@ base64_index_of :: (c: u8, alphabet: string) -> int, bool {
 
 base64_decode_with_alphabet :: (text: string, alphabet: string) -> string, bool {
     if alphabet.count != 64 return "", false;
+
     table: [256] u8;
     for *item: table item.* = INVALID;
 
@@ -70,6 +74,7 @@ base64_decode_with_alphabet :: (text: string, alphabet: string) -> string, bool 
     table[13] = WHITESPACE;
     table[32] = WHITESPACE;
     table[61] = EQUALS;
+
     return base64_decode(text, table);
 }
 

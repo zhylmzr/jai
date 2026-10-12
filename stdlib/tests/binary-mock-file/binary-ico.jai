@@ -9,8 +9,10 @@ witness :: () -> bool {
     if get_total_bytes_for_size(4, 2147483647) != 0 return false;
     if create_ico_file(1, 1, 2, null) != "" return false;
     if create_ico_file(0, 1, 4, null) != "" return false;
+
     Files.archive = "unsupported input";
     if create_ico_file_from_bitmap_filename("mock.bmp") != "" return false;
+
     return true;
 }
 

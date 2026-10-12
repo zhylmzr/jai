@@ -372,6 +372,7 @@ CreateContext :: (shared_font_atlas: *ImFontAtlas = null) -> *ImGuiContext {
         cast(u64) size_of(IO), cast(u64) size_of(Style), cast(u64) size_of(ImVec2),
         cast(u64) size_of(ImVec4), cast(u64) size_of(ImDrawVert), cast(u64) size_of(ImDrawIdx)),
         "Dear ImGui native version/layout does not match the retained 1.89.6 API");
+
     return _imgui_create_context(shared_font_atlas);
 }
 

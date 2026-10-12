@@ -53,6 +53,7 @@ output_open :: (config: Sound_Player_Config) -> channels: s32, rate: s32, ok: bo
     }
 
     written_up_to = 0;
+
     return DS_CHANNELS, DS_RATE, true;
 }
 
@@ -78,8 +79,10 @@ output_close :: () {
 
 output_frames_queued :: () -> queued: s64, at_least: s64 {
     if !ring return S64_MAX, 0;
+
     play, safe: u32;
     if ring.vtable.GetCurrentPosition(ring, *play, *safe) < 0 return S64_MAX, 0;
+
     ours := ring_distance(written_up_to, play);
     unsafe := ring_distance(safe, play);
 
@@ -94,6 +97,7 @@ output_frames_queued :: () -> queued: s64, at_least: s64 {
 
 output_write :: (frames: s64) {
     if !ring return;
+
     queued, _ := output_frames_queued();
     room := (RING_BYTES / DS_FRAME_BYTES) - queued - 1;
     count := min(frames, room);
@@ -104,6 +108,7 @@ output_write :: (frames: s64) {
     first_bytes, second_bytes: u32;
 
     if ring.vtable.Lock(ring, cast(u32) written_up_to, cast(u32) (count * DS_FRAME_BYTES), *first, *first_bytes, *second, *second_bytes, 0) < 0 return;
+
     mix_into(as_samples(first, first_bytes));
     if second mix_into(as_samples(second, second_bytes));
 
@@ -114,11 +119,13 @@ output_write :: (frames: s64) {
 
 output_devices :: () -> [] Output_Device {
     if listed_devices.count return listed_devices;
+
     gathered: Device_Gathering;
     gathered.caller_context = context;
     gathered.caller_context.stack_trace = null; // the trace points into this frame, which a later callback outlives
     DirectSoundEnumerateA(on_device_found, *gathered);
     listed_devices = gathered.devices;
+
     return listed_devices;
 }
 

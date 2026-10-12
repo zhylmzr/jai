@@ -5,6 +5,7 @@ get_c_string_from_data :: (data: [] u8, offset: s64) -> result: string, success:
     result: string;
 
     if offset < 0 || offset >= data.count return "", false;
+
     end := offset;
     while end < data.count {
         if data[end] == 0 {

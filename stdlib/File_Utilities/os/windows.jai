@@ -27,14 +27,17 @@ is_directory :: (path: string) -> bool, success: bool {
 same_file :: (source: string, destination: string) -> bool {
     a := Windows.CreateFileW(os_utf8_to_wide(source), 0, 7, null, 3, 0x02000000, null);
     if a == cast(Windows.HANDLE) -1 return false;
+
     defer Windows.CloseHandle(a);
     b := Windows.CreateFileW(os_utf8_to_wide(destination), 0, 7, null, 3, 0x02000000, null);
     if b == cast(Windows.HANDLE) -1 return false;
+
     defer Windows.CloseHandle(b);
     a_id: File_Identity;
     b_id: File_Identity;
 
     if !Windows.GetFileInformationByHandleEx(a, cast(Windows.FILE_INFO_BY_HANDLE_CLASS) 18, *a_id, size_of(File_Identity)) || !Windows.GetFileInformationByHandleEx(b, cast(Windows.FILE_INFO_BY_HANDLE_CLASS) 18, *b_id, size_of(File_Identity)) return false;
+
     return a_id.volume == b_id.volume && memcmp(a_id.identifier.data, b_id.identifier.data, 16) == 0;
 }
 
@@ -63,6 +66,7 @@ directory_entries :: (path: string) -> [] File_Visit_Info, bool {
     search := Windows.FindFirstFileW(os_utf8_to_wide(pattern), *native);
 
     if search == cast(Windows.HANDLE) -1 return result, false;
+
     defer Windows.FindClose(search);
 
     while true {

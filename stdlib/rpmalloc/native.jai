@@ -46,6 +46,7 @@ rp_unlock :: () {
 
 rp_record :: (memory: *void, heap: *void) {
     if !memory return;
+
     record := cast(*Allocation_Record) native_allocate(size_of(Allocation_Record));
 
     Basic.assert(record != null, "Unable to allocate rpmalloc ownership record");
@@ -60,6 +61,7 @@ rp_record :: (memory: *void, heap: *void) {
 
 rp_forget :: (memory: *void) {
     if !memory return;
+
     rp_lock();
     link := *rp_records;
     while link.* {
@@ -78,6 +80,7 @@ rp_forget :: (memory: *void) {
 
 rp_owns :: (heap: *void, memory: *void) -> bool {
     if !memory return false;
+
     address := cast(u64) memory;
 
     rp_lock();
@@ -96,6 +99,7 @@ rp_allocate :: (heap: *void, size: s64, alignment: s64) -> *void {
     // A thread that has not used rpmalloc yet needs its own per-thread state before it allocates.
     if native_thread_is_initialized() == 0 native_thread_initialize();
     if size < 0 || alignment < 0 return null;
+
     result: *void;
 
     if heap {
@@ -107,6 +111,7 @@ rp_allocate :: (heap: *void, size: s64, alignment: s64) -> *void {
     }
 
     rp_record(result, heap);
+
     return result;
 }
 
@@ -119,6 +124,7 @@ rp_callocate :: (heap: *void, count: u64, size: u64, alignment: u64) -> *void {
 
 rp_reallocate :: (heap: *void, memory: *void, size: s64, alignment: s64, oldsize: s64, flags: Realloc_Flags) -> *void {
     if size < 0 || alignment < 0 || oldsize < 0 return null;
+
     result: *void;
 
     if heap {
@@ -167,6 +173,7 @@ rp_initialize_default :: () -> s32 {
 
 rp_initialize_config :: (config: *rpmalloc_config_t) -> s32 {
     if !config return rp_initialize_default();
+
     rp_public_config = config.*;
     rp_callback_context = context;
     rp_callback_context.stack_trace = null; // the trace points into this frame, which a later callback outlives
@@ -175,6 +182,7 @@ rp_initialize_config :: (config: *rpmalloc_config_t) -> s32 {
     if config.memory_unmap native.memory_unmap = rp_unmap_callback;
     if config.error_callback native.error_callback = rp_error_callback;
     if config.map_fail_callback native.map_fail_callback = rp_map_fail_callback;
+
     native.page_size = cast(u64) config.page_size;
     native.span_size = cast(u64) config.span_size;
     native.span_map_count = cast(u64) config.span_map_count;
@@ -202,6 +210,7 @@ rp_get_config :: () -> *rpmalloc_config_t {
     rp_public_config.span_size = cast(type_of(rp_public_config.span_size)) native.span_size;
     rp_public_config.span_map_count = cast(type_of(rp_public_config.span_map_count)) native.span_map_count;
     rp_public_config.enable_huge_pages = cast(type_of(rp_public_config.enable_huge_pages)) native.enable_huge_pages;
+
     return *rp_public_config;
 }
 
@@ -220,6 +229,7 @@ rp_finalize :: () {
     rp_main_heap = null;
     if rp_page_name Basic.free(rp_page_name, rp_callback_context.allocator);
     if rp_huge_page_name Basic.free(rp_huge_page_name, rp_callback_context.allocator);
+
     rp_page_name = null;
     rp_huge_page_name = null;
     rp_allocator_owns_initialization = false;
@@ -248,6 +258,7 @@ rp_error_callback :: (message: *u8) #c_call {
     push_context rp_callback_context {
         length: s64;
         while message[length] != 0 length += 1;
+
         text: string = .{ length, message };
 
         #if USE_RAW rp_public_config.error_callback(text);

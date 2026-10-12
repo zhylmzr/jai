@@ -784,6 +784,7 @@ operator_to_string :: (op: Operator_Type) -> string {
     if op == .ARRAY_SUBSCRIPT return "[]";
     if op == .POSTFIX_DEREFERENCE return ".*";
     if op == .POINTER_DEREFERENCE return "(.*)";
+
     return "";
 }
 

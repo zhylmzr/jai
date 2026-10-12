@@ -31,6 +31,7 @@
             result := guard_allocator;
 
             atomic_write(*guard_state, 2);
+
             return result;
         }
 
@@ -80,6 +81,7 @@ set_allocators :: (pool: *Pool, block_allocator: Allocator = .{}) {
     }
 
     if supplier.proc == null supplier = context.allocator;
+
     // A pool cannot feed itself: asking it for a block would ask it for a block again.
     feeds_itself := supplier.proc == pool_allocator_proc && supplier.data == pool;
     if feeds_itself {
@@ -129,6 +131,7 @@ get :: (pool: *Pool, nbytes: s64) -> *void {
     pool.bytes_left -= nbytes + pad;
 
     if pool.overwrite_memory assert(result[0] == STAMP);
+
     return result;
 }
 
@@ -195,15 +198,18 @@ pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64
             keep := ifx old_size < requested_size then old_size else requested_size;
 
             if moved && keep > 0 memcpy(moved, old_memory, keep);
+
             return moved;
 
         case .IS_THIS_YOURS;
             if owns_address(pool, cast(*u8) old_memory) return cast(*void) 1;
+
             return null;
 
         case .CAPS;
             name_out := cast(*string) old_memory;
             if name_out name_out.* = CAPS_VERSION_STRING;
+
             return cast(*void) (Allocator_Caps.HINT_I_AM_A_FAST_BUMP_ALLOCATOR | .IS_THIS_YOURS);
 
     }
@@ -213,6 +219,7 @@ pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64
     multi := mode == .THREAD_START || mode == .THREAD_STOP || mode == .CREATE_HEAP || mode == .DESTROY_HEAP;
 
     assert(!multi, "Pool: allocator mode % is unsupported; a Pool is single-threaded and is not a heap factory.\n", mode);
+
     return null;
 }
 
@@ -290,6 +297,7 @@ take_block :: (pool: *Pool) -> bool {
     pool.current_memblock = block;
     pool.current_pos = cast(*u8) *block.data;
     pool.bytes_left = pool.memblock_size - HEADER_SIZE;
+
     return true;
 }
 

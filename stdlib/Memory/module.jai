@@ -4,6 +4,7 @@
 
 copy :: (destination: *void, source: *void, count: s64) {
     if count <= 0 || destination == source return;
+
     dst := cast(*u8) destination;
     src := cast(*u8) source;
     // Equality is meaningful for native and provenance-carrying VM pointers.

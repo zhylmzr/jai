@@ -70,6 +70,7 @@ thread_init :: (thread: *Thread, proc: Native_Thread_Proc,
     temporary_storage_size: s32 = 16384, starting_storage: *Temporary_Storage = null) -> bool {
     if thread == null || proc == null || temporary_storage_size < 0 return false;
     if thread.initialized return false;
+
     thread.index = atomic_add(*next_thread_index, 1);
     thread.proc = proc;
     thread.starting_context = context;
@@ -90,11 +91,13 @@ thread_init :: (thread: *Thread, proc: Native_Thread_Proc,
     thread.done = true;
     thread.is_done = true;
     thread.initialized = true;
+
     return true;
 }
 
 thread_start :: (thread: *Thread) -> bool {
     if thread == null || !thread.initialized || thread.started return false;
+
     thread.started = true;
     thread.done = false;
     thread.is_done = false;
@@ -110,6 +113,7 @@ thread_start :: (thread: *Thread) -> bool {
     thread.started = false;
     thread.done = true;
     thread.is_done = true;
+
     return false;
 }
 
@@ -120,7 +124,9 @@ thread_is_done :: (thread: *Thread, milliseconds: s32 = 0) -> bool {
     // The liveness semaphore is signaled once the thread finishes. Hand the count straight back
     // after taking it so later waiters (and thread_deinit) still find it signaled.
     if wait_for(*thread.is_alive_semaphore, milliseconds) != .SUCCESS return false;
+
     defer signal(*thread.is_alive_semaphore);
+
     return atomic_read(*thread.done);
 }
 
@@ -138,6 +144,7 @@ thread_deinit :: (thread: *Thread) {
     destroy(*thread.is_alive_semaphore);
     if thread.owns_temporary_storage deinit_temporary_storage(*thread.starting_temporary_storage,
         thread.allocator_used_for_temporary_storage, true);
+
     thread.initialized = false;
     thread.started = false;
     thread.done = true;
@@ -223,6 +230,7 @@ init :: (s: *Semaphore, initial_value: s32 = 0) -> bool {
 
     s.count = initial_value;
     s.initialized = true;
+
     return true;
 }
 
@@ -243,6 +251,7 @@ signal :: (s: *Semaphore) {
 
 wait_for :: (s: *Semaphore, milliseconds: s32 = -1) -> Wait_For_Result {
     if s == null || !s.initialized return .ERROR;
+
     csection_lock(*s.mutex);
     defer csection_unlock(*s.mutex);
 
@@ -252,6 +261,7 @@ wait_for :: (s: *Semaphore, milliseconds: s32 = -1) -> Wait_For_Result {
 
         while s.count == 0 {
             if milliseconds == 0 return .TIMEOUT;
+
             result: s32;
             if milliseconds < 0 result = pthread_cond_wait(*s.condition, *s.mutex);
             else result = pthread_cond_timedwait(*s.condition, *s.mutex, *deadline);
@@ -276,6 +286,7 @@ wait_for :: (s: *Semaphore, milliseconds: s32 = -1) -> Wait_For_Result {
     }
 
     s.count -= 1;
+
     return .SUCCESS;
 }
 
@@ -284,10 +295,12 @@ initialize_mutex :: (mutex: *Per_OS_Critical_Section_Type) -> bool {
     #if POSIX_THREADS {
         attributes: pthread_mutexattr_t;
         if pthread_mutexattr_init(*attributes) != 0 return false;
+
         defer pthread_mutexattr_destroy(*attributes);
         #if OS == .MACOS kind :: PTHREAD_MUTEX_RECURSIVE;
         else kind :: cast(s32) PTHREAD_MUTEX.RECURSIVE;
         if pthread_mutexattr_settype(*attributes, kind) != 0 return false;
+
         return pthread_mutex_init(mutex, *attributes) == 0;
     } else {
         InitializeCriticalSection(mutex);
@@ -325,6 +338,7 @@ wait_condition :: (condition: *Per_OS_Condition_Variable_Type, mutex: *Per_OS_Cr
 
         if result == 0 return .SUCCESS;
         if result == ETIMEDOUT return .TIMEOUT;
+
         return .ERROR;
     } else {
         timeout := cast(u32) milliseconds;

@@ -20,6 +20,7 @@ mix_bus: [MIX_CHUNK_FRAMES * OUTPUT_CHANNELS_MAX] float;
 mix_into :: (out: [] s16) {
     channels := cast(s64) player.out_channels;
     if channels <= 0 return;
+
     frames := out.count / channels;
     done := 0;
 
@@ -40,6 +41,7 @@ mix_into :: (out: [] s16) {
 
         dest := out.data + done * channels;
         for 0..values - 1 dest[it] = cast(s16) clamp(mix_bus[it] * 32767.0, -32768.0, 32767.0);
+
         done += count;
     }
 }
@@ -57,6 +59,7 @@ loop_region :: (stream: *Sound_Stream) -> start: s64, end: s64 {
     end := stream.repeat_end_position;
 
     if end <= 0 || end > length end = length;
+
     start := clamp(stream.repeat_start_position, 0, end);
 
     return start, end;
@@ -65,17 +68,21 @@ loop_region :: (stream: *Sound_Stream) -> start: s64, end: s64 {
 start_worker :: () -> bool {
     player.worker_quit = false;
     if !init(*player.worker_wake) return false;
+
     // Set before the thread exists so blocks requested from now on go to its queue.
     player.worker_running = true;
     if thread_init(*player.worker, worker_main) && thread_start(*player.worker) return true;
+
     player.worker_running = false;
     thread_deinit(*player.worker);
     destroy(*player.worker_wake);
+
     return false;
 }
 
 stop_worker :: () {
     if !player.worker_running return;
+
     atomic_write(*player.worker_quit, true);
     signal(*player.worker_wake);
     thread_deinit(*player.worker); // Joins.
@@ -129,6 +136,7 @@ render_voice :: (stream: *Sound_Stream, bus: *float, frames: s64) -> bool {
 
         after := whole + 1;
         if looping && after >= loop_end after = loop_start;
+
         there := frame_at(stream, after);
         if !there there = here;
 
@@ -158,6 +166,7 @@ wrap_into_loop :: (stream: *Sound_Stream, loop_start: s64, loop_end: s64) {
     // Negative while the pause lasts; render_voice adds loop_start when it is over.
     resumed := past - pause;
     if resumed >= 0 resumed += cast(float64) loop_start;
+
     stream.play_cursor = resumed;
 }
 
@@ -176,6 +185,7 @@ glide_gains :: (voice: *Voice, channels: s64, outputs: s64) {
             slope := voice.slope[slot];
 
             if slope == 0 continue;
+
             moved := voice.gain[slot] + slope;
             aim := voice.aim[slot];
 
@@ -192,6 +202,7 @@ glide_gains :: (voice: *Voice, channels: s64, outputs: s64) {
 // Pointer to the interleaved samples of one source frame, or null if it is not available.
 frame_at :: (stream: *Sound_Stream, frame: s64) -> *s16 {
     if frame < 0 return null;
+
     cache := stream.voice.cache;
     if cache {
         block := block_holding(cache, frame);
@@ -201,5 +212,6 @@ frame_at :: (stream: *Sound_Stream, frame: s64) -> *s16 {
 
     data := stream.sound_data;
     if !data.samples || frame >= stream_length(stream) return null;
+
     return data.samples + frame * data.nchannels;
 }

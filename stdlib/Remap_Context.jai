@@ -18,6 +18,7 @@ remap_context :: (foreign_context: *void, foreign_type: *Type_Info_Struct) -> (r
 
     remap_fields(*result, type_info(#Context), foreign_context, foreign_type);
     result.context_info = type_info(#Context);
+
     return result;
 }
 
@@ -28,6 +29,7 @@ remap_fields :: (destination: *void, target: *Type_Info_Struct, source: *void, f
 
         for candidate: foreign.members {
             if candidate.offset_in_bytes < 0 || candidate.flags & .CONSTANT || candidate.name != wanted.name continue;
+
             dst := destination + wanted.offset_in_bytes;
             src := source + candidate.offset_in_bytes;
 

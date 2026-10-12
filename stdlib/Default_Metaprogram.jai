@@ -137,6 +137,7 @@ build :: () {
             else if argument == "-output_path" options.output_path = value;
             else if argument == "-import_dir" Basic.array_add(*import_paths, value);
             else Basic.array_add(*added, value);
+
             continue;
         }
 
@@ -154,12 +155,15 @@ build :: () {
     }
 
     if options.output_executable_name.count == 0 && files.count > 0 options.output_executable_name = filename_stem(files[0]);
+
     options.compile_time_command_line = program_arguments;
     if import_paths.count > 0 options.import_path = import_paths;
+
     set_build_options(options, workspace);
     compiler_begin_intercept(workspace);
     for source: files add_build_file(source, workspace);
     for source: added add_build_string(source, workspace);
+
     message_loop(workspace);
     compiler_end_intercept(workspace);
 }

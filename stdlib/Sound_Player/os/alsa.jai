@@ -5,6 +5,7 @@
 
 output_open :: (config: Sound_Player_Config) -> channels: s32, rate: s32, ok: bool {
     if pcm return 0, 0, false;
+
     status := pcm_open(*pcm, "default", PCM_PLAYBACK, 0);
     if status < 0 {
         complain("open the default device", status);
@@ -45,6 +46,7 @@ output_frames_queued :: () -> queued: s64, at_least: s64 {
 
 output_write :: (frames: s64) {
     if !pcm return;
+
     room := pcm_avail_update(pcm);
     if room < 0 {
         // Usually an underrun; recover and look again.
@@ -61,14 +63,17 @@ output_write :: (frames: s64) {
         chunk.count = count * ALSA_CHANNELS;
         mix_into(chunk);
         if !write_all(chunk.data, count) return;
+
         remaining -= count;
     }
 }
 
 output_devices :: () -> [] Output_Device {
     if listed_devices.count return listed_devices;
+
     hints: **void;
     if device_name_hint(-1, "pcm", *hints) < 0 return listed_devices;
+
     cursor := hints;
     while cursor.* {
         name := take_hint(cursor.*, "NAME");
@@ -97,6 +102,7 @@ output_devices :: () -> [] Output_Device {
     }
 
     device_name_free_hint(hints);
+
     return listed_devices;
 }
 
@@ -127,6 +133,7 @@ write_all :: (samples: *s16, frames: s64) -> bool {
         }
 
         if result == 0 return false;
+
         written += result;
     }
 
@@ -137,9 +144,11 @@ write_all :: (samples: *s16, frames: s64) -> bool {
 take_hint :: (hint: *void, field: *u8) -> string {
     raw := device_name_get_hint(hint, field);
     if !raw return "";
+
     text := copy_string(to_string(raw));
 
     libc_free(raw);
+
     return text;
 }
 

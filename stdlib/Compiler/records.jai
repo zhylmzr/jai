@@ -36,6 +36,7 @@ record_of :: (pointer: *void) -> s64 {
 
 records_builder :: () -> s64 {
     if record_builder return record_builder;
+
     record_builder = __jaic_rec_builder();
 
     for RECORD_TYPES {
@@ -45,6 +46,7 @@ records_builder :: () -> s64 {
     }
 
     for BUILTIN_TYPES __jaic_rec_builtin(record_builder, BUILTIN_NAMES[it_index], cast(*Type_Info) it);
+
     return record_builder;
 }
 
@@ -106,6 +108,7 @@ record_type_of :: (id: s64) -> *Type_Info_Struct {
     }
 
     if record_tag_types[tag] == UNKNOWN_TAG record_tag_types[tag] = record_type(__jaic_rec_tag(id));
+
     return record_tag_types[tag];
 }
 
@@ -146,10 +149,12 @@ last_plan: [] Record_Plan_Entry;
 
 record_plan :: (info: *Type_Info_Struct) -> [] Record_Plan_Entry {
     if info == last_plan_info return last_plan;
+
     plan := find_record_plan(info);
 
     last_plan_info = info;
     last_plan = plan;
+
     return plan;
 }
 
@@ -176,6 +181,7 @@ find_record_plan :: (info: *Type_Info_Struct) -> [] Record_Plan_Entry {
         record_plans = NewArray(max(64, old.count * 2), Record_Plan);
         record_plans_used = 0;
         for old if it.info insert_record_plan(it);
+
         array_free(old);
     }
 
@@ -194,6 +200,7 @@ insert_record_plan :: (plan: Record_Plan) {
     slot := record_slot_hash(plan.info) & mask;
 
     while record_plans[slot].info slot = (slot + 1) & mask;
+
     record_plans[slot] = plan;
     record_plans_used += 1;
 }
@@ -201,6 +208,7 @@ insert_record_plan :: (plan: Record_Plan) {
 add_plan_entries :: (entries: *[..] Record_Plan_Entry, info: *Type_Info_Struct, base: s64) {
     for member: info.members {
         if member.flags & .CONSTANT continue;
+
         offset := base + member.offset_in_bytes;
 
         // `#as using base`, `using location`, anonymous unions: same record.
@@ -263,6 +271,7 @@ differs_seen: [..] *void;
 struct_differs :: (memory: *u8, info: *Type_Info_Struct, id: s64) -> bool {
     if !info return false;
     for differs_seen if it == memory return false; // Headers and bodies point at each other.
+
     array_add(*differs_seen, memory);
     plan := record_plan(info);
     for plan {
@@ -316,22 +325,27 @@ value_differs :: (target: *u8, type: *Type_Info, id: s64, name: string, index: s
 
             if !ref return pointer != null;
             if record_of(pointer) != ref return true;
+
             info := record_type_of(ref);
             if info && is_code_struct(info) return struct_differs(pointer, info, ref);
+
             return false;
 
         case .STRUCT;
             ref := ifx index < 0 then __jaic_rec_ref(id, name) else __jaic_rec_item_ref(id, name, index);
             if !ref return false;
+
             return struct_differs(target, cast(*Type_Info_Struct) type, ref);
 
         case .ARRAY;
             array := cast(*Type_Info_Array) type;
             if index >= 0 || array.array_type == .FIXED return false;
+
             count := __jaic_rec_count(id, name);
             view := cast(*Resizable_Array) target;
 
             if view.count != count return true;
+
             element := array.element_type;
 
             for k: 0..count - 1 {

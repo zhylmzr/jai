@@ -15,13 +15,16 @@ last_vis_init_time := APOLLO_TIME_INVALID;
 
 vis_init :: () {
     if vis_enabled return;
+
     now := current_time_monotonic();
     if last_vis_init_time != APOLLO_TIME_INVALID && to_milliseconds(now - last_vis_init_time) < MILLISECONDS_PER_VIS_INIT return;
+
     last_vis_init_time = now;
     success, channel := MD_Channel.writer_connect(MD_Wire.MEMORY_VISUALIZATION_CHANNEL_NAME, name_not_found_is_quiet = true);
 
     vis_initted = true;
     if !success return;
+
     vis_channel = channel;
     vis_enabled = true;
 }
@@ -35,8 +38,10 @@ vis_fini :: () {
 
 vis_update_if_it_has_been_long_enough :: () {
     if context.inside_memory_debugger || did_user_level_per_frame_update return;
+
     now := current_time_monotonic();
     if last_update_time != APOLLO_TIME_INVALID && to_milliseconds(now - last_update_time) < MILLISECONDS_PER_VIS_UPDATE return;
+
     vis_update();
     last_update_time = now;
 }
@@ -61,14 +66,17 @@ vis_update :: () {
 
     defer deinit(*report);
     if !_md_begin(.{}) return;
+
     defer _md_end();
     vis_init();
     if !vis_enabled return;
+
     version: MD_Wire.Memory_Debugger_Version_Info;
     version.tag = .RESET_AND_TELL_VERSION;
     version.version = MD_Wire.VIS_PROTOCOL_VERSION;
     version.default_allocator_proc = md_state.storage_allocator.proc;
     if !_vis_send(*version, size_of(version)) return;
+
     strings: MD_Strings.Table(string, s32);
     strings.allocator = md_state.storage_allocator;
     defer MD_Strings.deinit(*strings);
@@ -101,6 +109,7 @@ vis_update :: () {
     success, message := MD_Channel.writer_reserve_message(*vis_channel, bytes);
 
     if !success return;
+
     cursor := message.user_write_pointer;
     header := cast(*MD_Wire.Summary_Info) cursor;
     header.* = .{};
@@ -177,6 +186,7 @@ vis_update :: () {
 _vis_send :: (data: *void, bytes: s64) -> bool {
     success, message := MD_Channel.writer_reserve_message(*vis_channel, bytes);
     if !success return false;
+
     memcpy(message.user_write_pointer, data, bytes);
 
     if !MD_Channel.writer_commit_message(*vis_channel, message) {
@@ -190,11 +200,13 @@ _vis_send :: (data: *void, bytes: s64) -> bool {
 _vis_string :: (table: *MD_Strings.Table(string, s32), value: string) -> (index: s32, success: bool) {
     found, existing := MD_Strings.table_find(table, value);
     if found return existing, true;
+
     index := cast(s32) table.count;
     count := min(value.count, cast(s64) 0x7fff_ffff);
     success, message := MD_Channel.writer_reserve_message(*vis_channel, size_of(MD_Wire.String_Info) + count);
 
     if !success return -1, false;
+
     info := cast(*MD_Wire.String_Info) message.user_write_pointer;
     info.* = .{};
     info.tag = .ADD_STRING;
@@ -208,6 +220,7 @@ _vis_string :: (table: *MD_Strings.Table(string, s32), value: string) -> (index:
     }
 
     MD_Strings.table_set(table, value, index);
+
     return index, true;
 }
 
@@ -216,10 +229,13 @@ _vis_trace :: (trace: *Packed_Stack_Trace, strings: *MD_Strings.Table(string, s3
 
     for node: trace.nodes {
         if !node.info continue;
+
         name, ok_name := _vis_string(strings, node.info.name);
         if !ok_name return false;
+
         filename, ok_filename := _vis_string(strings, node.info.location.fully_pathed_filename);
         if !ok_filename return false;
+
         procedure: MD_Wire.Packed_Stack_Trace_Procedure_Info;
         procedure.tag = .ADD_PROCEDURE_INFO;
         procedure.name = cast(MD_Wire.String_Index) name;
@@ -234,6 +250,7 @@ _vis_trace :: (trace: *Packed_Stack_Trace, strings: *MD_Strings.Table(string, s3
     success, message := MD_Channel.writer_reserve_message(*vis_channel, bytes);
 
     if !success return false;
+
     // The fixed header goes first; the raw node array follows it in the same message.
     header := cast(*MD_Wire.Single_Stack_Trace_Info) message.user_write_pointer;
     header.* = .{ tag = .ADD_STACK_TRACE, num_nodes = cast(s32) trace.nodes.count, address = trace, hash = trace.hash };

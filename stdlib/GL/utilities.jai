@@ -51,6 +51,7 @@ DumpShaderInfoLog :: (shader: GLuint, name: string) {
 
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, *size);
     if size <= 1 return;
+
     bytes := cast(*u8) Basic.temporary_alloc(size);
 
     Basic.assert(bytes != null);
@@ -65,6 +66,7 @@ DumpProgramInfoLog :: (program: GLuint, name: string) {
 
     glGetProgramiv(program, GL_INFO_LOG_LENGTH, *size);
     if size <= 1 return;
+
     bytes := cast(*u8) Basic.temporary_alloc(size);
 
     Basic.assert(bytes != null);
@@ -76,6 +78,7 @@ DumpProgramInfoLog :: (program: GLuint, name: string) {
 
 gl_enable_debug_output :: (break_on_error: bool = false) {
     if glDebugMessageCallback == null return;
+
     debug_log_params.break_on_error = break_on_error;
     debug_log_params.logger = context.logger;
     __gl_debug_logger_data = context.logger_data;
@@ -123,6 +126,7 @@ get_string_for_type :: (type: GLenum) -> string {
     if type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR return "Undefined behavior";
     if type == GL_DEBUG_TYPE_PORTABILITY return "Portability";
     if type == GL_DEBUG_TYPE_PERFORMANCE return "Performance";
+
     return "Other";
 }
 
@@ -132,6 +136,7 @@ get_string_for_source :: (source: GLenum) -> string {
     if source == GL_DEBUG_SOURCE_SHADER_COMPILER return "Shader compiler";
     if source == GL_DEBUG_SOURCE_THIRD_PARTY return "Third party";
     if source == GL_DEBUG_SOURCE_APPLICATION return "Application";
+
     return "Other";
 }
 

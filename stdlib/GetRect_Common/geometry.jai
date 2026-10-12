@@ -108,6 +108,7 @@ outset :: (rect: Rect, dx: float, dy: float) -> Rect {
     result.y -= dy;
     result.w += dx + dx;
     result.h += dy + dy;
+
     return result;
 }
 
@@ -128,6 +129,7 @@ darken :: (color: $T/interface VBase3, t: float) -> T {
     result.x *= 1 - t;
     result.y *= 1 - t;
     result.z *= 1 - t;
+
     return result;
 }
 
@@ -136,6 +138,7 @@ whiten :: (color: $T/interface VBase3, t: float) -> T {
     result.x += (1 - result.x) * t;
     result.y += (1 - result.y) * t;
     result.z += (1 - result.z) * t;
+
     return result;
 }
 
@@ -155,6 +158,7 @@ brighten :: (color: $T/interface VBase3, value: float) -> T {
     result.x *= multiplier;
     result.y *= multiplier;
     result.z *= multiplier;
+
     return result;
 }
 
@@ -171,6 +175,7 @@ hsv_to_rgb :: (cx: float, cy: float, cz: float) -> (r: float, g: float, b: float
     if whole == 2 return low, cz, rising;
     if whole == 3 return low, falling, cz;
     if whole == 4 return rising, low, cz;
+
     return cz, low, falling;
 }
 
@@ -181,9 +186,11 @@ rgb_to_hsv :: (r: float, g: float, b: float) -> (h: float, s: float, v: float) {
     minimum = Math.min(minimum, b);
     delta := maximum - minimum;
     if delta == 0 || maximum == 0 return 0, 0, maximum;
+
     hue := 0.0;
     if maximum == r hue = (g - b) / delta;
     else if maximum == g hue = 2 + (b - r) / delta;
     else hue = 4 + (r - g) / delta;
+
     return Math.frac(hue / 6), delta / maximum, maximum;
 }

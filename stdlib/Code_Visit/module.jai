@@ -145,6 +145,7 @@ get_subexpressions :: (node: *Code_Node, pointers: *[..] *Code_Node) {
 // also the work list: each pass expands exactly the nodes the previous pass appended.
 get_recursive_nodes_breadth_first :: (node: *Code_Node, pointers: *[..] *Code_Node) {
     if !node return;
+
     level_start := pointers.count;
 
     Basic.array_add(pointers, node);
@@ -158,6 +159,7 @@ get_recursive_nodes_breadth_first :: (node: *Code_Node, pointers: *[..] *Code_No
 
 get_recursive_nodes_depth_first :: (node: *Code_Node, pointers: *[..] *Code_Node) {
     if !node return;
+
     Basic.array_add(pointers, node);
     children: [..] *Code_Node;
 
@@ -193,6 +195,7 @@ Visit_Step :: struct {
 // node as a leaving step underneath its children, which yields the leave after the subtree.
 schedule_visits :: (root: *Code_Node, schedule: *[..] Visit_Step) {
     if !root return;
+
     stack: [..] Visit_Step;
 
     defer Basic.array_free(stack);
@@ -207,6 +210,7 @@ schedule_visits :: (root: *Code_Node, schedule: *[..] Visit_Step) {
         stack.count -= 1;
         Basic.array_add(schedule, step);
         if !step.entering continue;
+
         Basic.array_add(*stack, .{ step.node, false });
         children.count = 0;
         get_subexpressions(step.node, *children);

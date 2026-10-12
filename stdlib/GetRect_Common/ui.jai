@@ -149,6 +149,7 @@ get_float_parameter :: (r: Rect, type: Size_Computation, local: float, global: f
     if type == .RELATIVE_TO_HEIGHT return r.h * local;
     if type == .RELATIVE_TO_WIDTH return r.w * local;
     if type == .ABSOLUTE_FROM_THEME_FIELD return local;
+
     return global;
 }
 
@@ -171,12 +172,15 @@ windows_per_frame_update :: () {
 
 ui_per_frame_update :: (window: Window_Type, _render_target_width: s32, _render_target_height: s32, _current_time: float64) -> (background_occluded: bool, is_active: bool) {
     if !initialized ui_init();
+
     assert(state_stack.count == 0 && scissor_stack.count == 0, "Finish all widgets and scissors before beginning a frame");
     if active_widget && active_widget.last_getrect_frame + 1 < current_getrect_frame active_widget_deactivate_all();
+
     last_current_time = current_time;
     current_time = _current_time;
     current_dt = cast(float) max(current_time - last_current_time, 0.0);
     if current_getrect_frame == 0 current_dt = 0;
+
     current_getrect_frame += 1;
     active_tooltip = .{};
     current_tooltip = .{};
@@ -187,6 +191,7 @@ ui_per_frame_update :: (window: Window_Type, _render_target_width: s32, _render_
     occlusion_per_frame_update();
     events_per_frame_update();
     mouse_button_left_state, mouse_button_right_state, shift_key_state = sample_tracked_keys();
+
     return switch_window(window, _render_target_width, _render_target_height);
 }
 
@@ -206,6 +211,7 @@ switch_window :: (window: Window_Type, _render_target_width: s32, _render_target
 
     occlusion_per_window_update(window);
     events_per_window_update(window);
+
     return active_widget_is_grabbing, active_widget != null;
 }
 
@@ -245,8 +251,10 @@ events_per_frame_update :: () {
 
 events_per_window_update :: (window: Window_Type) {
     if !active_widget || active_widget.window != window || !active_widget.serial_events_proc return;
+
     filtered: [..] Event;
     for event, index: events_to_handle_this_frame if left_event_window(index) == window array_add(*filtered, event);
+
     active_widget.serial_events_proc(active_widget, filtered);
     array_reset(*filtered);
 }
@@ -265,6 +273,7 @@ find_or_create_state :: ($T: Type, hash: u64, start_using := true) -> (*T, creat
     result.widget_type = T;
     Tables.table_add(*state_table, hash, cast(*Active_Widget) result);
     if start_using start_using_state(cast(*Active_Widget) result);
+
     return result, true;
 }
 
@@ -280,6 +289,7 @@ start_using_state :: (widget: *Active_Widget) {
 
     widget.cosmetic_dt = cast(float) max(current_time - widget.last_update_time, 0.0);
     if widget.last_getrect_frame == 0 widget.cosmetic_dt = 0;
+
     widget.last_update_time = current_time;
     widget.last_getrect_frame = current_getrect_frame;
     widget.is_on_state_stack = true;
@@ -325,6 +335,7 @@ active_widgets_per_frame_update :: () {
 get_status_flags :: (r: Rect, widget_if_querying_outside_of_render_time: *Active_Widget = null, ignore := Status_Flags_Ignore.NOTHING) -> Status_Flags {
     status: Status_Flags;
     if events_occluded(widget_if_querying_outside_of_render_time) return status;
+
     occluder := left_subwindow_hit(context.getrect_current_window, mouse_x_float, mouse_y_float);
     query := widget_if_querying_outside_of_render_time;
 
@@ -349,6 +360,7 @@ get_status_flags :: (r: Rect, widget_if_querying_outside_of_render_time: *Active
     }
 
     if !(ignore & .TOOLTIP) current_tooltip = .{};
+
     return status;
 }
 
@@ -362,6 +374,7 @@ push_scissor :: (_rect: Rect) {
     clipped := r;
 
     if scissor_stack.count > 0 clipped = intersect(r, scissor_stack[scissor_stack.count - 1]);
+
     array_add(*scissor_stack, clipped);
     draw_procs.set_scissor(cast(s32) floor(clipped.x), cast(s32) floor(clipped.y), cast(s32) ceil(clipped.x + clipped.w), cast(s32) ceil(clipped.y + clipped.h));
 }
@@ -369,6 +382,7 @@ push_scissor :: (_rect: Rect) {
 pop_scissor :: () {
     assert(scissor_stack.count > 0, "GetRect scissor stack is empty");
     if scissor_stack.count == 0 return;
+
     scissor_stack.count -= 1;
     if scissor_stack.count == 0 draw_procs.clear_scissor();
     else {
@@ -409,9 +423,11 @@ text_origin :: (theme: *Label_Theme, font: *Font, r: Rect, text_width: float) ->
     x := r.x + em(theme.alignment_pad_ems, font);
     if theme.alignment == .Center x = r.x + (r.w - text_width) * 0.5;
     if theme.alignment == .Right x = r.x + r.w - text_width - em(theme.alignment_pad_ems, font);
+
     position := theme.text_baseline_vertical_position;
     if position == FLOAT32_INFINITY position = default_text_baseline(font, r.h);
     else position *= r.h;
+
     return floor(x + 0.5), floor(r.y + position + 0.5);
 }
 
@@ -422,16 +438,20 @@ default_text_baseline :: (font: *Font, height: float) -> float {
 
 label :: (r: Rect, text: string, theme: *Label_Theme, do_scissor := true) -> desired_width: float {
     if !theme theme = *default_overall_theme.label_theme;
+
     font := theme.font;
     if !font font = get_default_font_at_size(r.h * 0.65);
     if !font || !draw_procs.prepare_text || !draw_procs.draw_prepared_text return 0;
+
     width := cast(float) draw_procs.prepare_text(font, text, theme.effects);
 
     if do_scissor push_scissor(r);
+
     defer if do_scissor pop_scissor();
     x, y := text_origin(theme, font, r, width);
 
     draw_procs.draw_prepared_text(font, cast(s64) x, cast(s64) y, theme.text_color, theme.effects);
+
     return width;
 }
 
@@ -443,6 +463,7 @@ label_from_prepared_text :: (r: Rect, font: *Font, theme: *Label_Theme, do_sciss
         x, y := text_origin(theme, font, r, width);
 
         if do_scissor push_scissor(r);
+
         defer if do_scissor pop_scissor();
         draw_procs.draw_prepared_text(font, cast(s64) x, cast(s64) y, theme.text_color, theme.effects);
     } else {
@@ -456,6 +477,7 @@ rounded_rectangle :: (r: Rect, shape: Rectangle_Shape, color: Vector4, frame_col
 
     draw_procs.set_shader_for_color(true);
     if frame_color.w > 0 && thickness > 0 left_round_fill(r, shape, radius, frame_color);
+
     inner := r;
 
     if frame_color.w > 0 {
@@ -463,6 +485,7 @@ rounded_rectangle :: (r: Rect, shape: Rectangle_Shape, color: Vector4, frame_col
     }
 
     if color.w > 0 left_round_fill(inner, shape, max(radius - thickness, 0.0), color);
+
     return thickness, radius;
 }
 
@@ -486,6 +509,7 @@ update_action_durations :: (state: *Button_State, theme: *Button_Theme, begin: b
 
     if state.action_duration_2 >= 0 state.action_duration_2 += dt;
     if state.action_duration < 0 return 0;
+
     state.action_duration += dt;
     factor := 1 - state.action_duration / max(theme.press_duration, 0.001);
     if factor <= 0 {
@@ -512,6 +536,7 @@ get_colors_and_thickness_for_button :: (theme: *Button_Theme, state: *Button_Sta
 core_draw_button :: (r: Rect, text: string, state: *Button_State, status: Status_Flags, theme: *Button_Theme, texture: *Texture) {
     update_production_value_button(r, (status & .PRESSED) != 0, state, status, theme);
     if theme.properties & .DO_NOT_DRAW || !is_visible_in_scissor(r) return;
+
     surface, frame, thickness := get_colors_and_thickness_for_button(theme, state);
 
     state.frame_pixels = rounded_rectangle(r, theme.rectangle_shape, surface, frame, thickness);
@@ -526,6 +551,7 @@ core_draw_button :: (r: Rect, text: string, state: *Button_State, status: Status
 
 button :: (r: Rect, text: string, theme: *Button_Theme = null, identifier: s64 = 0, loc := #caller_location , texture: *Texture = null, disable_over := false, disable_press := false) -> (was_just_pressed: bool, state: *Button_State, was_just_released: bool) {
     if !theme theme = *default_overall_theme.button_theme;
+
     state = find_or_create_state(Button_State, get_hash(loc, identifier));
     defer stop_using_state(state);
     state.rect = r;
@@ -533,6 +559,7 @@ button :: (r: Rect, text: string, theme: *Button_Theme = null, identifier: s64 =
     status := get_status_flags(r);
     if disable_over status &= ~Status_Flags.OVER;
     if disable_press status &= ~Status_Flags.PRESSED;
+
     was_just_pressed = (status & .PRESSED) != 0;
     was_just_released = state.pressed && (mouse_button_left_state & .END) != 0;
 
@@ -544,9 +571,11 @@ button :: (r: Rect, text: string, theme: *Button_Theme = null, identifier: s64 =
     }
 
     if state.pressed status |= .DOWN;
+
     state.status = status;
     core_draw_button(r, text, state, status, theme, texture);
     if theme.draw_callback theme.draw_callback(r, text, theme, texture, state);
+
     return was_just_pressed, state, was_just_released;
 }
 
@@ -554,6 +583,7 @@ base_checkbox :: (_r: Rect, text: string, selected: bool, theme: *Checkbox_Theme
     r := _r;
 
     if !theme theme = *default_overall_theme.checkbox_theme;
+
     state := find_or_create_state(Checkbox_State, get_hash(loc, identifier));
 
     defer stop_using_state(state);
@@ -568,14 +598,17 @@ base_checkbox :: (_r: Rect, text: string, selected: bool, theme: *Checkbox_Theme
     draw_procs.set_shader_for_color(true);
     color := theme.surface_color;
     if status & .OVER color = theme.surface_color_over;
+
     rounded_rectangle(box, theme.rectangle_shape, color, theme.frame_color);
     if selected left_round_fill(inner, theme.rectangle_shape, inner.h * (ifx theme.is_radio_button then 0.5 else 0.1), theme.button_color_selected);
+
     label_rect := r;
     label_rect.x += box.w;
     label_rect.w -= box.w;
     label_theme := theme.label_theme;
     label_theme.text_color = ifx selected then theme.text_color_selected else theme.text_color;
     label(label_rect, text, *label_theme);
+
     return changed, state.*;
 }
 
@@ -604,6 +637,7 @@ checkbox_flags :: (r: Rect, current_value: *$Enum, button_value: Enum, theme: *C
 
 dropdown :: (r: Rect, choices: [] string, current_value_pointer: *s32, theme: *Dropdown_Theme = null, identifier: s64 = 0, z: s32 = 100, loc := #caller_location) -> changed: bool, Dropdown_State {
     if !theme theme = *default_overall_theme.dropdown_theme;
+
     state := find_or_create_state(Dropdown_State, get_hash(loc, identifier));
 
     defer stop_using_state(state);
@@ -625,11 +659,13 @@ dropdown :: (r: Rect, choices: [] string, current_value_pointer: *s32, theme: *D
 
     text := "";
     if current_value_pointer.* >= 0 && current_value_pointer.* < choices.count text = choices[current_value_pointer.*];
+
     base := find_or_create_state(Button_State, get_hash(loc, identifier + 1));
 
     core_draw_button(r, text, base, status, *theme.theme_for_current_value, null);
     stop_using_state(base);
     if state.open add_popup(draw_dropdown_popup, state, z);
+
     before := current_value_pointer.*;
 
     if active_widget == cast(*Active_Widget) state {
@@ -671,14 +707,17 @@ draw_popups :: () {
 
     drawing_popups = true;
     for popup: popups if popup.proc popup.proc(popup.data);
+
     drawing_popups = false;
     if mouse_button_left_state & .START && !some_widget_received_left_mouse_button active_widget_deactivate_all();
+
     pointer_end_frame();
     draw_procs.immediate_flush();
 }
 
 require_texture :: (data: string, loc := #caller_location) -> *Texture {
     if !draw_procs.texture_load_from_memory return null;
+
     texture := New(Texture);
     if !draw_procs.texture_load_from_memory(texture, cast([] u8) data, false, false) {
         free(texture);
@@ -735,10 +774,12 @@ set_input :: (using state: *Text_Input_State, _s: string) {
     size := min(_s.count, Text_Input_State.MAX_BUFFER_SIZE);
     // Do not split a UTF-8 codepoint when trimming a fixed-size buffer.
     while size > 0 && size < _s.count && (_s[size] & 0xc0) == 0x80 size -= 1;
+
     source := copy_string(string.{ size, _s.data });
 
     defer free(source.data);
     if size > 0 memcpy(*state.input_buffer[0], source.data, size);
+
     state.text = .{ size, *state.input_buffer[0] };
     state.insert_point = size;
     state.selection.active = false;
@@ -770,6 +811,7 @@ replace_selection :: (state: *Text_Input_State, s: string) {
     new_count := state.text.count - (end - start) + s.count;
 
     if new_count > Text_Input_State.MAX_BUFFER_SIZE return;
+
     replacement := copy_string(s);
 
     defer free(replacement.data);
@@ -787,6 +829,7 @@ replace_selection :: (state: *Text_Input_State, s: string) {
     }
 
     for byte, index: replacement state.input_buffer[start + index] = byte;
+
     state.text = .{ new_count, *state.input_buffer[0] };
     state.insert_point = start + s.count;
     state.selection.active = false;
@@ -809,8 +852,10 @@ append_text :: (using state: *Text_Input_State, s: string) {
 seek_left_one_utf8_character :: (s: string, _point: int) -> int {
     point := clamp(_point, 0, s.count);
     if point == 0 return 0;
+
     point -= 1;
     while point > 0 && (s[point] & 0xc0) == 0x80 point -= 1;
+
     return point;
 }
 
@@ -857,6 +902,7 @@ backspace_from_cursor :: (using state: *Text_Input_State, by_word := false) {
     }
 
     if state.insert_point == 0 return;
+
     state.selection = .{ start_character = ifx by_word then seek_left_one_word(state.text, state.insert_point) else seek_left_one_utf8_character(state.text, state.insert_point), end_character = state.insert_point, active = true };
     replace_selection(state, "");
 }
@@ -868,6 +914,7 @@ delete_from_cursor :: (using state: *Text_Input_State, by_word := false) {
     }
 
     if state.insert_point >= state.text.count return;
+
     state.selection = .{ start_character = state.insert_point, end_character = ifx by_word then seek_right_one_word(state.text, state.insert_point) else seek_right_one_utf8_character(state.text, state.insert_point), active = true };
     replace_selection(state, "");
 }
@@ -913,6 +960,7 @@ text_input_check_for_activation :: (widget: *Active_Widget, event: Event) -> boo
 
 handle_event :: (state: *Text_Input_State, event: Event) {
     if !state.active || state.disabled return;
+
     state.last_keypress_time = current_time;
 
     if event.type == .TEXT_INPUT && event.utf32 >= 32 && event.utf32 != 127 {
@@ -991,6 +1039,7 @@ text_input :: (_r: Rect, inert_text: string, theme: *Text_Input_Theme, identifie
 #scope_module
 left_text_input_body :: (_r: Rect, inert_text: string, theme: *Text_Input_Theme, state: *Text_Input_State, created: bool, input_action: Text_Input_Action, auto_complete: Auto_Complete) -> Text_Result_Action, string, *Text_Input_State {
     if !theme theme = *default_overall_theme.text_input_theme;
+
     state.rect = _r;
     state.auto_complete = auto_complete;
 
@@ -1031,6 +1080,7 @@ left_text_input_body :: (_r: Rect, inert_text: string, theme: *Text_Input_Theme,
     draw_text_input_background(_r, theme, state, state.active, (result_action & .TEXT_MODIFIED) != 0);
     label_theme := theme.label_theme;
     if !label_theme.font label_theme.font = get_default_font_at_size(_r.h * 0.65);
+
     left_text_pointer(state, theme, label_theme.font, status);
     left_draw_input_contents(_r, theme, state);
     new_string := state.text;
@@ -1049,6 +1099,7 @@ draw :: (using state: *Text_Input_State, r: Rect, theme: *Text_Input_Theme = nul
 slider :: (_r: Rect, value: *$T, min_value: T, max_value: T, spinbox_step: T, theme: *Slider_Theme, prefix := "", suffix := "", identifier: s64 = 0, loc := #caller_location) -> bool {
     if !theme theme = *default_overall_theme.slider_theme;
     if max_value < min_value || !value return false;
+
     state := find_or_create_state(Slider_State, get_hash(loc, identifier));
 
     defer stop_using_state(state);
@@ -1066,8 +1117,10 @@ slider :: (_r: Rect, value: *$T, min_value: T, max_value: T, spinbox_step: T, th
         pressed, button_state, released := button(minus, "-", *theme.spinbox_theme, identifier + 301, loc);
 
         if pressed candidate -= cast(float64) spinbox_step;
+
         pressed, button_state, released = button(plus, "+", *theme.spinbox_theme, identifier + 302, loc);
         if pressed candidate += cast(float64) spinbox_step;
+
         r.x += width;
         r.w = max(r.w - 2 * width, 0.0);
     }
@@ -1086,6 +1139,7 @@ slider :: (_r: Rect, value: *$T, min_value: T, max_value: T, spinbox_step: T, th
 
             if info.type == .FLOAT initial = theme.format_text_float("", "", cast(float64) value.*, theme, state, .EDITING);
             else initial = theme.format_text_int("", "", cast(s64) value.*, theme, state, .EDITING);
+
             set_text(*runtime.editor, initial);
             set_last_inert_text(*runtime.editor, initial);
             state.inputting_text = true;
@@ -1139,6 +1193,7 @@ slider :: (_r: Rect, value: *$T, min_value: T, max_value: T, spinbox_step: T, th
 
             entered = success;
             if !success candidate = cast(float64) before;
+
             state.inputting_text = false;
         }
 
@@ -1146,6 +1201,7 @@ slider :: (_r: Rect, value: *$T, min_value: T, max_value: T, spinbox_step: T, th
     }
 
     if info.type == .INTEGER candidate = round(candidate);
+
     clamp_drag := true;
 
     if state.sliding && (state.sliding_is_relative || shift_key_state & .DOWN) && !theme.do_clamp_if_we_are_relative_dragging_but_started_outside_the_clamp_range {
@@ -1155,12 +1211,15 @@ slider :: (_r: Rect, value: *$T, min_value: T, max_value: T, spinbox_step: T, th
 
     if (entered && theme.clamp_text_input_low) || (!entered && clamp_drag) candidate = max(candidate, cast(float64) min_value);
     if (entered && theme.clamp_text_input_high) || (!entered && clamp_drag) candidate = min(candidate, cast(float64) max_value);
+
     value.* = cast(T) candidate;
     fraction := 0.0;
     if max_value > min_value fraction = cast(float) ((candidate - min_value) / (cast(float64) max_value - min_value));
+
     state.current_slide_setting = clamp(fraction, 0.0, 1.0);
     state.changed_this_frame = value.* != before;
     if state.sliding status |= .DOWN;
+
     state.background.status = status;
     state.foreground.status = status;
     foreground := shrink(r, r.h * theme.surface_margin);
@@ -1176,6 +1235,7 @@ slider :: (_r: Rect, value: *$T, min_value: T, max_value: T, spinbox_step: T, th
     if !state.inputting_text {
         if theme.draw_background theme.draw_background(r, theme, state);
         if theme.draw_foreground theme.draw_foreground(r, foreground, theme, state);
+
         text: string;
 
         if info.type == .FLOAT {
@@ -1267,6 +1327,7 @@ sample_tracked_keys :: () -> (left: Key_Current_State, right: Key_Current_State,
 track_platform_mouse :: (window: Window_Type) {
     px, py, ok := draw_procs.get_mouse_pointer_position(window, GETRECT_Y_UP);
     if !ok return;
+
     mouse_x, mouse_y = cast(s32) px, cast(s32) py;
     mouse_x_float, mouse_y_float = cast(float) px, cast(float) py;
     mouse_delta_x_float, mouse_delta_y_float = 0, 0;
@@ -1283,6 +1344,7 @@ track_platform_mouse :: (window: Window_Type) {
 
 left_round_fill :: (r: Rect, shape: Rectangle_Shape, radius: float, color: Vector4) {
     if r.w <= 0 || r.h <= 0 || color.w <= 0 return;
+
     radius = min(radius, min(r.w, r.h) * 0.5);
     points: [..] Vector2;
     center := xy(r.x + r.w * 0.5, r.y + r.h * 0.5);
@@ -1327,6 +1389,7 @@ draw_dropdown_popup :: (_state: *void) {
 draw_dropdown_choices :: (dropdown: *Dropdown_State) {
     step := dropdown.base_rect.h;
     if GETRECT_Y_UP step = -step;
+
     row := dropdown.base_rect;
 
     for dropdown.choices {
@@ -1455,10 +1518,12 @@ left_slider_runtimes: [..] *Left_Slider_Runtime = .{ allocator = GETRECT_HEAP };
 
 left_slider_runtime :: (state: *Slider_State) -> *Left_Slider_Runtime {
     for runtime: left_slider_runtimes if runtime.state == state return runtime;
+
     runtime := New(Left_Slider_Runtime, allocator = GETRECT_HEAP);
     runtime.state = state;
     runtime.editor.widget_type = Text_Input_State;
     array_add(*left_slider_runtimes, runtime);
+
     return runtime;
 }
 
@@ -1475,6 +1540,7 @@ ui_deinit :: () {
     array_reset(*left_slider_runtimes);
     array_reset(*left_text_views);
     for order: left_subwindow_orders free(order, GETRECT_HEAP);
+
     array_reset(*left_subwindow_orders);
     left_raise_serial = 0;
 
@@ -1526,6 +1592,7 @@ left_release_text_state :: (state: *Text_Input_State) {
     free(state.pre_modification_text.data, GETRECT_HEAP);
     free(state.last_saved_input.data, GETRECT_HEAP);
     for command: state.command_history free(command.data, GETRECT_HEAP);
+
     array_reset(*state.command_history);
     array_reset(*state.buffered_events);
 }

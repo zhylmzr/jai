@@ -63,6 +63,7 @@ add_node :: (treemap: *Treemap, name: string, parent: *Treemap_Node) -> *Treemap
     node.locator = locator;
     if !parent treemap.root = node;
     else array_add(*parent.children, node);
+
     return node;
 }
 
@@ -122,6 +123,7 @@ recompute_if_dirty :: (display: *Treemap_Display, outer_size: Vector2, border_pr
     generation := tree_states[tree_state].generation;
 
     if !force && !display.dirty && display_states[state].tree == treemap && display_states[state].generation == generation && display_states[state].data == display.nodes.data && display_states[state].border_proc == border_proc && display.nodes.count == treemap.nodes.count && display.outer_size.x == outer_size.x && display.outer_size.y == outer_size.y return;
+
     array_reset(*display.nodes);
 
     for index: 0..treemap.nodes.count - 1 {
@@ -169,6 +171,7 @@ size_children :: (treemap: *Treemap, root: *Treemap_Node, display: *Treemap_Disp
     remaining.y -= record.border[1] + record.border[3];
     if remaining.x < 0 remaining.x = 0;
     if remaining.y < 0 remaining.y = 0;
+
     weight_left := root.size;
     first: int = 0;
 
@@ -187,6 +190,7 @@ size_children :: (treemap: *Treemap, root: *Treemap_Node, display: *Treemap_Disp
         short_side := cast(float64) remaining.x;
 
         if remaining.y < remaining.x short_side = cast(float64) remaining.y;
+
         last := first + 1;
         group_weight := root.children[first].size;
         largest := group_weight;
@@ -198,6 +202,7 @@ size_children :: (treemap: *Treemap, root: *Treemap_Node, display: *Treemap_Disp
             candidate := row_score(group_weight + next_weight, largest, next_weight, short_side, area_per_weight);
 
             if candidate > score break;
+
             group_weight += next_weight;
             smallest = next_weight;
             score = candidate;
@@ -208,9 +213,11 @@ size_children :: (treemap: *Treemap, root: *Treemap_Node, display: *Treemap_Disp
         fraction := group_weight / weight_left;
 
         if fraction > 1 fraction = 1;
+
         strip := remaining;
         if horizontal strip.y = cast(float) (cast(float64) remaining.y * fraction);
         else strip.x = cast(float) (cast(float64) remaining.x * fraction);
+
         flush_nodes(root.children, first, last, display, corner, group_weight, horizontal, strip);
 
         if horizontal {
@@ -245,6 +252,7 @@ flush_nodes :: (children: [] *Treemap_Node, unsized_cursor: int, child_index: in
         fraction: float64;
 
         if fill_weight_total > 0 fraction = child.size / fill_weight_total;
+
         record.corner = cursor;
         record.size = size;
 
@@ -271,6 +279,7 @@ init_treemap_display :: (treemap: *Treemap) -> Treemap_Display {
 // These helpers also retire private cache state for the supplied owner address.
 free_treemap_display :: (display: *Treemap_Display) {
     if !display return;
+
     array_free(display.nodes);
     display.nodes = .{};
     display.dirty = true;
@@ -306,20 +315,24 @@ display_states: [..] Display_State;
 
 tree_state_index :: (tree: *Treemap) -> int {
     for tree_states if it.tree == tree return it_index;
+
     tree_states.allocator = context.default_allocator;
     record: Tree_State;
     record.tree = tree;
     array_add(*tree_states, record);
+
     return tree_states.count - 1;
 }
 
 display_state_index :: (display: *Treemap_Display) -> int {
     for display_states if it.display == display return it_index;
+
     display_states.allocator = context.default_allocator;
     record: Display_State;
     record.display = display;
     record.tree = display.treemap;
     array_add(*display_states, record);
+
     return display_states.count - 1;
 }
 
@@ -350,11 +363,13 @@ recompute_sizes :: (node: *Treemap_Node) {
 
 row_score :: (total: float64, largest: float64, smallest: float64, side: float64, scale: float64) -> float64 {
     if smallest <= 0 || side <= 0 || scale <= 0 return 1.0e300;
+
     squared_side := side * side;
     squared_total := total * total;
     a := squared_side * largest / (scale * squared_total);
     b := scale * squared_total / (squared_side * smallest);
 
     if a > b return a;
+
     return b;
 }

@@ -40,10 +40,12 @@ Sound_Data :: struct {
 load_audio_file :: (filename: string, optional := false) -> Sound_Data {
     bytes, ok := read_entire_file(filename, log_errors = !optional);
     if !ok return .{};
+
     result := load_audio_data(filename, bytes);
 
     free(bytes);
     result.full_path = copy_string(filename);
+
     return result;
 }
 
@@ -70,6 +72,7 @@ load_audio_data :: (name_for_error_reporting: string, data: string) -> Sound_Dat
     result.buffer = owned;
     result.loaded = true;
     assign_default_directions(*result);
+
     return result;
 }
 
@@ -85,15 +88,18 @@ Container :: enum u8 {
 
 sniff_container :: (bytes: string) -> Container {
     if bytes.count < 4 return .UNKNOWN;
+
     tag := to_string(bytes.data, 4);
     if tag == "RIFF" return .RIFF;
     if tag == "OggS" return .OGG;
+
     return .UNKNOWN;
 }
 
 describe_wav :: (result: *Sound_Data, bytes: string) -> bool {
     format, payload, ok, extra := get_waveformatex_header(bytes);
     if !ok return false;
+
     channels := cast(s64) format.nChannels;
     if channels < 1 || channels > MAX_CHANNELS_PER_SOUND || format.nSamplesPerSec <= 0 return false;
 
@@ -105,6 +111,7 @@ describe_wav :: (result: *Sound_Data, bytes: string) -> bool {
         frames = payload.count / (2 * channels);
     } else if format.wFormatTag == WAVE_FORMAT_DVI_ADPCM {
         if format.nBlockAlign <= 0 || extra.wSamplesPerBlock <= 0 return false;
+
         result.type = .ADPCM_COMPRESSED;
         result.nBlockAlign = format.nBlockAlign;
         result.wSamplesPerBlock = extra.wSamplesPerBlock;
@@ -119,25 +126,30 @@ describe_wav :: (result: *Sound_Data, bytes: string) -> bool {
     result.sampling_rate = cast(u32) format.nSamplesPerSec;
     result.nsamples_times_nchannels = frames * channels;
     result.samples = cast(*s16) payload.data;
+
     return true;
 }
 
 describe_ogg :: (result: *Sound_Data, bytes: string) -> bool {
     if bytes.count > S32_MAX return false;
+
     status: s32;
     handle := stb_vorbis_open_memory(bytes.data, cast(s32) bytes.count, *status, null);
 
     if !handle return false;
+
     info := stb_vorbis_get_info(handle);
     frames := cast(s64) stb_vorbis_stream_length_in_samples(handle);
 
     stb_vorbis_close(handle);
 
     if info.channels < 1 || info.channels > MAX_CHANNELS_PER_SOUND || info.sample_rate == 0 || frames <= 0 return false;
+
     result.type = .OGG_COMPRESSED;
     result.nchannels = cast(u16) info.channels;
     result.sampling_rate = info.sample_rate;
     result.nsamples_times_nchannels = frames * info.channels;
+
     return true;
 }
 
@@ -170,6 +182,7 @@ VORBIS_LAYOUTS :: Source_Direction.[
 assign_default_directions :: (result: *Sound_Data) {
     count := cast(s64) result.nchannels;
     if count < 1 || count > 8 return;
+
     vorbis := result.type == .OGG_COMPRESSED;
 
     for 0..count - 1 {

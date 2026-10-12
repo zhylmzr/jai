@@ -2,8 +2,10 @@ P :: #import "POSIX";
 
 create_process :: (process: *Process, args: ..string, working_directory := "", capture_and_return_output := false, arg_quoting := Process_Argument_Quoting.QUOTE_IF_NEEDED, kill_process_if_parent_exits := true) -> success: bool {
     if process.launched || args.count == 0 || !args[0] return false;
+
     argv := cast(**u8) alloc((args.count + 1) * size_of(*u8), temp);
     for arg, index: args argv[index] = temp_c_string(arg);
+
     argv[args.count] = null;
     directory := temp_c_string(working_directory);
     child_input: [2] s32 = .[-1, -1];
@@ -59,6 +61,7 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
         }
 
         if ok P.execvp(argv[0], argv);
+
         failure := P.errno();
 
         P.write(launch_error[1], *failure, size_of(s32));
@@ -91,6 +94,7 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
         P.waitpid(pid, *status, 0);
         if working_directory log_error("could not start \"%\" in \"%\": %", args[0], working_directory, System.get_error_string(xx failure));
         else log_error("could not start \"%\": %", args[0], System.get_error_string(xx failure));
+
         return false;
     }
 
@@ -103,17 +107,20 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
     process.output.eof = !capture_and_return_output;
     process.error.eof = !capture_and_return_output;
     Atomics.atomic_increment(*active_command_count);
+
     return true;
 }
 
 write_to_process :: (process: *Process, data: [] u8) -> success: bool, bytes_written: int {
     if process.input.handle < 0 || data.count < 0 || data.count > 0 && !data.data return false, 0;
+
     blocked: P.sigset_t;
     previous: P.sigset_t;
     before: P.sigset_t;
 
     if P.sigemptyset(*blocked) != 0 || P.sigaddset(*blocked, P.SIGPIPE) != 0 return false, 0;
     if P.pthread_sigmask(P.SIG_BLOCK, *blocked, *previous) != 0 return false, 0;
+
     defer P.pthread_sigmask(P.SIG_SETMASK, *previous, null);
     originally_pending := P.sigpending(*before) == 0 && P.sigismember(*before, P.SIGPIPE) == 1;
     amount := P.write(process.input.handle, data.data, cast(u64) data.count);
@@ -138,11 +145,13 @@ read_from_process :: (process: *Process, output_buffer: [] u8, error_buffer: [] 
     if process.output.eof || output_buffer.count == 0 descriptors[0].fd = -1;
     if process.error.eof || error_buffer.count == 0 descriptors[1].fd = -1;
     if descriptors[0].fd == -1 && descriptors[1].fd == -1 return true, 0, 0;
+
     start := process_monotonic_ms();
     result := P.poll(descriptors.data, 2, cast(s32) timeout_ms);
 
     while result < 0 && P.errno() == P.EINTR result = P.poll(descriptors.data, 2, cast(s32) remaining_time(start, timeout_ms));
     if result < 0 return false, 0, 0;
+
     output_bytes: int;
     error_bytes: int;
     ok := true;
@@ -169,15 +178,18 @@ read_from_process :: (process: *Process, output_buffer: [] u8, error_buffer: [] 
 read_pipe :: (pipe: *Process.Pipe, buffer: [] u8) -> success: bool, bytes_read: int {
     if pipe.handle < 0 return false, 0;
     if buffer.count == 0 return true, 0;
+
     amount := P.read(pipe.handle, buffer.data, cast(u64) buffer.count);
     while amount < 0 && P.errno() == P.EINTR amount = P.read(pipe.handle, buffer.data, cast(u64) buffer.count);
     if amount < 0 && (P.errno() == P.EAGAIN || P.errno() == P.EWOULDBLOCK) return true, 0;
+
     return amount >= 0, cast(int) max(0, amount);
 }
 
 get_process_result :: (process: *Process, timeout_ms := -1) -> success: bool, Process_Result {
     if !process.launched return true, .{ type = .UNSTARTED };
     if process.saved_result.type != .STILL_RUNNING return true, process.saved_result;
+
     start := process_monotonic_ms();
 
     while true {
@@ -185,6 +197,7 @@ get_process_result :: (process: *Process, timeout_ms := -1) -> success: bool, Pr
         options: s32;
 
         if timeout_ms >= 0 options = P.WNOHANG;
+
         result := P.waitpid(process.pid, *raw_status, options);
         if result < 0 {
             if P.errno() == P.EINTR continue;
@@ -199,6 +212,7 @@ get_process_result :: (process: *Process, timeout_ms := -1) -> success: bool, Pr
         }
 
         if remaining_time(start, timeout_ms) == 0 return true, process.saved_result;
+
         P.usleep(1000);
     }
 
@@ -229,6 +243,7 @@ deinit :: (process: *Process) {
     }
 
     if process.launched Atomics.atomic_decrement(*active_command_count);
+
     process.* = .{};
 }
 
@@ -279,6 +294,7 @@ process_monotonic_ms :: () -> s64 {
     }
 
     if P.clock_gettime(xx clock_id, *time) != 0 return 0;
+
     return time.tv_sec * 1000 + time.tv_nsec / 1000000;
 }
 

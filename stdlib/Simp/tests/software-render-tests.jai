@@ -5,6 +5,7 @@ B :: #import "Basic";
 software_render_cases :: () -> bool {
     size, stride := S.get_image_size(.BC1, 5, 7);
     if size != 32 || stride != 16 return false;
+
     target := S.texture_create_render_target(4, 4, .RGBA8);
     if !target return false;
 
@@ -43,8 +44,10 @@ software_render_cases :: () -> bool {
     S.bitmap_alloc(*source, 4, 4, .R8);
     defer S.deinit(*source);
     for i: 0..15 source.data[i] = cast(u8) i;
+
     S.bitmap_build_mipmaps(*source);
     if source.mipmap_count != 3 || source.data.count != 21 || source.data[16] != 3 || source.data[20] != 8 return false;
+
     return true;
 }
 

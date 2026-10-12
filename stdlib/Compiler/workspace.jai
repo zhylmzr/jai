@@ -120,7 +120,9 @@ compiler_create_workspace :: (name := "") -> Workspace {
 
     ensure_option_slot(id);
     while workspace_names.count <= id array_add(*workspace_names, "");
+
     workspace_names[id] = copy_text(name);
+
     return id;
 }
 
@@ -208,6 +210,7 @@ compiler_begin_intercept :: (w: Workspace, flags: Intercept_Flags = 0, loc := #c
 compiler_end_intercept :: (w: Workspace) {
     index := find_intercept(resolve_workspace(w));
     if index < 0 return;
+
     array_ordered_remove_by_index(*intercepted, index);
     array_ordered_remove_by_index(*intercept_finished, index);
     array_ordered_remove_by_index(*intercept_flags, index);
@@ -268,6 +271,7 @@ compiler_set_workspace_status :: (status: Workspace_Status, w: Workspace = -1) {
     }
 
     if failed return;
+
     __jaic_report("the metaprogram marked the workspace as failed", "", 0, 0, xx Report.ERROR);
 }
 
@@ -344,6 +348,7 @@ is_subclass_of :: (info: *Type_Info, base_name: string, first_call := true) -> b
         // An embedded base may be held by value or behind one pointer.
         current = head.type;
         if current.type == .POINTER current = (cast(*Type_Info_Pointer) current).pointer_to;
+
         hops += 1;
     }
 
@@ -357,6 +362,7 @@ make_integer_literal :: (v: s64) -> *Code_Literal {
     node.value_flags = .IS_A_NUMBER;
     node.value_type = .NUMBER;
     node._s64 = v;
+
     return node;
 }
 
@@ -366,6 +372,7 @@ make_string_literal :: (s: string) -> *Code_Literal {
     node.kind = .LITERAL;
     node.value_type = .STRING;
     node._string = copy_text(s);
+
     return node;
 }
 
@@ -433,6 +440,7 @@ code_to_string :: (code: Code) -> string {
     builder: String_Builder;
 
     PP.print_expression(*builder, root);
+
     return builder_to_string(*builder);
 }
 
@@ -447,9 +455,11 @@ print_expression :: (builder: *String_Builder, node: *Code_Node) {
 get_root_type :: (code: Code) -> (status: Get_Root_Type_Status, type: Type) {
     result: Type;
     if __jaic_code_is_null(code) return .INPUT_IS_CODE_NULL, result;
+
     root := compiler_get_nodes(code);
     if !root return .CORRUPTED, result;
     if !root.type return .NOT_TYPED, result;
+
     return .SUCCESS, get_type(root.type);
 }
 
@@ -479,6 +489,7 @@ compiler_modify_procedure :: (w: Workspace, body: *Code_Procedure_Body) {
     for body.block.statements {
         record := record_of(it);
         if record && record_differs(it, record) record = 0;
+
         source: string;
 
         if !record {
@@ -566,6 +577,7 @@ add_global_data :: (data: [] u8, segment: Data_Segment_Index, user_segment: *Dat
     result.data = alloc(data.count);
     result.count = data.count;
     memcpy(result.data, data.data, data.count);
+
     return result;
 }
 
@@ -686,6 +698,7 @@ build_message :: (id: Workspace, event_kind: s64) -> *Message {
             message_dump.kind = .DEBUG_DUMP;
             message_dump.workspace = id;
             message_dump.dump_text = __jaic_event_string(0);
+
             return *message_dump;
 
         case EVENT_PERFORMANCE_REPORT;
@@ -718,6 +731,7 @@ build_message :: (id: Workspace, event_kind: s64) -> *Message {
                 // executable (counts in ints 1 to 4; PRE_WRITE has objects only).
                 counts: [4] s64;
                 for 0..3 counts[it] = __jaic_event_int(it + 1);
+
                 lists: [4][..] string;
                 next := 0;
 
@@ -727,6 +741,7 @@ build_message :: (id: Workspace, event_kind: s64) -> *Message {
                 }
 
                 for lists[0] array_add(*phase_object_files, it);
+
                 message_phase.compiler_generated_object_files = phase_object_files;
                 message_phase.support_object_files = lists[1];
                 message_phase.system_libraries = lists[2];
@@ -756,6 +771,7 @@ keep_typechecked :: (m: *Message_Typechecked, flags: Intercept_Flags) -> bool {
     if flags & .SKIP_PROCEDURE_BODIES m.procedure_bodies.count = 0;
     if flags & .SKIP_STRUCTS m.structs.count = 0;
     if flags & .SKIP_OTHERS m.others.count = 0;
+
     kept := 0;
 
     for m.all {
@@ -772,11 +788,13 @@ keep_typechecked :: (m: *Message_Typechecked, flags: Intercept_Flags) -> bool {
         }
 
         if flags & skip continue;
+
         m.all[kept] = it;
         kept += 1;
     }
 
     m.all.count = kept;
+
     return kept > 0;
 }
 

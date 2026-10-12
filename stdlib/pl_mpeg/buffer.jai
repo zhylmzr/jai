@@ -42,14 +42,17 @@ Vlc_Uint :: struct {
 buffer_create_with_filename :: (filename: string) -> *Buffer {
     fh, opened := file_open(filename);
     if !opened return null;
+
     result := buffer_create_with_file(fh, true);
     if !result file_close(*fh);
+
     return result;
 }
 
 buffer_create_with_file :: (fh: File, close_when_done: bool) -> *Buffer {
     length, measured := file_length_checked(fh);
     if !measured || length < 0 return null;
+
     entry := New(Buffer_State);
     entry.public = New(Buffer);
     entry.creator = saved_context();
@@ -71,11 +74,13 @@ buffer_create_with_file :: (fh: File, close_when_done: bool) -> *Buffer {
     }
 
     pull_buffer(entry);
+
     return entry.public;
 }
 
 buffer_create_with_memory :: (memory: [] u8, free_when_done: bool) -> *Buffer {
     if memory.count < 0 return null;
+
     native := raw_plm_buffer_create_with_memory(memory.data, cast(u64) memory.count, 0);
     result := wrap_buffer(native);
 
@@ -110,6 +115,7 @@ buffer_destroy :: (using buffer: *Buffer) {
     raw_plm_buffer_destroy(entry.native);
     if buffer.close_when_done && buffer.file_initted file_close(*buffer.fh);
     if entry.backing && buffer.free_when_done free(entry.backing, entry.creator.allocator);
+
     forget_buffer(buffer);
 }
 
@@ -120,6 +126,7 @@ buffer_get_size :: (buffer: *Buffer) -> s64 {
     result := raw_plm_buffer_get_size(entry.native);
 
     pull_buffer(entry);
+
     return cast(s64) result;
 }
 
@@ -130,6 +137,7 @@ buffer_get_remaining :: (using buffer: *Buffer) -> s64 {
     result := raw_plm_buffer_get_remaining(entry.native);
 
     pull_buffer(entry);
+
     return cast(s64) result;
 }
 
@@ -140,6 +148,7 @@ buffer_write :: (using buffer: *Buffer, memory: [] u8) -> s64 {
     result := raw_plm_buffer_write(entry.native, memory.data, cast(u64) memory.count);
 
     pull_buffer(entry);
+
     return cast(s64) result;
 }
 
@@ -180,6 +189,7 @@ buffer_tell :: (buffer: *Buffer) -> s64 {
     result := raw_plm_buffer_tell(entry.native);
 
     pull_buffer(entry);
+
     return cast(s64) result;
 }
 
@@ -202,6 +212,7 @@ buffer_has :: (buffer: *Buffer, count: s64) -> bool {
     result := raw_plm_buffer_has(entry.native, cast(u64) count);
 
     pull_buffer(entry);
+
     return result != 0;
 }
 
@@ -213,6 +224,7 @@ buffer_read :: (buffer: *Buffer, count: s64) -> s32 {
     result := raw_plm_buffer_read(entry.native, cast(s32) count);
 
     pull_buffer(entry);
+
     return result;
 }
 
@@ -237,6 +249,7 @@ buffer_skip_bytes :: (buffer: *Buffer, v: u8) -> s32 {
     result := raw_plm_buffer_skip_bytes(entry.native, v);
 
     pull_buffer(entry);
+
     return result;
 }
 
@@ -247,6 +260,7 @@ buffer_next_start_code :: (buffer: *Buffer) -> Start_Code {
     result := raw_plm_buffer_next_start_code(entry.native);
 
     pull_buffer(entry);
+
     return cast,no_check(Start_Code) result;
 }
 
@@ -257,6 +271,7 @@ buffer_find_start_code :: (buffer: *Buffer, code: Start_Code) -> bool {
     result := raw_plm_buffer_find_start_code(entry.native, cast(s32) code);
 
     pull_buffer(entry);
+
     return result >= 0;
 }
 
@@ -267,6 +282,7 @@ buffer_has_start_code :: (buffer: *Buffer, code: Start_Code) -> bool {
     result := raw_plm_buffer_has_start_code(entry.native, cast(s32) code);
 
     pull_buffer(entry);
+
     return result >= 0;
 }
 
@@ -277,6 +293,7 @@ buffer_no_start_code :: (buffer: *Buffer) -> bool {
     result := raw_plm_buffer_no_start_code(entry.native);
 
     pull_buffer(entry);
+
     return result != 0;
 }
 
@@ -287,6 +304,7 @@ buffer_read_vlc :: (buffer: *Buffer, table: [] Vlc) -> s16 {
     result := raw_plm_buffer_read_vlc(entry.native, table.data);
 
     pull_buffer(entry);
+
     return result;
 }
 
@@ -297,5 +315,6 @@ buffer_read_vlc_uint :: (buffer: *Buffer, table: [] Vlc_Uint) -> u16 {
     result := raw_plm_buffer_read_vlc_uint(entry.native, table.data);
 
     pull_buffer(entry);
+
     return cast(u16) result;
 }

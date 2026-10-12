@@ -50,6 +50,7 @@ init :: (using table: *Table, slots_to_allocate: s64 = 0) {
 
 deinit :: (table: *Table) {
     if table.entries.data Basic.free(table.entries.data, allocator = table.allocator);
+
     table.entries = .{};
     table.count = 0;
     table.allocated = 0;
@@ -62,6 +63,7 @@ table_add :: (table: *Table, key: table.Key_Type, value: table.Value_Type) -> *t
     entry.hash = _valid_hash(table.hash_function(key));
     entry.key = key;
     entry.value = value;
+
     return _place_entry(table, entry);
 }
 
@@ -104,6 +106,7 @@ table_find_multiple :: (table: *Table, key: table.Key_Type) -> [] table.Value_Ty
     output: [..] table.Value_Type;
     output.allocator = Basic.temp;
     if table.allocated == 0 return output;
+
     hash := _valid_hash(table.hash_function(key));
     index := (cast(int) hash) & (table.allocated - 1);
     step := _probe_stride(hash);
@@ -130,14 +133,17 @@ table_remove :: (table: *Table, key: table.Key_Type) -> (success: bool, value: t
     zero: table.Value_Type;
 
     if index < 0 return false, zero;
+
     value = table.entries[index].value;
     table.entries[index].hash = REMOVED_HASH;
     table.count -= 1;
+
     return true, value;
 }
 
 table_reset :: (using table: *Table) {
     for *entry: entries entry.hash = NEVER_OCCUPIED_HASH;
+
     count = 0;
     slots_filled = 0;
 
@@ -159,10 +165,12 @@ table_ensure_space :: (table: *Table, items: s64) {
 
 resize :: (using table: *Table, slots_to_allocate: s64 = 0) {
     if !allocator.proc allocator = context.allocator;
+
     // An explicit size is only rounded up to a power of two (init(*t, 10) allocates 16);
     // SIZE_MIN applies when none is given.
     capacity := next_power_of_two(ifx slots_to_allocate > 0 then slots_to_allocate else SIZE_MIN);
     while count * 100 >= capacity * LOAD_FACTOR_PERCENT capacity *= 2;
+
     previous := entries;
     replacement, base := Basic.NewArray(capacity, Entry, true,, allocator);
 
@@ -226,6 +234,7 @@ Walk_Table :: (code: Code) #expand {
     while remaining > 0 {
         `table_while_loop := `table.entries[index].hash;
         if !table_while_loop break;
+
         #insert code;
         index = (index + stride) & (`table.allocated - 1);
         remaining -= 1;
@@ -271,11 +280,13 @@ _place_entry :: (table: *Table, entry: table.Entry) -> *table.Value_Type {
     }
 
     Basic.assert(false, "hash table has no available slot");
+
     return null;
 }
 
 _find_index :: (table: *Table, key: table.Key_Type) -> int {
     if table.allocated == 0 return -1;
+
     hash := _valid_hash(table.hash_function(key));
     index := (cast(int) hash) & (table.allocated - 1);
     step := _probe_stride(hash);
@@ -285,6 +296,7 @@ _find_index :: (table: *Table, key: table.Key_Type) -> int {
         entry := table.entries[index];
         if entry.hash == NEVER_OCCUPIED_HASH return -1;
         if entry.hash == hash && table.compare_function(entry.key, key) return index;
+
         #if COUNT_COLLISIONS table.find_collisions += 1;
         index = (index + step) & (table.allocated - 1);
         visited += 1;

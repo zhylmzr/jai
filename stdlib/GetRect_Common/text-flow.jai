@@ -3,6 +3,7 @@ flow_text :: (text: *Flowable_Text, r: Rect, flowed_count: s32) {
     assert(text != null);
     if !text return;
     for *line: text.flowed_lines array_free(line.pieces);
+
     text.flowed_lines.count = 0;
     text.num_flowed_lines = 0;
     text.flowed_rect = r;
@@ -11,12 +12,14 @@ flow_text :: (text: *Flowable_Text, r: Rect, flowed_count: s32) {
     defer array_reset(*current);
     limit := text.unflowed_lines.count;
     if flowed_count > 0 limit = min(limit, flowed_count);
+
     width := max(r.w, 1.0);
     used: float;
 
     for index: 0..limit - 1 {
         for piece: text.unflowed_lines[index].pieces {
             if !piece.font continue;
+
             start := 0;
             point := 0;
 
@@ -78,6 +81,7 @@ maybe_reflow_text_if_rect_dimensions_changed :: (text: *Flowable_Text, r: Rect) 
 text_display :: (r: Rect, text: *Flowable_Text, offset_y: float, line_stride: float, theme: *Text_Display_Theme = null, identifier: s64 = 0, loc := #caller_location) {
     if !text || line_stride <= 0 return;
     if !theme theme = *left_text_display_theme;
+
     state := find_or_create_state(Text_Display_State, get_hash(loc, identifier));
 
     defer stop_using_state(state);
@@ -91,8 +95,10 @@ text_display :: (r: Rect, text: *Flowable_Text, offset_y: float, line_stride: fl
     content.x += left;
     content.w = max(content.w - left - right, 0.0);
     if !GETRECT_Y_UP content.y += top;
+
     content.h = max(content.h - top, 0.0);
     if theme.auto_reflow_text maybe_reflow_text_if_rect_dimensions_changed(text, content);
+
     view := left_text_view(state);
     view.content = content;
     view.offset = offset_y;
@@ -114,18 +120,21 @@ text_display :: (r: Rect, text: *Flowable_Text, offset_y: float, line_stride: fl
     }
 
     for event, index: events_to_handle_this_frame if left_event_window(index) == state.window text_display_handle_event(state, event);
+
     push_scissor(content);
     defer pop_scissor();
 
     for line, line_index: text.flowed_lines {
         y := ifx GETRECT_Y_UP then right_flow_line_y(content, offset_y, line_stride, line_index) else content.y + offset_y + line_index * line_stride;
         if y + line_stride < content.y || y >= content.y + content.h continue;
+
         x := content.x;
         character: int;
         selected := make_forward_selection(view.selection);
 
         for piece: line.pieces {
             if !piece.font continue;
+
             width := cast(float) draw_procs.prepare_text(piece.font, piece.text, piece.effects);
 
             if selected.active && line_index >= selected.start_line && line_index <= selected.end_line {
@@ -151,12 +160,14 @@ text_display :: (r: Rect, text: *Flowable_Text, offset_y: float, line_stride: fl
 find_line_and_character :: (text: *Flowable_Text, rt_width: int, rt_height: int, cursor_x: int, cursor_y: int) -> (found: bool, line: int, character: int) {
     view := left_text_view_for_text(text);
     if !view || text.flowed_lines.count == 0 return false, 0, 0;
+
     index := ifx GETRECT_Y_UP then right_flow_line_index(view.content, view.offset, view.stride, cast(float) cursor_y, text.flowed_lines.count) else clamp(cast(int) floor((cursor_y - view.content.y - view.offset) / view.stride), 0, text.flowed_lines.count - 1);
     x := view.content.x;
     column: int;
 
     for piece: text.flowed_lines[index].pieces {
         if !piece.font continue;
+
         point := 0;
         previous: float;
 
@@ -165,6 +176,7 @@ find_line_and_character :: (text: *Flowable_Text, rt_width: int, rt_height: int,
             width := cast(float) draw_procs.prepare_text(piece.font, string.{ next, piece.text.data }, piece.effects);
 
             if cursor_x < x + (previous + width) / 2 return true, index, column + point;
+
             previous = width;
             point = next;
         }
@@ -195,10 +207,12 @@ update_selection_endpoint_for_mouse_position :: (rt_width: int, rt_height: int) 
 
 text_display_handle_event :: (state: *Text_Display_State, event: Event) {
     if event.type != .KEYBOARD || !event.key_pressed || !(event.ctrl_pressed || event.cmd_meta_pressed) || cast(s32) event.key_code != 67 return;
+
     view := left_text_view(state);
     selected := make_forward_selection(view.selection);
 
     if !selected.active return;
+
     builder: String_Builder;
 
     defer free_buffers(*builder);
@@ -213,6 +227,7 @@ text_display_handle_event :: (state: *Text_Display_State, event: Event) {
             b := clamp(end - column, 0, piece.text.count);
 
             if b > a append(*builder, string.{ b - a, piece.text.data + a });
+
             column += piece.text.count;
         }
 
@@ -224,6 +239,7 @@ text_display_handle_event :: (state: *Text_Display_State, event: Event) {
 
 deinit :: (text: *Flowable_Text) {
     for *line: text.flowed_lines array_free(line.pieces);
+
     array_reset(*text.flowed_lines);
     text.num_flowed_lines = 0;
     // Original pieces/text/font bytes are borrowed and remain caller-owned.

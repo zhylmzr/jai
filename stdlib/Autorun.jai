@@ -33,6 +33,7 @@ shutdown :: (_p: *Plugin) {
 
     defer array_free(command);
     for LAUNCHER_COMMAND array_add(*command, it);
+
     array_add(*command, executable);
 
     log("[Autorun] Starting %\n", executable);
@@ -70,6 +71,7 @@ executable_to_run :: (runner: *Runner) -> path: string, reason: string {
     // picked does.
     last := directory[directory.count - 1];
     if last == #char "/" || last == #char "\\" return tprint("%1%2", directory, name), "";
+
     return tprint("%1/%2", directory, name), "";
 }
 
@@ -79,6 +81,7 @@ complain_if_unsuccessful :: (result: Process.Process_Result) {
     if result.type == {
         case .EXITED;
             if result.exit_code == 0 return;
+
             text = tprint("[Autorun] The program finished with exit code %.", result.exit_code);
         case .SIGNALED;
             text = tprint("[Autorun] The program was killed by signal %.", result.signal);

@@ -59,6 +59,7 @@ compatibility_cases :: () -> bool {
     L.occlusion_per_window_update(front.window);
     B.assert(!L.events_occluded(*back));
     L.ui_deinit();
+
     return true;
 }
 

@@ -44,6 +44,7 @@ wasm_poll_input :: () {
                 queue_input_event(event);
             case 3;
                 if wasm_has_pointer queue_mouse_delta(native.x - wasm_pointer_x, native.y - wasm_pointer_y);
+
                 wasm_pointer_x, wasm_pointer_y = native.x, native.y;
                 wasm_has_pointer = true;
             case 4;

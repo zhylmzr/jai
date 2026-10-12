@@ -49,6 +49,7 @@ texture_load_from_memory :: (texture: *Texture, memory: [] u8, srgb := false, bu
 texture_load_from_bitmap :: (using texture: *Texture, bitmap: *Bitmap) -> bool {
     if !texture || !bitmap || bitmap.width <= 0 || bitmap.height <= 0 || bitmap.mipmap_count <= 0 return false;
     if !is_supported(bitmap.format) return false;
+
     _, row := get_image_size(bitmap.format, bitmap.width, bitmap.height);
     if bitmap.stride < row || bitmap.data.count < bitmap.stride * bitmap.height return false;
 
@@ -70,6 +71,7 @@ texture_load_from_bitmap :: (using texture: *Texture, bitmap: *Bitmap) -> bool {
     texture.format = bitmap.format;
     if bitmap.flags & .IS_SRGB texture.flags |= .sRGB;
     else texture.flags &= ~Texture_Flags.sRGB;
+
     return true;
 }
 
@@ -77,6 +79,7 @@ texture_load_from_bitmap :: (using texture: *Texture, bitmap: *Bitmap) -> bool {
 // afterwards (draw with it via set_shader_for_images) and is also what set_render_target takes.
 texture_create_render_target :: (width: s32, height: s32, format: Texture_Format, flags: Texture_Flags = 0) -> *Texture {
     if width <= 0 || height <= 0 || !is_supported(format) return null;
+
     CheckInit();
     texture := New(Texture);
     texture.* = .{ format = format, flags = flags | .Render_Target, width = width, height = height };
@@ -100,6 +103,7 @@ texture_create_render_target :: (width: s32, height: s32, format: Texture_Format
 // Releases the GPU and CPU storage; the Texture struct itself belongs to the caller.
 deinit :: (texture: *Texture) {
     if !texture return;
+
     CheckInit();
 
     if context.simp.texture_render_target == texture {
@@ -134,9 +138,11 @@ texture_bitmap :: (texture: *Texture) -> *Bitmap {
 adopt_decoded_image :: (texture: *Texture, decoded: *Bitmap, srgb: bool, build_mipmaps: bool) -> bool {
     if srgb decoded.flags |= .IS_SRGB;
     if build_mipmaps bitmap_build_mipmaps(decoded);
+
     ok := texture_load_from_bitmap(texture, decoded);
 
     deinit(decoded); // texture_load_from_bitmap copied or uploaded what it needs.
+
     return ok;
 }
 

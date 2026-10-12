@@ -7,11 +7,13 @@ Unicode_Result :: enum {
 
 character_utf32_to_utf8 :: (codepoint: u32, out: *string) -> Unicode_Result {
     if codepoint > UNI_MAX_UTF16 || (codepoint >= 0xD800 && codepoint <= 0xDFFF) return .SOURCE_ILLEGAL;
+
     n := 1;
     if codepoint >= 0x80 n = 2;
     if codepoint >= 0x800 n = 3;
     if codepoint >= 0x10000 n = 4;
     if out.count < n || !out.data return .SOURCE_EXHAUSTED;
+
     value := codepoint;
     i := n - 1;
 
@@ -25,7 +27,9 @@ character_utf32_to_utf8 :: (codepoint: u32, out: *string) -> Unicode_Result {
     else if n == 2 out.data[0] = cast(u8) (0xC0 | value);
     else if n == 3 out.data[0] = cast(u8) (0xE0 | value);
     else out.data[0] = cast(u8) (0xF0 | value);
+
     out.count = n;
+
     return .CONVERSION_OK;
 }
 
@@ -35,6 +39,7 @@ character_utf8_to_utf32 :: (s: *u8, source_length: s64, $strict := false) -> u32
     count := source_length;
 
     if count <= 0 return 0, 0, .SOURCE_EXHAUSTED;
+
     first := data[0];
     length := 0;
     code: u32 = 0;
@@ -66,6 +71,7 @@ character_utf8_to_utf32 :: (s: *u8, source_length: s64, $strict := false) -> u32
 
     if code < minimum || code > UNI_MAX_UTF16 || (code >= 0xD800 && code <= 0xDFFF)
         return UNI_REPLACEMENT_CHAR, 1, .SOURCE_ILLEGAL;
+
     return code, length, .CONVERSION_OK;
 }
 

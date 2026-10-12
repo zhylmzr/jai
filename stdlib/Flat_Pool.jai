@@ -20,6 +20,7 @@ init :: (pool: *Flat_Pool, reserve := DEFAULT_VIRTUAL_MEMORY_RESERVE) {
     assert(pool != null && pool.memory_base == null && reserve > 0);
     alignment := checked_alignment(pool);
     if alignment < 8 alignment = 8;
+
     slack := alignment - 1;
 
     assert(reserve <= MAX_RESERVE_SIZE - slack - RESERVE_GRANULARITY + 1);
@@ -45,6 +46,7 @@ get :: (pool: *Flat_Pool, nbytes: s64) -> *void {
     alignment := checked_alignment(pool);
 
     if !pool.memory_base init(pool);
+
     padding := alignment_padding(pool.current_point, alignment);
     available := pool.address_limit - pool.current_point;
 
@@ -52,6 +54,7 @@ get :: (pool: *Flat_Pool, nbytes: s64) -> *void {
     result := pool.current_point + padding;
 
     pool.current_point = result + nbytes;
+
     return result;
 }
 
@@ -94,6 +97,7 @@ flat_pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
     }
 
     if mode == .FREE || mode == .STARTUP || mode == .SHUTDOWN return null;
+
     pool := cast(*Flat_Pool) allocator_data;
 
     assert(pool != null);
@@ -106,6 +110,7 @@ flat_pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
 
         if count > requested_size count = requested_size;
         if replacement && old_memory && count > 0 memcpy(replacement, old_memory, count);
+
         return replacement;
     }
 
@@ -117,6 +122,7 @@ flat_pool_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
     }
 
     assert(false, "Flat_Pool does not support this allocator mode");
+
     return null;
 }
 

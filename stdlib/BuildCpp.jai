@@ -39,6 +39,7 @@ build_cpp :: (output_basename: string, files: ..string, type: Build_Type, debug 
     #if OS == .WINDOWS path_overwrite_separators(job.output, #char "\\");
 
     if target == .WINDOWS return build_with_msvc(*job, output_basename);
+
     return build_with_clang(*job, compiler_executable_path, ar_executable_path);
 }
 
@@ -54,6 +55,7 @@ enum_cpp_files :: (path: string, recursive := false) -> [..] string {
     }
 
     array_free(candidates);
+
     return sources;
 }
 
@@ -85,6 +87,7 @@ output_suffix :: (type: Build_Type, target: Operating_System_Tag) -> string {
     if type == .STATIC_LIBRARY return ifx windows then ".lib" else ".a";
     if windows return ".dll";
     if target == .MACOS return ".dylib";
+
     return ".so";
 }
 
@@ -95,6 +98,7 @@ execute :: (job: *Job, tool: string, command: [] string) -> bool {
     if result.type == .EXITED && result.exit_code == 0 return true;
     if result.type == .FAILED_TO_LAUNCH report(job, tprint("BuildCpp: could not start the % (%).\n", tool, command[0]));
     else report(job, tprint("BuildCpp: the % exited with code %.\n", tool, result.exit_code));
+
     return false;
 }
 
@@ -163,6 +167,7 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
 
         if job.debug array_add(*command, "/Od", "/Zi", "/DEBUG", "/DDEBUG", tprint("/Fd%.pdb", output_basename));
         else array_add(*command, "/O2", "/Oi");
+
         array_add(*command, ..job.extra);
         add_sources(job, *command, ".obj");
         defer remove_intermediates(job);
@@ -186,6 +191,7 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
 
         array_add(*archive, tprint("%lib.exe", vc_bin), "/nologo", tprint("/OUT:%", job.output));
         array_add(*archive, ..job.objects);
+
         return execute(job, "librarian", archive);
     }
 }
@@ -196,6 +202,7 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
     find_sdk_folders :: (arch: string) -> lib: string, include: string {
         root := find_windows_kit_root();
         if !root return "", "";
+
         root = trim_right(root, "\\/");
 
         Search :: struct {
@@ -213,6 +220,7 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
 
         visit_files(tprint("%\\Lib", root), false, *search, consider, visit_files = false, visit_directories = true);
         if !search.best return "", "";
+
         return tprint("%\\Lib\\%", root, search.best), tprint("%\\Include\\%", root, search.best);
     }
 
@@ -278,6 +286,7 @@ build_with_clang :: (job: *Job, compiler_override: string, archiver_override: st
 
     array_add(*archive, archiver, ifx job.target == .WASM then "-rcs" else "-rc", job.output);
     array_add(*archive, ..job.objects);
+
     return execute(job, "archiver", archive);
 }
 
@@ -322,6 +331,7 @@ pick_unix_tools :: (job: *Job, cpp: bool) -> compiler: string, archiver: string,
 
     compiler := from_environment(ifx cpp then "CXX" else "CC");
     if !compiler compiler = driver;
+
     return compiler, "ar", true;
 }
 

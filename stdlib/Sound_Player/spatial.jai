@@ -18,11 +18,13 @@ update_listener :: (camera_position: Vector3, camera_orientation: Quaternion) {
 // Perceived loudness of `stream` if it were at `position`, before panning.
 get_desired_volume_perceptual :: (stream: *Sound_Stream, position: Vector3) -> float {
     if !stream || !stream.sound_data return 0;
+
     level := master_volume * stream.user_volume_scale * stream.universe_volume_scale * stream.sound_data.volume_scale;
     slot := cast(s64) stream.category;
 
     if slot >= 0 && slot < MAX_SOUND_CATEGORIES level *= category_volume[slot];
     if stream.user_flags & .SPATIALIZED level *= falloff(stream, length(position - listener.origin));
+
     return max(level, 0.0);
 }
 
@@ -63,6 +65,7 @@ build_speaker_ring :: (channels: s32) {
 
     for channel: 0..channels - 1 {
         if channel == cast(s32) Audio_Channel.SUBWOOFER continue;
+
         entry := Ring_Speaker.{ cast(s32) channel, SPEAKER_AZIMUTH[channel] };
         slot := speaker_ring_size;
 
@@ -140,6 +143,7 @@ bearing_of :: (position: Vector3) -> azimuth: float, nearness: float {
     azimuth := 0.0;
 
     if forward * forward + sideways * sideways > 0.000001 azimuth = atan2(sideways, forward) * (180.0 / PI);
+
     nearness := clamp(1 - length(offset) / CENTERING_DISTANCE, 0.0, 1.0);
 
     return azimuth, nearness;
@@ -158,6 +162,7 @@ pan_into :: (row: *float, azimuth: float, nearness: float, level: float) {
 
         row[0] += level * sqrt((1 + balance) * 0.5);
         row[1] += level * sqrt((1 - balance) * 0.5);
+
         return;
     }
 
@@ -167,14 +172,17 @@ pan_into :: (row: *float, azimuth: float, nearness: float, level: float) {
     upper := 0;
 
     while upper < speaker_ring_size && speaker_ring[upper].azimuth <= angle upper += 1;
+
     below := speaker_ring[(upper + speaker_ring_size - 1) % speaker_ring_size];
     above := speaker_ring[upper % speaker_ring_size];
 
     gap := above.azimuth - below.azimuth;
 
     if gap <= 0 gap += 360;
+
     into := angle - below.azimuth;
     if into < 0 into += 360;
+
     fraction := clamp(into / gap, 0.0, 1.0) * (PI * 0.5);
 
     row[below.channel] += level * cos(fraction);

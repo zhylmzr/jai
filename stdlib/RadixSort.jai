@@ -16,11 +16,13 @@ RadixSort :: struct {
 resize :: (using radix: *RadixSort, new_size: u32) {
     if ranks.count == new_size return;
     if !allocator.proc allocator = context.allocator;
+
     replacement := NewArray(new_size, u32,, allocator);
     scratch := NewArray(new_size, u32,, allocator);
 
     if ranks.data free(ranks.data, allocator = allocator);
     if ranks2.data free(ranks2.data, allocator = allocator);
+
     ranks = replacement;
     ranks2 = scratch;
     valid_ranks = false;
@@ -33,6 +35,7 @@ reset :: (using radix: *RadixSort) {
 free_resources :: (using radix: *RadixSort) {
     if ranks.data free(ranks.data, allocator = allocator);
     if ranks2.data free(ranks2.data, allocator = allocator);
+
     ranks = .{};
     ranks2 = .{};
     valid_ranks = false;
@@ -68,6 +71,7 @@ reorder :: (input: *[..] $T, radix: RadixSort) {
     result.allocator = input.allocator;
     array_resize(*result, input.count, false);
     for i: 0..input.count - 1 result[i] = input.*[radix.ranks[i]];
+
     array_reset(input);
     input.* = result;
 }
@@ -106,6 +110,7 @@ _take_left :: (a: $T, b: T) -> bool {
 
 _merge_ranks :: (radix: *RadixSort, input: *$T, count: u32) {
     if input == null || count == 0 return;
+
     resize(radix, count);
 
     if !radix.valid_ranks {

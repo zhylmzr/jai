@@ -103,8 +103,10 @@ xdnd_context_reset :: (dnd: *Xdnd_Context) {
 init_global_display :: () {
     if x_global_display return;
     if XInitThreads() == 0 return;
+
     display := XOpenDisplay(null);
     if !display return;
+
     x_global_display = display;
     XSetLocaleModifiers("");
     x_global_input_method = XOpenIM(display, null, null, null);
@@ -149,6 +151,7 @@ init_global_display :: () {
 
 enable_drag_and_drop :: (window: Window, typelist: [] string) {
     if !x_global_display || !window return;
+
     version: u64 = XDND_VERSION;
 
     XChangeProperty(x_global_display, window, XdndAware, XA_ATOM, 32, PropModeReplace, cast(*u8) *version, 1);
@@ -157,6 +160,7 @@ enable_drag_and_drop :: (window: Window, typelist: [] string) {
     for mime: typelist {
         label := to_c_string(mime);
         if !label continue;
+
         type_atom := XInternAtom(x_global_display, label, False);
 
         free(label);
@@ -165,6 +169,7 @@ enable_drag_and_drop :: (window: Window, typelist: [] string) {
 
     if drop_info.user_typelist.count > 0 XChangeProperty(x_global_display, window, XdndTypeList, XA_ATOM,
         32, PropModeReplace, cast(*u8) drop_info.user_typelist.data, cast(s32) drop_info.user_typelist.count);
+
     array_reset(*drop_info.user_actions);
     array_add(*drop_info.user_actions, XdndActionCopy);
     XFlush(x_global_display);
@@ -172,6 +177,7 @@ enable_drag_and_drop :: (window: Window, typelist: [] string) {
 
 x_demand_attention :: (display: *Display, win: Window) {
     if !display || !win return;
+
     notification: XEvent;
     notification.xclient.type = ClientMessage;
     notification.xclient.window = win;
@@ -186,9 +192,11 @@ x_demand_attention :: (display: *Display, win: Window) {
 
 x_selection_notify_predicate :: (display: *Display, event: *XEvent, arg: XPointer) -> Bool #c_call {
     if event.type != SelectionNotify return False;
+
     expected := cast(*Window) arg;
     if !expected return False;
     if event.xselection.requestor != expected.* return False;
+
     return True;
 }
 
@@ -207,6 +215,7 @@ x_window_is_ours :: (display: *Display, win: Window) -> bool {
     }
 
     XUnlockDisplay(display);
+
     return found;
 }
 
@@ -243,14 +252,17 @@ do_button :: (using ctx: *Ui_Context, id: ui_id, x: s32, y: s32, width: u32, hei
     if hovered ctx.hot = id;
     else if ctx.hot == id ctx.hot = NOT_ACTIVE;
     if ctx.mouse_went_down && hovered && ctx.active == NOT_ACTIVE ctx.active = id;
+
     clicked := ctx.mouse_went_up && ctx.active == id && hovered;
 
     if ctx.mouse_went_up && ctx.active == id ctx.active = NOT_ACTIVE;
+
     return clicked;
 }
 
 x_toolkit_update_events :: (dpy: *Display, win: Window, ctx: *Ui_Context, window_width: *s32 = null, window_height: *s32 = null) -> should_exit: bool, should_redraw: bool {
     if !dpy || !win return true, false;
+
     ctx.mouse_went_up = false;
     ctx.mouse_went_down = false;
     redraw := false;
@@ -301,11 +313,13 @@ x_toolkit_update_events :: (dpy: *Display, win: Window, ctx: *Ui_Context, window
 x_toolkit_create_simple_window :: (dpy: *Display, parent: Window, width: s32, height: s32, title: string) -> Window {
     if !dpy || width <= 0 || height <= 0 return None;
     if parent == None parent = XDefaultRootWindow(dpy);
+
     screen := XDefaultScreen(dpy);
     handle := XCreateSimpleWindow(dpy, parent, 0, 0, cast(u32) width, cast(u32) height, 0,
         XBlackPixel(dpy, screen), XWhitePixel(dpy, screen));
 
     if !handle return None;
+
     XSelectInput(dpy, handle, EVENT_MASK | StructureNotifyMask);
     label := to_c_string(title);
     if label {
@@ -318,6 +332,7 @@ x_toolkit_create_simple_window :: (dpy: *Display, parent: Window, width: s32, he
     XSetWMProtocols(dpy, handle, *close_atom, 1);
     XMapWindow(dpy, handle);
     XFlush(dpy);
+
     return handle;
 }
 
@@ -346,9 +361,11 @@ X_Message_Box_Style :: enum {
 x_message_box :: (parent: Window, msg: string, caption: string, style: X_Message_Box_Style) -> X_Message_Box_Response {
     init_global_display();
     if !x_global_display return .CANCEL;
+
     // A modal dialog owns a separate connection, preserving the application's pending events.
     display := XOpenDisplay(null);
     if !display return .CANCEL;
+
     defer XCloseDisplay(display);
     labels: [3] string;
     responses: [3] X_Message_Box_Response;
@@ -395,9 +412,11 @@ x_message_box :: (parent: Window, msg: string, caption: string, style: X_Message
 
     window := x_toolkit_create_simple_window(display, None, 600, 220, caption);
     if !window return .CANCEL;
+
     defer XDestroyWindow(display, window);
     x_lock_window_size(display, window, 600, 220);
     if parent != None XSetTransientForHint(display, window, parent);
+
     ctx: Ui_Context;
     redraw := true;
 
@@ -415,6 +434,7 @@ x_message_box :: (parent: Window, msg: string, caption: string, style: X_Message
 
         quit, dirty := x_toolkit_update_events(display, window, *ctx);
         if quit return .CANCEL;
+
         redraw = redraw || dirty;
 
         for button: 0..count - 1 {
@@ -427,6 +447,7 @@ x_message_box :: (parent: Window, msg: string, caption: string, style: X_Message
             XSetForeground(display, XDefaultGC(display, XDefaultScreen(display)), XBlackPixel(display, XDefaultScreen(display)));
             x_draw_textpanel(display, window, 16, 16, 568, 145, msg);
             for button: 0..count - 1 x_draw_button(display, window, 600 - count * 130 + button * 130, 175, 120, 30, is_active(*ctx, button), labels[button]);
+
             XFlush(display);
             redraw = false;
         }
@@ -437,6 +458,7 @@ x_message_box :: (parent: Window, msg: string, caption: string, style: X_Message
 
 x_draw_textpanel :: (dpy: *Display, w: Window, x: s32, y: s32, width: s32, height: s32, msg: string) {
     if !dpy || !w || width <= 0 || height <= 0 return;
+
     graphics := XDefaultGC(dpy, XDefaultScreen(dpy));
     clip: XRectangle = .{ x = cast(s16) x, y = cast(s16) y, width = cast(u16) min(width, 65535), height = cast(u16) min(height, 65535) };
 
@@ -449,11 +471,13 @@ x_draw_textpanel :: (dpy: *Display, w: Window, x: s32, y: s32, width: s32, heigh
     while offset < msg.count && baseline <= y + height {
         end := offset;
         while end < msg.count && end - offset < columns && msg[end] != 10 end += 1;
+
         line := to_string(msg.data + offset, end - offset);
 
         x_draw_string(dpy, w, x, baseline, line);
         offset = end;
         if offset < msg.count && msg[offset] == 10 offset += 1;
+
         baseline += 18;
     }
 }
@@ -466,6 +490,7 @@ x_color_to_pixel :: (dpy: *Display, cmap: Colormap, col: XColor) -> u64 {
 
 x_draw_button :: (dpy: *Display, w: Window, x: s32, y: s32, width: u32, height: u32, pressed: bool, msg: string) {
     if !dpy || !w || width < 2 || height < 2 return;
+
     screen := XDefaultScreen(dpy);
     graphics := XDefaultGC(dpy, screen);
     gray := x_color_to_pixel(dpy, XDefaultColormap(dpy, screen), x_rgb_to_color(210, 210, 210));
@@ -524,6 +549,7 @@ x_rgb_to_color :: (_r: u8, _g: u8, _b: u8) -> XColor {
     color.green = cast(u16) _g * 257;
     color.red = cast(u16) _r * 257;
     color.flags = DoBlue | DoGreen | DoRed;
+
     return color;
 }
 

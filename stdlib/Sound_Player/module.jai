@@ -65,6 +65,7 @@ sound_player_init :: (given_config: Sound_Player_Config) -> bool {
     player.out_rate = rate;
     init(*player.lock, "Sound_Player");
     for *category_volume it.* = 1;
+
     update_listener(.{}, Quaternion_Identity);
     build_speaker_ring(player.out_channels);
 
@@ -83,11 +84,13 @@ sound_player_init :: (given_config: Sound_Player_Config) -> bool {
 // Stops the device and frees every stream (calling release_asset for each).
 sound_player_shutdown :: () {
     if !player.running return;
+
     stop_worker(); // From here on nothing else touches the streams.
 
     lock(*player.lock);
     cancel_queued_decodes();
     for player.voices release_voice(it);
+
     array_reset(*player.voices);
     unlock(*player.lock);
 
@@ -239,22 +242,27 @@ make_stream :: (data: *Sound_Data, category := Sound_Category.GENERAL_SFX) -> *S
     stream.num_channels = cast(s32) ifx cache then cache.channels else data.nchannels;
     stream.repeat_end_position = stream_length(stream);
     if player.running stream.desired_rate = rate_for(stream);
+
     stream.current_rate = stream.desired_rate;
+
     return stream;
 }
 
 start_playing :: (stream: *Sound_Stream) {
     push_allocator(SOUND_HEAP);
     if !stream || !player.running return;
+
     lock(*player.lock);
     defer unlock(*player.lock);
     if array_find(player.voices, stream) return;
+
     refresh_voice(stream);
     array_add(*player.voices, stream);
 }
 
 set_repeating :: (stream: *Sound_Stream, repeating: bool) {
     if !stream return;
+
     guard := player.running;
     if guard lock(*player.lock);
 
@@ -304,6 +312,7 @@ pre_entity_update :: () {
 
 post_entity_update :: (dt: float) {
     if !player.running return;
+
     lock(*player.lock);
     defer unlock(*player.lock);
     reap := !player.config.keep_sounds_alive_by_default;
@@ -324,8 +333,10 @@ post_entity_update :: (dt: float) {
 // Call once per frame: applies changed stream parameters and, without a worker thread, also mixes.
 update :: (dt := FLOAT32_INFINITY) {
     if !player.running return;
+
     lock(*player.lock);
     for player.voices refresh_voice(it);
+
     unlock(*player.lock);
     if !player.worker_running top_up_output();
 }
@@ -399,6 +410,7 @@ refresh_voice :: (stream: *Sound_Stream) {
 
 stop_where :: (matches: (s: *Sound_Stream, key: s64, data: *Sound_Data) -> bool, key: s64, data: *Sound_Data = null) {
     if !player.running return;
+
     lock(*player.lock);
     defer unlock(*player.lock);
     index := 0;
@@ -428,6 +440,7 @@ release_voice :: (stream: *Sound_Stream) {
     }
 
     if cache close_block_cache(cache);
+
     give_back(stream);
 }
 

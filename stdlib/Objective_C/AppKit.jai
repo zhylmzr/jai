@@ -728,6 +728,7 @@ NSWindow :: struct {
             invoke: (output: *NSRect, sdk_receiver: *void, sdk_selector: SEL, rect: NSRect) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "convertRectFromScreen:\0"), rect);
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL, rect: NSRect) -> NSRect #c_call;
@@ -924,6 +925,7 @@ NSView :: struct {
             invoke: (output: *NSRect, sdk_receiver: *void, sdk_selector: SEL) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "frame\0"));
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL) -> NSRect #c_call;
@@ -937,6 +939,7 @@ NSView :: struct {
             invoke: (output: *NSRect, sdk_receiver: *void, sdk_selector: SEL) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "bounds\0"));
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL) -> NSRect #c_call;
@@ -960,6 +963,7 @@ NSView :: struct {
             invoke: (output: *NSRect, sdk_receiver: *void, sdk_selector: SEL, rect: NSRect) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "convertRectToBacking:\0"), rect);
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL, rect: NSRect) -> NSRect #c_call;
@@ -973,6 +977,7 @@ NSView :: struct {
             invoke: (output: *NSRect, sdk_receiver: *void, sdk_selector: SEL, rect: NSRect) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "convertRectFromBacking:\0"), rect);
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL, rect: NSRect) -> NSRect #c_call;

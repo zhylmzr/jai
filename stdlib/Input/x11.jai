@@ -41,6 +41,7 @@ x11_key_code :: (symbol: X.KeySym) -> Key_Code {
     if symbol == 0xff13 return .PAUSE;
     if symbol == 0xff14 return .SCROLL_LOCK;
     if symbol == 0xff61 return .PRINT_SCREEN;
+
     return .UNKNOWN;
 }
 
@@ -53,6 +54,7 @@ x11_modifiers :: (event: *Event, mask: u32) {
 
 x11_register_window :: (window: X.Window) -> *X11_Input_Window {
     for *entry: x11_input_windows if entry.window == window return entry;
+
     entry: X11_Input_Window;
     entry.window = window;
 
@@ -94,6 +96,7 @@ x11_poll_input :: () {
         routed_window := cast(Window_Type) window;
 
         if X.XFilterEvent(*native, window) != 0 continue;
+
         repeated := false;
 
         if native.type == X.KeyRelease && X.XPending(display) > 0 {
@@ -155,6 +158,7 @@ x11_poll_input :: () {
                     event.typical_wheel_delta = 1;
                     event.wheel_delta = 1;
                     if number == 5 event.wheel_delta = -1;
+
                     x11_modifiers(*event, native.xbutton.state);
                     queue_input_event(routed_window, event);
                 }
@@ -164,6 +168,7 @@ x11_poll_input :: () {
                 event.key_code = .MOUSE_BUTTON_LEFT;
                 if number == 2 event.key_code = .MOUSE_BUTTON_MIDDLE;
                 if number == 3 event.key_code = .MOUSE_BUTTON_RIGHT;
+
                 x11_modifiers(*event, native.xbutton.state);
                 queue_input_event(routed_window, event);
             }
@@ -172,6 +177,7 @@ x11_poll_input :: () {
             // program handles the cursor itself.
             if !custom_cursor_handling x11_show_arrow(display, window);
             if entry.pointer_valid queue_mouse_delta(native.xmotion.x - entry.x, native.xmotion.y - entry.y);
+
             entry.x = native.xmotion.x;
             entry.y = native.xmotion.y;
             entry.pointer_valid = true;
@@ -215,6 +221,7 @@ x11_poll_input :: () {
 
 x11_pointer_query :: (window: Window_Type, client_area: bool) -> float, float, bool {
     if !X.x_global_display return 0, 0, false;
+
     target := cast(X.Window) window;
     if !target {
         if client_area {
@@ -234,6 +241,7 @@ x11_pointer_query :: (window: Window_Type, client_area: bool) -> float, float, b
 
     if X.XQueryPointer(X.x_global_display, target, *root, *child, *screen_x, *screen_y, *local_x, *local_y, *state) == 0 return 0, 0, false;
     if client_area return cast(float) local_x, cast(float) local_y, true;
+
     return cast(float) screen_x, cast(float) screen_y, true;
 }
 

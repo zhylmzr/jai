@@ -17,15 +17,18 @@ gl_create_context :: (win: $Window, major_version: s32 = 0, minor_version: s32 =
 
         assert(window != null, "An NSWindow is required for an OpenGL context");
         if !window return;
+
         view := GLContextAppKit.NSWindow.contentView(window);
 
         assert(view != null, "An NSWindow content view is required for OpenGL");
         if !view return;
+
         created, actual_samples := nsgl_create_context(major_version, minor_version,
             compatibility, debug, wanted_msaa);
 
         assert(created != null, "Unable to create the requested NSOpenGL context");
         if !created return;
+
         GLContextAppKit.NSOpenGLContext.setView(created, view);
         view_class := GLContextObjC.object_getClass(cast(GLContextObjC.id) view);
         setter := GLContextObjC.sel_registerName(cast(*u8) "setOpenGLContext:\0");
@@ -48,9 +51,11 @@ gl_create_context :: (win: $Window, major_version: s32 = 0, minor_version: s32 =
 // Extension names are whitespace-delimited tokens, never substrings.
 _gl_context_extension :: (names: *u8, wanted: string) -> bool {
     if !names || wanted.count == 0 return false;
+
     at: s64 = 0;
     while names[at] != 0 {
         while names[at] == 32 at += 1;
+
         begin := at;
 
         while names[at] != 0 && names[at] != 32 at += 1;

@@ -6,6 +6,7 @@ reader_create_channel_os_specific :: (name: string, bytes: s64) -> (success: boo
     descriptor := P.shm_open(c_name, P.O_CREAT | P.O_EXCL | P.O_RDWR, 384);
 
     if descriptor < 0 return false, result;
+
     size := bytes + OFFSET_TO_MESSAGE_DATA;
     if P.ftruncate(descriptor, size) != 0 {
         P.close(descriptor);
@@ -23,12 +24,14 @@ reader_create_channel_os_specific :: (name: string, bytes: s64) -> (success: boo
     result.header = cast(*Header) memory;
     result.os_specific.shm = descriptor;
     result.owned_name = copy_string(name);
+
     return true, result;
 }
 
 reader_release_channel :: (channel: *Read_Channel) -> bool {
     if !channel || !channel.header return false;
     if A.atomic_read(*channel.header.reader_status) == .ACTIVELY_READING || A.atomic_read(*channel.header.writer_status) != .DISCONNECTED return false;
+
     A.atomic_write(*channel.header.reader_status, .DISCONNECTED);
 
     if A.atomic_read(*channel.header.writer_status) != .DISCONNECTED {
@@ -41,6 +44,7 @@ reader_release_channel :: (channel: *Read_Channel) -> bool {
     success = P.shm_unlink(temp_c_string(channel.owned_name)) == 0 && success;
     free(channel.owned_name);
     channel.* = .{};
+
     return success;
 }
 
@@ -49,6 +53,7 @@ writer_connect :: (name: string, name_not_found_is_quiet := false) -> (success: 
     descriptor := P.shm_open(temp_c_string(name), P.O_RDWR, 0);
 
     if descriptor < 0 return false, result;
+
     stats: P.stat_t;
     if P.fstat(descriptor, *stats) != 0 || stats.st_size < OFFSET_TO_MESSAGE_DATA + 32 {
         P.close(descriptor);
@@ -86,16 +91,19 @@ writer_connect :: (name: string, name_not_found_is_quiet := false) -> (success: 
 
     result.header = header;
     result.os_specific.shm = descriptor;
+
     return true, result;
 }
 
 writer_disconnect :: (channel: *Write_Channel) -> bool {
     if !channel || !channel.header || channel.reserved_offset >= 0 return false;
+
     A.atomic_write(*channel.header.writer_status, .DISCONNECTED);
     size := channel.header.full_memory_region_size_in_bytes;
     success := P.munmap(channel.header, xx size) == 0;
     success = P.close(channel.os_specific.shm) == 0 && success;
     channel.* = .{};
+
     return success;
 }
 

@@ -47,6 +47,7 @@ shutdown_opengl_renderer :: () {
     if gl_vertex_buffer gl_api.glDeleteBuffers(1, *gl_vertex_buffer);
     if gl_vertex_array gl_api.glDeleteVertexArrays(1, *gl_vertex_array);
     if gl_main_framebuffer gl_api.glDeleteFramebuffers(1, *gl_main_framebuffer);
+
     gl_vertex_buffer = 0;
     gl_vertex_array = 0;
     gl_main_framebuffer = 0;
@@ -62,6 +63,7 @@ gl_init_resources :: () -> bool {
     gl_api.glGenVertexArrays(1, *gl_vertex_array);
     gl_api.glGenBuffers(1, *gl_vertex_buffer);
     if !gl_vertex_array || !gl_vertex_buffer return false;
+
     shaders := gl_built_in_shaders();
     bodies := string.[SHADER_COLOR, SHADER_COLOR, SHADER_TEXT, SHADER_SPRITE_RIGHT_HANDED, SHADER_SPRITE_LEFT_HANDED, SHADER_ROUNDED_RECT, SHADER_GRADIENT];
 
@@ -80,6 +82,7 @@ gl_init_resources :: () -> bool {
     }
 
     shaders_set_defaults();
+
     return true;
 }
 
@@ -106,6 +109,7 @@ gl_backend_init :: (info: *Window_Info) {
     gl_create_native_context :: (info: *Window_Info) {
         created, chosen_msaa := GL.nsgl_create_context(MINIMUM_GL_MAJOR_VERSION, MINIMUM_GL_MINOR_VERSION, wanted_msaa = info.wanted_msaa);
         if !created return;
+
         the_gl_context = created;
         info.msaa = chosen_msaa;
         gl_mac_attach_view(info.window);
@@ -122,6 +126,7 @@ gl_backend_init :: (info: *Window_Info) {
 
         assert(view != null, "A Simp window needs a content view with OpenGL support (as made by Window_Creation)");
         if !view return;
+
         AppKit.NSView.setWantsBestResolutionOpenGLSurface(view, ObjC.YES);
         // An NSOpenGLView owns a context of its own; replace it with ours so only one is attached.
         view_class := ObjC.object_getClass(cast(ObjC.id) view);
@@ -145,6 +150,7 @@ gl_backend_init :: (info: *Window_Info) {
     gl_create_native_context :: (info: *Window_Info) {
         created, configuration, chosen_msaa := GL.glx_create_context(info.window, MINIMUM_GL_MAJOR_VERSION, MINIMUM_GL_MINOR_VERSION, wanted_msaa = info.wanted_msaa);
         if !created return;
+
         the_gl_context = created;
         the_gl_fbc = configuration;
         info.msaa = chosen_msaa;
@@ -167,6 +173,7 @@ gl_backend_init :: (info: *Window_Info) {
     gl_create_native_context :: (info: *Window_Info) {
         created, device, chosen_msaa := GL.wgl_create_context(info.window, null, MINIMUM_GL_MAJOR_VERSION, MINIMUM_GL_MINOR_VERSION, wanted_msaa = info.wanted_msaa);
         if !created return;
+
         the_gl_context = created;
         the_hdc_for_pixel_format_cloning = device;
         info.msaa = chosen_msaa;
@@ -220,6 +227,7 @@ gl_make_window_current :: (info: *Window_Info) {
 
         assert(view != null);
         if !view return;
+
         AppKit.NSOpenGLContext.setView(the_gl_context, view);
         AppKit.NSOpenGLContext.makeCurrentContext(the_gl_context);
     }
@@ -234,6 +242,7 @@ gl_set_render_target :: (info: *Window_Info) {
     }
 
     if !gl_api return;
+
     gl_api.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0);
     gl_api.glViewport(0, 0, cast(u32) info.window_width, cast(u32) info.window_height);
     gl_api.glDrawBuffer(GL.GL_BACK);
@@ -243,6 +252,7 @@ gl_set_render_target :: (info: *Window_Info) {
 gl_set_render_target :: (texture: *Texture) {
     assert(gl_api != null && texture.framebuffer != 0, "Texture has no native framebuffer");
     if !gl_api || !texture.framebuffer return;
+
     gl_api.glBindFramebuffer(GL.GL_FRAMEBUFFER, texture.framebuffer);
     gl_api.glViewport(0, 0, cast(u32) texture.width, cast(u32) texture.height);
     gl_apply_scissor();
@@ -273,6 +283,7 @@ gl_swap_buffers :: (window: Window_Type, vsync: bool) {
 
     assert(the_gl_context != null, "Install Simp.window_present_sink to present windows of a host-managed OpenGL context");
     if !the_gl_context return;
+
     wanted_interval: s32 = ifx vsync then 1 else 0;
 
     #if OS == .WINDOWS {
@@ -325,6 +336,7 @@ gl_clear_target :: (r: float, g: float, b: float, a: float) {
 gl_use_shader :: (shader: *Shader) {
     assert(gl_api != null && shader != null && shader.gl_handle != 0, "Shader has no native program");
     if !gl_api || !shader || !shader.gl_handle return;
+
     gl_api.glUseProgram(shader.gl_handle);
 
     if shader.alpha_blend {
@@ -335,6 +347,7 @@ gl_use_shader :: (shader: *Shader) {
 
 gl_find_shader_locations :: (s: *Shader) {
     if !gl_api || !s.gl_handle return;
+
     p := s.gl_handle;
 
     s.position_loc = gl_attribute(p, "vert_position");
@@ -357,6 +370,7 @@ gl_attribute :: (program: GLuint, name: string) -> GLint {
 
 backend_set_texture :: (shader: *Shader, texture: *Texture) {
     if !gl_api || !texture return;
+
     gl_upload_pending(texture);
     gl_api.glActiveTexture(GL.GL_TEXTURE0);
     gl_api.glBindTexture(GL.GL_TEXTURE_2D, texture.gl_handle);
@@ -382,6 +396,7 @@ gl_apply_scissor :: () {
     y := rect.y;
 
     if mirror y = cast(float) height - rect.w;
+
     gl_api.glEnable(GL.GL_SCISSOR_TEST);
     gl_api.glScissor(cast(s32) rect.x, cast(s32) y, cast(u32) max(rect.z - rect.x, 0.0), cast(u32) max(rect.w - rect.y, 0.0));
 }
@@ -409,6 +424,7 @@ gl_vertex_format :: (shader: *Shader) {
 gl_submit :: (state: *Immediate_State) {
     assert(gl_api != null && state.current_shader.gl_handle != 0, "Simp OpenGL renderer is not initialized");
     if !gl_api || !state.current_shader.gl_handle return;
+
     gl_api.glBindVertexArray(gl_vertex_array);
     gl_api.glBindBuffer(GL.GL_ARRAY_BUFFER, gl_vertex_buffer);
     gl_api.glBufferData(GL.GL_ARRAY_BUFFER, state.num_vertices * size_of(Immediate_Vertex), state.vertices.data, GL.GL_STREAM_DRAW);
@@ -458,6 +474,7 @@ gl_texture_format :: (format: Texture_Format, srgb := false) -> u32, u32, u32 {
     if format == .D24S8 return GL.GL_DEPTH24_STENCIL8, GL.GL_DEPTH_STENCIL, GL.GL_UNSIGNED_INT_24_8;
     if format == .D32F return GL.GL_DEPTH_COMPONENT32F, GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT;
     if format == .D32FS8 return GL.GL_DEPTH32F_STENCIL8, GL.GL_DEPTH_STENCIL, GL.GL_FLOAT_32_UNSIGNED_INT_24_8_REV;
+
     internal := gl_compressed_format(format, srgb);
 
     return internal, 0, 0;
@@ -470,6 +487,7 @@ gl_compressed_format :: (format: Texture_Format, srgb: bool) -> u32 {
     if format == .BC5 return GL.GL_COMPRESSED_RG_RGTC2;
     if format == .BC6 return GL.GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT;
     if format == .BC7 return ifx srgb then GL.GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM else GL.GL_COMPRESSED_RGBA_BPTC_UNORM;
+
     return 0;
 }
 
@@ -477,15 +495,18 @@ gl_compressed_format :: (format: Texture_Format, srgb: bool) -> u32 {
 // parameters are only chosen when the GL texture is created, so later changes by the program survive.
 gl_upload_texture :: (texture: *Texture, bitmap: *Bitmap) -> bool {
     if !gl_api return false;
+
     srgb := (bitmap.flags & .IS_SRGB) != 0;
     internal, external, type := gl_texture_format(bitmap.format, srgb);
 
     if !internal return false;
+
     compressed := external == 0;
     created := texture.gl_handle == 0;
 
     if created gl_api.glGenTextures(1, *texture.gl_handle);
     if !texture.gl_handle return false;
+
     gl_api.glActiveTexture(GL.GL_TEXTURE0);
     gl_api.glBindTexture(GL.GL_TEXTURE_2D, texture.gl_handle);
 
@@ -497,6 +518,7 @@ gl_upload_texture :: (texture: *Texture, bitmap: *Bitmap) -> bool {
         minify := magnify;
 
         if bitmap.mipmap_count > 1 minify = ifx texture.nearest then GL.GL_NEAREST_MIPMAP_NEAREST else GL.GL_LINEAR_MIPMAP_LINEAR;
+
         gl_api.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, cast(s32) magnify);
         gl_api.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, cast(s32) minify);
     }
@@ -537,6 +559,7 @@ gl_upload_texture :: (texture: *Texture, bitmap: *Bitmap) -> bool {
     }
 
     gl_api.glPixelStorei(GL.GL_UNPACK_ROW_LENGTH, 0);
+
     return gl_api.glGetError() == GL.GL_NO_ERROR;
 }
 
@@ -548,8 +571,10 @@ gl_upload_pending :: (texture: *Texture) {
 
 gl_create_render_target :: (texture: *Texture) -> bool {
     if !gl_api return false;
+
     internal, external, type := gl_texture_format(texture.format, (texture.flags & .sRGB) != 0);
     if !internal || !external return false;
+
     previous_texture: s32;
     previous_framebuffer: s32;
 
@@ -572,6 +597,7 @@ gl_create_render_target :: (texture: *Texture) -> bool {
     gl_api.glBindFramebuffer(GL.GL_FRAMEBUFFER, cast(u32) previous_framebuffer);
     gl_api.glBindTexture(GL.GL_TEXTURE_2D, cast(u32) previous_texture);
     if !success gl_delete_texture(texture);
+
     return success;
 }
 
@@ -598,6 +624,7 @@ LOG_BUFFER_SIZE :: 1024;
 gl_compile :: (kind: u32, prefix: string, body: string) -> u32 {
     shader := gl_api.glCreateShader(kind);
     if !shader return 0;
+
     sources: [2] *u8;
     lengths: [2] s32;
 
@@ -617,6 +644,7 @@ gl_compile :: (kind: u32, prefix: string, body: string) -> u32 {
         gl_api.glGetShaderInfoLog(shader, log_data.count, null, log_data.data);
         log_error("Simp shader failed to compile: %\n", to_string(log_data.data));
         gl_api.glDeleteShader(shader);
+
         return 0;
     }
 
@@ -626,12 +654,15 @@ gl_compile :: (kind: u32, prefix: string, body: string) -> u32 {
 gl_build_program :: (body: string) -> u32 {
     vertex := gl_compile(GL.GL_VERTEX_SHADER, "#version 330 core\n#define VERTEX_SHADER\n#define OUT_IN out\n", body);
     if !vertex return 0;
+
     defer gl_api.glDeleteShader(vertex);
     pixel := gl_compile(GL.GL_FRAGMENT_SHADER, "#version 330 core\n#define FRAGMENT_SHADER\n#define OUT_IN in\n", body);
     if !pixel return 0;
+
     defer gl_api.glDeleteShader(pixel);
     program := gl_api.glCreateProgram();
     if !program return 0;
+
     gl_api.glAttachShader(program, vertex);
     gl_api.glAttachShader(program, pixel);
     gl_api.glLinkProgram(program);
@@ -645,6 +676,7 @@ gl_build_program :: (body: string) -> u32 {
         gl_api.glGetProgramInfoLog(program, log_data.count, null, log_data.data);
         log_error("Simp shader failed to link: %\n", to_string(log_data.data));
         gl_api.glDeleteProgram(program);
+
         return 0;
     }
 

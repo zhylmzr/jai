@@ -10,6 +10,7 @@ copy_to_permanent :: (path: Path) -> Path {
     result.header_string = copy_string(path.header_string);
     result.words = .{};
     for word: path.words array_add(*result.words, copy_string(word));
+
     return result;
 }
 
@@ -26,6 +27,7 @@ path_to_string :: (path: Path, max_words := -1) -> string {
     defer free_buffers(*builder);
     append(*builder, path.header_string);
     for i: 0..path.number_of_leading_slashes - 1 append(*builder, "/");
+
     count := path.words.count;
     if max_words >= 0 count = min(count, max_words);
 
@@ -35,6 +37,7 @@ path_to_string :: (path: Path, max_words := -1) -> string {
     }
 
     if path.trailing_slash && count > 0 append(*builder, "/");
+
     return builder_to_string(*builder);
 }
 
@@ -69,6 +72,7 @@ parse_path :: (_s: string, reduce := true) -> Path {
     }
 
     if reduce return reduce_path(result);
+
     return result;
 }
 
@@ -81,6 +85,7 @@ how_much_of_path_exists_on_the_local_filesystem :: (path: Path) -> (fully_exists
     }
 
     if path.words.count == 0 return file_exists(path_to_string(path)), 0;
+
     return true, existing;
 }
 

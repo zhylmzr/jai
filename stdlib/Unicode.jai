@@ -51,8 +51,10 @@ utf8_iter :: (s: *string, body: Code, flags: For_Flags) #expand {
 
             index -= 1;
             while index > 0 && (s.data[index] & 0xC0) == 0x80 index -= 1;
+
             code, consumed, status := character_utf8_to_utf32(s.data + index, end - index);
             if status != .CONVERSION_OK break;
+
             `it = code;
             #insert body;
         }
@@ -64,6 +66,7 @@ utf8_iter :: (s: *string, body: Code, flags: For_Flags) #expand {
         while cursor.count > 0 {
             code, consumed, status := character_utf8_to_utf32(cursor.data, cursor.count);
             if status != .CONVERSION_OK break;
+
             `it = code;
             #insert body;
             cursor.data += consumed;
@@ -87,9 +90,11 @@ utf8_next_character :: (s: *string) -> code: u32, success: Unicode_Result {
 
 unicode_next_character :: (s: *u8) -> *u8 {
     if !s return null;
+
     length := 1;
     if s[0] >= 0xC2 && s[0] <= 0xDF length = 2;
     else if s[0] >= 0xE0 && s[0] <= 0xEF length = 3;
     else if s[0] >= 0xF0 && s[0] <= 0xF4 length = 4;
+
     return s + length;
 }

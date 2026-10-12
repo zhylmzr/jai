@@ -14,14 +14,17 @@ Unmapping_Allocator :: struct {
 get_unmapping_allocator :: () -> Allocator {
     state := New(Unmapping_Allocator);
     if !state return .{};
+
     state.table.allocator = context.allocator;
     init(*state.mutex);
+
     return .{ unmapping_allocator_proc, state };
 }
 
 deinit_unmapping_allocator :: (a: Allocator) {
     state := cast(*Unmapping_Allocator) a.data;
     if !state return;
+
     allocator := state.table.allocator;
 
     deinit(state);
@@ -74,6 +77,7 @@ unmapping_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
         defer unlock(*state.mutex);
         found, size := table_find(*state.table, old_memory);
         if found && size != 0xffff_ffff_ffff_ffff return cast(*void) 1;
+
         return null;
     }
 
@@ -81,18 +85,22 @@ unmapping_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
         // A heap is another independent instance; its handle is the allocator data.
         heap := New(Unmapping_Allocator, allocator = state.table.allocator);
         if !heap return null;
+
         heap.table.allocator = state.table.allocator;
         init(*heap.mutex);
+
         return heap;
     }
 
     if mode == .DESTROY_HEAP {
         heap := cast(*Unmapping_Allocator) old_memory;
         if !heap return null;
+
         allocator := heap.table.allocator;
 
         deinit(heap);
         free(heap, allocator);
+
         return null;
     }
 
@@ -122,6 +130,7 @@ unmapping_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
     map_with_guard :: (size: s64, guard_size: s64) -> *void {
         base := VirtualAlloc(null, cast(u64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
         if !base return null;
+
         previous: u32;
         if !VirtualProtect(base + size - guard_size, cast(u64) guard_size, PAGE_NOACCESS, *previous) {
             VirtualFree(base, 0, MEM_RELEASE);
@@ -168,19 +177,24 @@ unmapping_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
 
 reserve_guarded :: (state: *Unmapping_Allocator, size: s64) -> *void {
     if size < 0 return null;
+
     page_size := page_bytes();
     if page_size <= 0 || size > 0x7fff_ffff_ffff_ffff - page_size * 2 return null;
+
     readable_size := align_forward(size, page_size);
     if readable_size == 0 readable_size = page_size;
+
     mapping_size := readable_size + page_size;
     base := map_with_guard(mapping_size, page_size);
 
     if !base return null;
+
     pointer := base + readable_size - size;
 
     lock(*state.mutex);
     table_set(*state.table, pointer, cast(u64) size);
     unlock(*state.mutex);
+
     return pointer;
 }
 
@@ -197,6 +211,7 @@ quarantine :: (state: *Unmapping_Allocator, pointer: *void) -> bool {
     readable_size := align_forward(cast(s64) size, page_size);
 
     if readable_size == 0 readable_size = page_size;
+
     base := pointer + cast(s64) size - readable_size;
     if !retire(base, readable_size + page_size) {
         assert(false, "failed to protect retired allocation");
@@ -204,5 +219,6 @@ quarantine :: (state: *Unmapping_Allocator, pointer: *void) -> bool {
     }
 
     table_set(*state.table, pointer, 0xffff_ffff_ffff_ffff);
+
     return true;
 }

@@ -46,6 +46,7 @@ get_image_bytes_per_texel :: (tf: Texture_Format) -> int {
     if tf == .RGBA8 || tf == .BGRA8 || tf == .RGB10A2 || tf == .RG16F || tf == .R32F || tf == .RG11B10F || tf == .RGB9E5F || tf == .RG16I || tf == .R32I || tf == .D24S8 || tf == .D32F return 4;
     if tf == .RGBA16F || tf == .RG32F || tf == .RGBA16I || tf == .RG32I || tf == .D32FS8 return 8;
     if tf == .RGBA32F || tf == .RGBA32I return 16;
+
     return 0;
 }
 
@@ -57,6 +58,7 @@ get_image_bytes_per_block :: (tf: Texture_Format) -> int {
 
 get_image_size :: (tf: Texture_Format, w: int, h: int) -> int, stride: int {
     if w < 0 || h < 0 return 0, 0;
+
     texel := get_image_bytes_per_texel(tf);
     if texel {
         if w > 0x7fff_ffff_ffff_ffff / texel return 0, 0;
@@ -67,12 +69,16 @@ get_image_size :: (tf: Texture_Format, w: int, h: int) -> int, stride: int {
 
     block := get_image_bytes_per_block(tf);
     if !block return 0, 0;
+
     columns := w / 4;
     if w % 4 != 0 columns += 1;
+
     rows := h / 4;
     if h % 4 != 0 rows += 1;
     if columns > 0x7fff_ffff_ffff_ffff / block return 0, 0;
+
     row_bytes := columns * block;
     if rows > 0 && row_bytes > 0x7fff_ffff_ffff_ffff / rows return 0, 0;
+
     return row_bytes * rows, row_bytes;
 }

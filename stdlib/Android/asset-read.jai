@@ -1,8 +1,10 @@
 // Independent complete-read bridge over Android NDK asset ownership APIs.
 read_entire_file :: (asset_manager: *AAssetManager, name: string, zero_terminated := false, log_errors := true) -> string, bool {
     if asset_manager == null return "", false;
+
     filename := Basic.to_c_string(name);
     if filename == null return "", false;
+
     defer Basic.free(filename);
     asset := AAssetManager_open(asset_manager, filename, .STREAMING);
     if asset == null {
@@ -14,14 +16,18 @@ read_entire_file :: (asset_manager: *AAssetManager, name: string, zero_terminate
     length := AAsset_getLength64(asset);
     if length < 0 || length == 0x7fff_ffff_ffff_ffff return "", false;
     if length == 0 && !zero_terminated return "", true;
+
     capacity := length;
     if zero_terminated capacity += 1;
+
     bytes := cast(*u8) Basic.alloc(capacity);
     if bytes == null return "", false;
+
     offset: s64 = 0;
     while offset < length {
         count := length - offset;
         if count > 0x7fff_ffff count = 0x7fff_ffff;
+
         received := AAsset_read(asset, bytes + offset, cast(u64) count);
         if received <= 0 || received > count {
             Basic.free(bytes);
@@ -33,6 +39,7 @@ read_entire_file :: (asset_manager: *AAssetManager, name: string, zero_terminate
     }
 
     if zero_terminated bytes[length] = 0;
+
     return string.{ length, bytes }, true;
 }
 

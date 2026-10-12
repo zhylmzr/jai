@@ -127,6 +127,7 @@ audio_destroy :: (audio: *Audio) {
     assert(entry.own_native, "A borrowed decoder is owned by its parent");
     raw_plm_audio_destroy(entry.native);
     if audio.destroy_buffer_when_done buffer_destroy(audio.buffer);
+
     forget_audio(audio);
 }
 
@@ -137,6 +138,7 @@ audio_has_header :: (audio: *Audio) -> bool {
     result := raw_plm_audio_has_header(entry.native);
 
     pull_audio(entry);
+
     return result != 0;
 }
 
@@ -147,6 +149,7 @@ audio_get_samplerate :: (audio: *Audio) -> u16 {
     result := raw_plm_audio_get_samplerate(entry.native);
 
     pull_audio(entry);
+
     return cast(u16) result;
 }
 
@@ -171,6 +174,7 @@ audio_has_ended :: (audio: *Audio) -> bool {
     result := raw_plm_audio_has_ended(entry.native);
 
     pull_audio(entry);
+
     return result != 0;
 }
 
@@ -181,6 +185,7 @@ audio_decode :: (audio: *Audio) -> *Samples {
     result := raw_plm_audio_decode(entry.native);
 
     pull_audio(entry);
+
     return result;
 }
 
@@ -191,6 +196,7 @@ audio_find_frame_sync :: (audio: *Audio) -> bool {
     result := raw_plm_audio_find_frame_sync(entry.native);
 
     pull_audio(entry);
+
     return result != 0;
 }
 
@@ -201,6 +207,7 @@ audio_decode_header :: (audio: *Audio) -> s32 {
     result := raw_plm_audio_decode_header(entry.native);
 
     pull_audio(entry);
+
     return result;
 }
 
@@ -218,6 +225,7 @@ audio_read_allocation :: (audio: *Audio, sb: s32, tab3: u8) -> *Quantizer_Spec {
     result := raw_plm_audio_read_allocation(entry.native, sb, tab3);
 
     pull_audio(entry);
+
     return result;
 }
 

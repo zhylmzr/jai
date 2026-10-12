@@ -159,8 +159,10 @@ get_font_at_size :: (path: string, name: string, pixel_height: int) -> *Dynamic_
     ensure_fonts_are_initted();
     if !fonts_initted return null;
     for dynamic_fonts if it.character_height == pixel_height && it.name == name return it;
+
     result := load_font(path, name, pixel_height);
     if !result log_error("Unable to load font '%' from '%'. Returning null.\n", name, path);
+
     return result;
 }
 
@@ -168,9 +170,11 @@ get_font_at_size :: (path: string, name: string, pixel_height: int) -> *Dynamic_
 get_font_at_size :: (memory: [] u8, pixel_height: int) -> *Dynamic_Font {
     ensure_fonts_are_initted();
     if !fonts_initted return null;
+
     loaded := font_for_memory(memory);
     if !loaded return null;
     for dynamic_fonts if it.character_height == pixel_height && it.loaded == loaded return it;
+
     return create_dynamic_font(loaded, "", pixel_height);
 }
 
@@ -185,16 +189,19 @@ font_for_memory :: (memory: [] u8) -> *Loaded_Font {
 
     fresh := make_loaded_font("", memory);
     if fresh array_add(*loaded_memory_fonts, fresh);
+
     return fresh;
 }
 
 load_font_part_2 :: (result: *Dynamic_Font, loaded_font: Loaded_Font, pixel_height: int) {
     assert(result != null && result.face != null && pixel_height > 0);
     if !result || !result.face || pixel_height <= 0 return;
+
     error := FT.FT_Set_Pixel_Sizes(result.face, 0, cast(u32) pixel_height);
 
     assert(error == 0, "FreeType pixel sizing failed: %", error);
     if error return;
+
     result.character_height = pixel_height;
     metrics := result.face.size.metrics;
 
@@ -214,6 +221,7 @@ load_font_part_2 :: (result: *Dynamic_Font, loaded_font: Loaded_Font, pixel_heig
 create_dynamic_font :: (loaded: *Loaded_Font, name: string, pixel_height: int) -> *Dynamic_Font {
     push_allocator(SIMP_HEAP);
     if !loaded || pixel_height <= 0 || pixel_height > 32767 return null;
+
     font := New(Dynamic_Font);
     error := FT.FT_New_Memory_Face(ft_library, loaded.data.data, cast(s32) loaded.data.count, 0, *font.face);
 
@@ -235,14 +243,18 @@ create_dynamic_font :: (loaded: *Loaded_Font, name: string, pixel_height: int) -
     array_add(*font_records, record);
     array_add(*dynamic_fonts, font);
     load_font_part_2(font, loaded.*, pixel_height);
+
     return font;
 }
 
 set_unknown_character :: (font: *Dynamic_Font, utf32: u32) -> bool {
     if !font || !font.face return false;
+
     index := FT.FT_Get_Char_Index(font.face, utf32);
     if !index return false;
+
     font.glyph_index_for_unknown_character = index;
+
     return true;
 }
 
@@ -255,8 +267,10 @@ prepare_text :: (font: *Dynamic_Font, text: string, effect_flags: Font_Effects =
     effects := effect_flags;
 
     if !font return 0;
+
     record := font_record(font);
     if !record return 0;
+
     font.temporary_glyphs = .{};
     font.temporary_glyphs.allocator = temp;
     record.starts.count = 0;
@@ -276,6 +290,7 @@ prepare_text :: (font: *Dynamic_Font, text: string, effect_flags: Font_Effects =
 
         if effects & .SMALLCAPS codepoint = capital_form(codepoint);
         if FT.FT_Get_Char_Index(font.face, codepoint) == 0 font.glyph_conversion_failed = true;
+
         glyph := find_or_create_glyph(font, codepoint);
         if !glyph {
             font.glyph_conversion_failed = true;
@@ -308,6 +323,7 @@ prepare_text :: (font: *Dynamic_Font, text: string, effect_flags: Font_Effects =
 
     record.width = width;
     record.text_bytes = cast(s32) text.count;
+
     return width;
 }
 
@@ -344,14 +360,17 @@ get_cursor_pos_for_width :: (font: *Dynamic_Font, s: string, requested_width: s6
     record := font_record(font);
     if !record return 0;
     for glyph, i: font.temporary_glyphs if requested_width < record.starts[i] + glyph.advance / 2 return record.byte_offsets[i];
+
     return cast(s32) s.count;
 }
 
 generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64, effects: Font_Effects = 0) {
     push_allocator(SIMP_HEAP);
     if !font return;
+
     record := font_record(font);
     if !record return;
+
     font.current_quads.count = 0;
     left_handed := context.simp && context.simp.coordinate_system == .LEFT_HANDED;
 
@@ -366,8 +385,10 @@ generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64, effect
 
     for glyph, i: font.temporary_glyphs {
         if !glyph.page || glyph.width == 0 || glyph.height == 0 continue;
+
         width := cast(float) glyph.width;
         if record.lcd_keys[i] width /= 3;
+
         x0 := cast(float) (x + record.starts[i] + glyph.offset_x);
         x1 := x0 + width;
         page := glyph.page.bitmap_data;
@@ -413,8 +434,10 @@ draw_generated_quads :: (font: *Dynamic_Font, color: u8) {
 
 draw_generated_quads :: (font: *Dynamic_Font, color := Vector4.{ 1, 1, 1, 1 }) {
     if !font return;
+
     CheckInit();
     if context.simp.current_shader immediate_flush();
+
     set_shader_for_text();
     immediate_begin();
 
@@ -422,6 +445,7 @@ draw_generated_quads :: (font: *Dynamic_Font, color := Vector4.{ 1, 1, 1, 1 }) {
         page := quad.glyph.page;
         if page.bitmap_data.width <= 1 || page.bitmap_data.height <= 1 continue;
         if page.dirty && !upload_font_page(page) return;
+
         immediate_set_texture(*page.texture);
         immediate_letter_quad(quad, color);
     }
@@ -431,6 +455,7 @@ draw_generated_quads :: (font: *Dynamic_Font, color := Vector4.{ 1, 1, 1, 1 }) {
 
 draw_text_with_highlights :: (font: *Dynamic_Font, x: s64, y: s64, text: string, highlights: [] bool, color: u8, highlight_color: u8) -> width: s64 {
     if color >= COLOR_MAP.count || highlight_color >= COLOR_MAP.count return 0;
+
     width := prepare_text(font, text);
 
     generate_quads_for_prepared_text(font, x, y);
@@ -439,18 +464,22 @@ draw_text_with_highlights :: (font: *Dynamic_Font, x: s64, y: s64, text: string,
     for quad, i: font.current_quads {
         page := quad.glyph.page;
         if page.dirty && !upload_font_page(page) return width;
+
         immediate_set_texture(*page.texture);
         index := color;
         if i < highlights.count && highlights[i] index = highlight_color;
+
         immediate_letter_quad(quad, COLOR_MAP[index]);
     }
 
     immediate_flush();
+
     return width;
 }
 
 draw_code :: (font: *Dynamic_Font, x: s64, y: s64, char_x_advance: float, line_height: float, visible_lines: [] Code_Line, selections: [] Offset_Range = .[], tab_size: s64 = 4, start_col := 0, $is_colored := true) {
     if !font return;
+
     tab_size = max(tab_size, 1);
 
     for line, row: visible_lines {
@@ -494,11 +523,13 @@ deinit :: (font: *Dynamic_Font) {
     record := font_record(font);
     if !record return;
     for glyph: font.glyph_lookup free(glyph);
+
     deinit(*font.glyph_lookup);
     array_reset(*font.current_quads);
     // temporary_glyphs uses temp storage, which is released by its allocator.
     font.temporary_glyphs = .{};
     if font.face FT.FT_Done_Face(font.face);
+
     free(font.name.data);
 
     for dynamic_fonts if it == font {
@@ -527,6 +558,7 @@ deinit_fonts :: () {
     }
 
     for record: font_records free(record);
+
     array_reset(*font_records);
     array_reset(*dynamic_fonts);
 
@@ -551,12 +583,14 @@ deinit_fonts :: () {
         deinit(page.bitmap_data);
         free(page.bitmap_data);
         for line: page.lines free(line);
+
         array_reset(*page.lines);
         free(page);
     }
 
     array_reset(*font_pages);
     if ft_library FT.FT_Done_FreeType(ft_library);
+
     ft_library = null;
     fonts_initted = false;
 }
@@ -572,6 +606,7 @@ isdigit :: (utf32: u32) -> bool {
 // True if the `length` bytes at `source` form one well-formed UTF-8 sequence.
 isLegalUTF8 :: (source: *u8, length: s64) -> bool {
     if length < 1 || length > 4 return false;
+
     first := source[0];
     expected: s64;
 
@@ -586,6 +621,7 @@ isLegalUTF8 :: (source: *u8, length: s64) -> bool {
     if first == 0xed && source[1] > 0x9f return false; // surrogates
     if first == 0xf0 && source[1] < 0x90 return false; // overlong
     if first == 0xf4 && source[1] > 0x8f return false; // above U+10FFFF
+
     return true;
 }
 
@@ -609,6 +645,7 @@ make_loaded_font :: (name: string, data: [] u8) -> *Loaded_Font {
     loaded.name = copy_string(name);
     loaded.face = face;
     loaded.data = data;
+
     return loaded;
 }
 
@@ -620,6 +657,7 @@ make_loaded_font :: (filename: string) -> (font: *Loaded_Font) {
 
     loaded := make_loaded_font(filename, cast([] u8) contents);
     if loaded array_add(*loaded_file_fonts, loaded);
+
     return loaded;
 }
 
@@ -641,10 +679,12 @@ get_character_width_in_pixels :: (font: *Dynamic_Font, utf8: *u8, effect_flags: 
     if lead >= 0xf0 length = 4;
     else if lead >= 0xe0 length = 3;
     else if lead >= 0xc0 length = 2;
+
     pos: int;
     glyph := find_or_create_glyph(font, decode_utf8(string.{ length, utf8 }, *pos));
 
     if !glyph return 0;
+
     return cast(u32) glyph.advance;
 }
 
@@ -655,6 +695,7 @@ accumulate_glyphs_from_font :: (source: *Dynamic_Font, dest: *Dynamic_Font) {
 
     array_resize(*dest.temporary_glyphs_byte_offsets, first_new + source.temporary_glyphs.count, initialize = false);
     for source.temporary_glyphs dest.temporary_glyphs_byte_offsets[first_new + it_index] = -1;
+
     array_add(*dest.temporary_glyphs, ..source.temporary_glyphs);
 }
 
@@ -711,18 +752,23 @@ find_or_create_glyph :: (font: *Dynamic_Font, utf32: u32) -> *Glyph_Data {
     pointer := table_find_pointer(*font.glyph_lookup, key);
 
     if pointer return pointer.*;
+
     index := FT.FT_Get_Char_Index(font.face, utf32);
     if index == 0 index = font.glyph_index_for_unknown_character;
+
     flags: s32 = 0;
     if !font_hinting flags |= FT.FT_LOAD_NO_HINTING;
     if FT.FT_Load_Glyph(font.face, index, flags) return null;
+
     mode := FT.FT_Render_Mode.NORMAL;
     if font_anti_aliasing == .lcd mode = .LCD;
     if FT.FT_Render_Glyph(font.face.glyph, mode) return null;
+
     slot := font.face.glyph;
     bitmap := slot.bitmap;
 
     if bitmap.pixel_mode != cast(u8) FT.FT_Pixel_Mode.GRAY && bitmap.pixel_mode != cast(u8) FT.FT_Pixel_Mode.LCD && bitmap.width > 0 return null;
+
     glyph := New(Glyph_Data);
     glyph.utf32 = utf32;
     glyph.glyph_index_within_font = index;
@@ -736,6 +782,7 @@ find_or_create_glyph :: (font: *Dynamic_Font, utf32: u32) -> *Glyph_Data {
     if bitmap.width > 0 && bitmap.rows > 0 {
         width := cast(int) bitmap.width;
         if mode == .LCD width /= 3;
+
         line := get_font_line(width, bitmap.rows);
         if !line {
             free(glyph);
@@ -750,6 +797,7 @@ find_or_create_glyph :: (font: *Dynamic_Font, utf32: u32) -> *Glyph_Data {
         for y: 0..cast(int) bitmap.rows - 1 {
             source := bitmap.buffer + y * bitmap.pitch;
             if bitmap.pitch < 0 source = bitmap.buffer + (cast(int) bitmap.rows - 1 - y) * (-bitmap.pitch);
+
             dest := atlas.data.data + (glyph.y0 + y) * atlas.stride + glyph.x0 * 3;
 
             for x: 0..width - 1 {
@@ -770,6 +818,7 @@ find_or_create_glyph :: (font: *Dynamic_Font, utf32: u32) -> *Glyph_Data {
     }
 
     table_add(*font.glyph_lookup, key, glyph);
+
     return glyph;
 }
 
@@ -785,6 +834,7 @@ get_font_line :: (width: int, height: int) -> *Font_Line {
     page.bitmap_data = New(Bitmap);
     bitmap_alloc(page.bitmap_data, page_size_x, page_size_y, .RGB8);
     array_add(*font_pages, page);
+
     return new_font_line(page, height);
 }
 
@@ -793,7 +843,9 @@ upload_font_page :: (page: *Font_Page) -> bool {
     push_allocator(SIMP_HEAP);
     page.texture.nearest = true; // Glyph pixels map one to one onto screen pixels; do not blur them.
     if !texture_load_from_bitmap(*page.texture, page.bitmap_data) return false;
+
     page.dirty = false;
+
     return true;
 }
 
@@ -805,6 +857,7 @@ new_font_line :: (page: *Font_Page, height: int) -> *Font_Line {
     line.bitmap_cursor_y = page.line_cursor_y + 1;
     page.line_cursor_y += cast(s16) (height + 2);
     array_add(*page.lines, line);
+
     return line;
 }
 
@@ -813,6 +866,7 @@ decode_utf8 :: (text: string, pos: *int) -> u32 {
 
     pos.* += 1;
     if first < 128 return first;
+
     continuation: int;
     result: u32;
     minimum: u32;
@@ -838,5 +892,6 @@ decode_utf8 :: (text: string, pos: *int) -> u32 {
     }
 
     if result < minimum || result > 0x10ffff || (result >= 0xd800 && result <= 0xdfff) return 0xfffd;
+
     return result;
 }

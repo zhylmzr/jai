@@ -23,6 +23,7 @@ use_iohid_gamepad :: (layout: IOHID_Gamepad_Layout) -> bool {
     close_iohid_gamepad();
     iohid_manager = HID.IOHIDManagerCreate(null, 0);
     if !iohid_manager return false;
+
     HID.IOHIDManagerSetDeviceMatching(iohid_manager, null);
     iohid_loop = HID.CFRunLoopGetCurrent();
     HID.IOHIDManagerScheduleWithRunLoop(iohid_manager, iohid_loop, HID.kCFRunLoopDefaultMode);
@@ -34,11 +35,13 @@ use_iohid_gamepad :: (layout: IOHID_Gamepad_Layout) -> bool {
 
     iohid_layout = layout;
     gamepad_sample_source = sample_iohid_gamepad;
+
     return true;
 }
 
 close_iohid_gamepad :: () {
     if !iohid_manager return;
+
     HID.IOHIDManagerUnscheduleFromRunLoop(iohid_manager, iohid_loop, HID.kCFRunLoopDefaultMode);
     HID.IOHIDManagerClose(iohid_manager, 0);
     HID.CFRelease(iohid_manager);
@@ -49,22 +52,28 @@ close_iohid_gamepad :: () {
 sample_iohid_gamepad :: (sample: *Gamepad_Sample) -> bool {
     sample.* = .{};
     if !iohid_manager return false;
+
     HID.CFRunLoopRunInMode(HID.kCFRunLoopDefaultMode, 0, 1);
     devices := HID.IOHIDManagerCopyDevices(iohid_manager);
     if !devices return false;
+
     defer HID.CFRelease(devices);
     count := HID.CFSetGetCount(devices);
     if count <= 0 || count > 4096 return false;
+
     values := cast(**void) alloc(count * size_of(*void));
     if !values return false;
+
     defer free(values);
     HID.CFSetGetValues(devices, values);
 
     for index: 0..count - 1 {
         device := cast(HID.IOHIDDeviceRef) values[index];
         if HID.IOHIDDeviceConformsTo(device, 1, 4) == 0 && HID.IOHIDDeviceConformsTo(device, 1, 5) == 0 continue;
+
         elements := HID.IOHIDDeviceCopyMatchingElements(device, null, 0);
         if !elements continue;
+
         local: Gamepad_Sample;
         successful := false;
         element_count := HID.CFArrayGetCount(elements);
@@ -74,8 +83,10 @@ sample_iohid_gamepad :: (sample: *Gamepad_Sample) -> bool {
             kind := HID.IOHIDElementGetType(element);
 
             if kind < 1 || kind > 3 continue;
+
             value: HID.IOHIDValueRef;
             if HID.IOHIDDeviceGetValue(device, element, *value) != 0 || !value continue;
+
             successful = true;
             raw := HID.IOHIDValueGetIntegerValue(value);
             page := HID.IOHIDElementGetUsagePage(element);

@@ -14,18 +14,23 @@ IMA_ADPCM_decode :: (info: Adpcm_Info, input_block: [] u8, dest_buffer: [] u8) -
     if channels <= 0 || channels > ADPCM_CHANNELS_MAX return 0;
     if input_block.count < 0 || dest_buffer.count < 0 || input_block.count > 0x7fff_ffff return 0;
     if input_block.count > 0 && !input_block.data return 0;
+
     headers := channels * 4;
     if align < headers || (align - headers) % headers != 0 return 0;
+
     groups := (align - headers) / headers;
     if info.wSamplesPerBlock != 1 + cast(s64) groups * 8 return 0;
+
     blocks := input_block.count / align;
     tail := input_block.count % align;
 
     if tail != 0 && tail != headers return 0;
+
     required := blocks * cast(s64) info.wSamplesPerBlock * channels * 2;
     if tail != 0 required += channels * 2;
     if required > dest_buffer.count || required > 0x7fff_ffff return 0;
     if required > 0 && !dest_buffer.data return 0;
+
     total_blocks := blocks;
     if tail != 0 total_blocks += 1;
 
@@ -71,13 +76,16 @@ IMA_ADPCM_decode :: (info: Adpcm_Info, input_block: [] u8, dest_buffer: [] u8) -
 
 Fill_IMA_ADPCM_block :: (dest: [] u8, dest_start_index: s32, encoded: [4] u8, channel: s32, numchannels: s32, state: *ADPCM_State) {
     if !state || numchannels <= 0 || channel < 0 || channel >= numchannels || dest_start_index < 0 return;
+
     last := cast(s64) dest_start_index + channel * 2 + cast(s64) 14 * numchannels + 1;
     if last >= dest.count return;
+
     output := cast(s64) dest_start_index + channel * 2;
 
     for i: 0..7 {
         code := encoded[i / 2];
         if (i & 1) != 0 code >>= 4;
+
         sample := IMA_ADPCM_nibble(state, code & 15);
 
         dest[output] = cast,trunc(u8) sample;
@@ -95,6 +103,7 @@ IMA_ADPCM_nibble :: inline (state: *ADPCM_State, nybble: u8) -> s32 {
     if !state return 0;
     if state.index < 0 state.index = 0;
     if state.index > 88 state.index = 88;
+
     code := nybble & 15;
     step := step_table[state.index];
     change := step / 8;
@@ -103,11 +112,14 @@ IMA_ADPCM_nibble :: inline (state: *ADPCM_State, nybble: u8) -> s32 {
     if (code & 2) != 0 change += step / 2;
     if (code & 4) != 0 change += step;
     if (code & 8) != 0 change = -change;
+
     next := cast(s64) state.sample + change;
     if next < -32768 next = -32768;
     if next > 32767 next = 32767;
+
     state.sample = cast(s32) next;
     state.index += index_table[code];
+
     return state.sample;
 }
 

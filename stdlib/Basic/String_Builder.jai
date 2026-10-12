@@ -31,6 +31,7 @@ get_buffer_data :: inline (using buffer: *String_Builder.Buffer) -> *u8 {
 
 init_string_builder :: (using builder: *String_Builder, buffer_size := -1) {
     if initialized reset(builder);
+
     allocator = context.allocator;
     initialized = true;
     failed = false;
@@ -47,6 +48,7 @@ make_builder :: (builder: *String_Builder) {
 
 free_buffers :: (using builder: *String_Builder) {
     if !initialized return;
+
     base := get_base_buffer(builder);
     segment := base.next;
 
@@ -62,6 +64,7 @@ free_buffers :: (using builder: *String_Builder) {
 
 reset :: (using builder: *String_Builder) {
     if !initialized return;
+
     free_buffers(builder);
     // The base buffer's storage survives a reset, and so does space ensured in it: code that
     // ensured space, converted the builder to a string and then advances still passes.
@@ -76,8 +79,10 @@ free :: (builder: *String_Builder) {
 
 expand :: (using builder: *String_Builder) -> bool {
     if !initialized init_string_builder(builder);
+
     capacity := subsequent_buffer_size;
     if capacity <= 0 capacity = STRING_BUILDER_BUFFER_SIZE;
+
     storage := alloc(size_of(String_Builder.Buffer) + capacity, allocator = allocator);
     if !storage {
         failed = true;
@@ -89,12 +94,14 @@ expand :: (using builder: *String_Builder) -> bool {
     segment.allocated = capacity;
     get_current_buffer(builder).next = segment;
     current_buffer = segment;
+
     return true;
 }
 
 ensure_contiguous_space_and_return_available_range :: (using builder: *String_Builder, minimum_bytes := 1) -> [] u8 {
     if minimum_bytes < 0 return .[];
     if !initialized init_string_builder(builder);
+
     segment := get_current_buffer(builder);
     capacity := subsequent_buffer_size;
 
@@ -107,6 +114,7 @@ ensure_contiguous_space_and_return_available_range :: (using builder: *String_Bu
     }
 
     #if ENABLE_ASSERT segment.ensured_count = segment.allocated;
+
     return .{ count = segment.allocated - segment.count, data = get_buffer_data(segment) + segment.count };
 }
 
@@ -129,6 +137,7 @@ advance_through_ensured_space :: (using builder: *String_Builder, bytes: s64) {
 append :: (using builder: *String_Builder, s: *u8, length: s64) {
     assert(length >= 0);
     if !initialized init_string_builder(builder);
+
     remaining := length;
     source := s;
 
@@ -146,6 +155,7 @@ append :: (using builder: *String_Builder, s: *u8, length: s64) {
 
         if n < 16 for i: 0..n - 1 destination[i] = source[i];
         else memcpy(destination, source, n);
+
         segment.count += n;
         source += n;
         remaining -= n;
@@ -181,6 +191,7 @@ simple_memcpy :: inline (using builder: *String_Builder, x: $T) {
 
 builder_string_length :: (using builder: *String_Builder) -> int {
     if !initialized return 0;
+
     total := 0;
     segment := get_base_buffer(builder);
 
@@ -203,6 +214,7 @@ builder_to_string :: (builder: *String_Builder, extra_bytes_to_prepend := 0, do_
     }
 
     for i: 0..extra_bytes_to_prepend - 1 result.data[i] = 0;
+
     offset := extra_bytes_to_prepend;
 
     if builder.initialized {
@@ -216,6 +228,7 @@ builder_to_string :: (builder: *String_Builder, extra_bytes_to_prepend := 0, do_
     }
 
     if do_reset reset(builder);
+
     return result;
 }
 
@@ -233,20 +246,24 @@ write_builder :: (using builder: *String_Builder, do_reset := true, to_standard_
     }
 
     if do_reset reset(builder);
+
     return written;
 }
 
 consume_u8_and_length :: (input: *string, s: *u8, length: s64) -> bool {
     if length < 0 || length > input.count return false;
     for i: 0..length - 1 if input.data[i] != s[i] return false;
+
     input.data += length;
     input.count -= length;
+
     return true;
 }
 
 append_and_steal_buffers :: (builder: *String_Builder, steal_from: *String_Builder) {
     if builder == steal_from return;
     if !steal_from.initialized return;
+
     // Re-appending respects distinct allocator ownership and segment capacities.
     segment := get_base_buffer(steal_from);
     while segment {

@@ -104,6 +104,7 @@ meshopt_Meshlet :: struct {
         assert(max_triangles >= 1 && max_triangles <= 126);
         assert(index_count % 3 == 0);
         if index_count == 0 return 0;
+
         bound := meshopt_buildMeshletsBound(index_count, max_vertices, max_triangles);
         native_meshlets := cast(*Native_Meshlet) alloc(cast(s64) (bound * size_of(Native_Meshlet)));
         vertices := cast(*u32) alloc(cast(s64) (index_count * size_of(u32)));

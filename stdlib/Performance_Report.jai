@@ -178,10 +178,12 @@ source_position :: (node: *Code_Node) -> string {
 // The baked constants of one instantiation, e.g. "T=float, N=3".
 write_constants :: (out: *String_Builder, header: *Code_Procedure_Header) {
     if !header || !header.constants_block return;
+
     separator := "";
 
     for entry: header.constants_block.members {
         if entry.kind != .DECLARATION continue;
+
         declaration := cast(*Code_Declaration) entry;
 
         print_to_builder(out, "%1%2=", separator, declaration.name);

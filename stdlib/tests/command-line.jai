@@ -30,6 +30,7 @@ main :: () {
     assert(positional.count == 1 && positional[0] == "file");
     free(args.title.data);
     for text: positional free(text.data);
+
     array_free(positional);
 
     empty := string.["test"];
@@ -62,6 +63,7 @@ main :: () {
     assert(terminated_ok && terminated_result.enabled && terminated_set.enabled);
     assert(terminated_free.count == 2 && terminated_free[0] == "--count");
     for text: terminated_free free(text.data);
+
     array_free(terminated_free);
 
     missing := string.["test", "-coordinates", "1"];

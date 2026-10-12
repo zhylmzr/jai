@@ -9,6 +9,7 @@ gl_load :: (procs: *GL_Procedures, GetProcAddress: GetProcAddressFunction = null
         procs.glXSwapIntervalMESA = null;
         if __gl_swap_interval_ext procs.glXSwapIntervalEXT = _gl_swap_interval_ext_compat;
         if __gl_swap_interval_mesa procs.glXSwapIntervalMESA = _gl_swap_interval_mesa_compat;
+
         procs.glXSwapIntervalSGI = cast(type_of(procs.glXSwapIntervalSGI)) GetProcAddress(cast(*u8) "glXSwapIntervalSGI\0");
     }
 

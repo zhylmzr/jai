@@ -209,6 +209,7 @@ buffer_state :: (object: *Buffer) -> *Buffer_State {
     }
 
     assert(false, "Object was not created by the pl_mpeg bridge");
+
     return null;
 }
 
@@ -219,6 +220,7 @@ native_buffer :: (object: *Buffer) -> *Native_Buffer {
 
 wrap_buffer :: (native: *Native_Buffer, owner: *void = null) -> *Buffer {
     if !native return null;
+
     entry := buffer_states;
     while entry {
         if entry.native == native {
@@ -240,8 +242,10 @@ wrap_buffer :: (native: *Native_Buffer, owner: *void = null) -> *Buffer {
     entry.default_callback = native.load_callback;
     entry.default_user = native.load_callback_user_data;
     if native.load_callback entry.public.load_callback = default_buffer_load;
+
     entry.public.load_callback_user_data = public_callback_user(native.load_callback_user_data);
     pull_buffer(entry);
+
     return entry.public;
 }
 
@@ -256,6 +260,7 @@ pull_buffer :: (entry: *Buffer_State) {
     target.has_ended = source.has_ended != 0;
     if !entry.backing target.free_when_done = source.free_when_done != 0;
     if !entry.backing target.free_when_done = source.free_when_done != 0;
+
     target.bytes = source.bytes;
     target.mode = cast,no_check(Buffer_Mode) source.mode;
 }
@@ -271,6 +276,7 @@ push_buffer :: (entry: *Buffer_State) {
     target.has_ended = cast(s32) source.has_ended;
     if !entry.backing target.free_when_done = cast(s32) source.free_when_done;
     if !entry.backing target.free_when_done = cast(s32) source.free_when_done;
+
     target.bytes = source.bytes;
     target.mode = cast(s32) source.mode;
 
@@ -304,6 +310,7 @@ demux_state :: (object: *Demux) -> *Demux_State {
     }
 
     assert(false, "Object was not created by the pl_mpeg bridge");
+
     return null;
 }
 
@@ -314,6 +321,7 @@ native_demux :: (object: *Demux) -> *Native_Demux {
 
 wrap_demux :: (native: *Native_Demux, owner: *void = null) -> *Demux {
     if !native return null;
+
     entry := demux_states;
     while entry {
         if entry.native == native {
@@ -333,6 +341,7 @@ wrap_demux :: (native: *Native_Demux, owner: *void = null) -> *Demux {
     entry.next = demux_states;
     demux_states = entry;
     pull_demux(entry);
+
     return entry.public;
 }
 
@@ -360,6 +369,7 @@ push_demux :: (entry: *Demux_State) {
     target := entry.native;
 
     if source.buffer push_buffer(buffer_state(source.buffer));
+
     target.buffer = native_buffer(source.buffer);
     target.system_clock_ref = source.system_clock_ref;
     target.last_file_size = cast(u64) source.last_file_size;
@@ -399,6 +409,7 @@ video_state :: (object: *Video) -> *Video_State {
     }
 
     assert(false, "Object was not created by the pl_mpeg bridge");
+
     return null;
 }
 
@@ -409,6 +420,7 @@ native_video :: (object: *Video) -> *Native_Video {
 
 wrap_video :: (native: *Native_Video, owner: *void = null) -> *Video {
     if !native return null;
+
     entry := video_states;
     while entry {
         if entry.native == native {
@@ -428,6 +440,7 @@ wrap_video :: (native: *Native_Video, owner: *void = null) -> *Video {
     entry.next = video_states;
     video_states = entry;
     pull_video(entry);
+
     return entry.public;
 }
 
@@ -500,6 +513,7 @@ push_video :: (entry: *Video_State) {
     target.macroblock_intra = source.macroblock_intra;
     target.dc_predictor = source.dc_predictor;
     if source.buffer push_buffer(buffer_state(source.buffer));
+
     target.buffer = native_buffer(source.buffer);
     target.frame_current = source.frame_current;
     target.frame_forward = source.frame_forward;
@@ -535,6 +549,7 @@ audio_state :: (object: *Audio) -> *Audio_State {
     }
 
     assert(false, "Object was not created by the pl_mpeg bridge");
+
     return null;
 }
 
@@ -545,6 +560,7 @@ native_audio :: (object: *Audio) -> *Native_Audio {
 
 wrap_audio :: (native: *Native_Audio, owner: *void = null) -> *Audio {
     if !native return null;
+
     entry := audio_states;
     while entry {
         if entry.native == native {
@@ -564,6 +580,7 @@ wrap_audio :: (native: *Native_Audio, owner: *void = null) -> *Audio {
     entry.next = audio_states;
     audio_states = entry;
     pull_audio(entry);
+
     return entry.public;
 }
 
@@ -607,6 +624,7 @@ push_audio :: (entry: *Audio_State) {
     target.next_frame_data_size = source.next_frame_data_size;
     target.has_header = cast(s32) source.has_header;
     if source.buffer push_buffer(buffer_state(source.buffer));
+
     target.buffer = native_buffer(source.buffer);
     target.allocation = source.allocation;
     target.scale_factor_info = source.scale_factor_info;
@@ -641,6 +659,7 @@ plm_state :: (object: *Plm) -> *Plm_State {
     }
 
     assert(false, "Object was not created by the pl_mpeg bridge");
+
     return null;
 }
 
@@ -651,6 +670,7 @@ native_plm :: (object: *Plm) -> *Native_Plm {
 
 wrap_plm :: (native: *Native_Plm, owner: *void = null) -> *Plm {
     if !native return null;
+
     entry := plm_states;
     while entry {
         if entry.native == native {
@@ -670,6 +690,7 @@ wrap_plm :: (native: *Native_Plm, owner: *void = null) -> *Plm {
     entry.next = plm_states;
     plm_states = entry;
     pull_plm(entry);
+
     return entry.public;
 }
 
@@ -702,6 +723,7 @@ push_plm :: (entry: *Plm_State) {
     if source.audio_decode_callback raw_plm_set_audio_decode_callback(target, native_audio_callback, entry);
     else raw_plm_set_audio_decode_callback(target, null, null);
     if source.demux push_demux(demux_state(source.demux));
+
     target.demux = native_demux(source.demux);
     target.time = source.time;
     target.has_ended = cast(s32) source.has_ended;
@@ -710,16 +732,20 @@ push_plm :: (entry: *Plm_State) {
     target.video_enabled = cast(s32) source.video_enabled;
     target.video_packet_type = native_start_code(source.video_packet_type);
     if source.video_buffer push_buffer(buffer_state(source.video_buffer));
+
     target.video_buffer = native_buffer(source.video_buffer);
     if source.video_decoder push_video(video_state(source.video_decoder));
+
     target.video_decoder = native_video(source.video_decoder);
     target.audio_enabled = cast(s32) source.audio_enabled;
     target.audio_stream_index = source.audio_stream_index;
     target.audio_packet_type = native_start_code(source.audio_packet_type);
     target.audio_lead_time = source.audio_lead_time;
     if source.audio_buffer push_buffer(buffer_state(source.audio_buffer));
+
     target.audio_buffer = native_buffer(source.audio_buffer);
     if source.audio_decoder push_audio(audio_state(source.audio_decoder));
+
     target.audio_decoder = native_audio(source.audio_decoder);
 }
 
@@ -743,6 +769,7 @@ from_native_packet :: (packet: *Native_Packet) -> Packet {
     result.type = cast,no_check(Start_Code) packet.type;
     result.pts = packet.pts;
     result.data = .{ cast(s64) packet.length, packet.data };
+
     return result;
 }
 
@@ -803,6 +830,7 @@ file_load_callback :: (native: *Native_Buffer, user: *void) #c_call {
         assert(success);
         if received != 0 raw_plm_buffer_write(native, bytes, cast(u64) received);
         else raw_plm_buffer_signal_end(native);
+
         pull_buffer(entry);
     }
 }

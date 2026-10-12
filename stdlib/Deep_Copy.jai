@@ -24,20 +24,25 @@ Pointer_Map :: struct {
 
 Deep_Copy :: (value: *$T, config: Deep_Copy_Config, preallocated_root: *void = null, pointer_map: *Pointer_Map = null, loc := #caller_location) -> *T {
     if !value return null;
+
     local_map: Pointer_Map;
     map := pointer_map;
 
     if !map map = *local_map;
+
     defer if !pointer_map deinit(*local_map.table);
     found, existing := table_find(*map.table, value);
     if found return cast(*T) existing;
+
     result := preallocated_root;
     if !result result = alloc(size_of(T));
     if !result return null;
+
     #if DC_DEBUG if !preallocated_root context.deep_copy_allocs += 1;
     memcpy(result, value, size_of(T));
     table_set(*map.table, value, result);
     clone_members(result, type_info(T), config, map);
+
     return cast(*T) result;
 }
 
@@ -70,12 +75,14 @@ clone_members :: (data: *void, info: *Type_Info, config: Deep_Copy_Config, map: 
         if !found {
             replacement = alloc(value.count);
             if !replacement return;
+
             #if DC_DEBUG context.deep_copy_allocs += 1;
             memcpy(replacement, value.data, value.count);
             table_set(*map.table, value.data, replacement);
         }
 
         value.data = cast(*u8) replacement;
+
         return;
     }
 
@@ -84,6 +91,7 @@ clone_members :: (data: *void, info: *Type_Info, config: Deep_Copy_Config, map: 
         source := slot.*;
 
         if !source return;
+
         found, destination := table_find(*map.table, source);
         if found {
             slot.* = destination;
@@ -92,14 +100,17 @@ clone_members :: (data: *void, info: *Type_Info, config: Deep_Copy_Config, map: 
 
         pointee := (cast(*Type_Info_Pointer) info).pointer_to;
         if pointee.type == .VOID || pointee.type == .PROCEDURE return;
+
         assert(pointee.runtime_size >= 0, "deep copy needs a known pointee layout");
         destination = alloc(pointee.runtime_size);
         if !destination return;
+
         #if DC_DEBUG context.deep_copy_allocs += 1;
         memcpy(destination, source, pointee.runtime_size);
         table_set(*map.table, source, destination);
         slot.* = destination;
         if config.follow_struct_pointers || pointee.type != .STRUCT clone_members(destination, pointee, config, map);
+
         return;
     }
 
@@ -117,6 +128,7 @@ clone_members :: (data: *void, info: *Type_Info, config: Deep_Copy_Config, map: 
             count = descriptor.count;
             elements = descriptor.data;
             if !elements return;
+
             found, replacement := table_find(*map.table, elements);
             if found {
                 descriptor.data = cast(*u8) replacement;
@@ -125,6 +137,7 @@ clone_members :: (data: *void, info: *Type_Info, config: Deep_Copy_Config, map: 
 
             replacement = alloc(stride * count);
             if !replacement return;
+
             #if DC_DEBUG context.deep_copy_allocs += 1;
             memcpy(replacement, elements, stride * count);
             table_set(*map.table, elements, replacement);

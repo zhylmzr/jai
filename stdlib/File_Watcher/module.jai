@@ -56,6 +56,7 @@ File_Watcher :: struct(User_Data: Type = void) {
 
 process_changes :: (using watcher: *File_Watcher) -> changed: bool, needs_wait: bool, wait_seconds: float64 {
     if !initialized return false, false, 0;
+
     fresh: [..] Snapshot_Entry;
     fresh.allocator = allocator;
 
@@ -95,6 +96,7 @@ process_changes :: (using watcher: *File_Watcher) -> changed: bool, needs_wait: 
 
     release_snapshot(*snapshot, allocator);
     snapshot = fresh;
+
     return emit_changes(watcher);
 }
 
@@ -152,6 +154,7 @@ add_change :: (watcher: *File_Watcher, full_path: string, events: File_Change_Ev
 
 init :: (watcher: *$T/File_Watcher, callback: T.File_Watcher_Callback, user_data: *T.User_Data = null, events_to_watch: File_Change_Event = .ALL_EVENTS, merge_window_seconds: float = 0.1, watch_recursively := true, verbose := false, event_buffer_size: s32 = DEFAULT_BUFFER_SIZE) -> success: bool {
     if !watcher || !callback || watcher.initialized || event_buffer_size <= 0 || merge_window_seconds < 0 return false;
+
     // Every list the watcher grows later lives in the allocator that was current at init.
     owner := context.allocator;
 
@@ -166,6 +169,7 @@ init :: (watcher: *$T/File_Watcher, callback: T.File_Watcher_Callback, user_data
     watcher.verbose = verbose;
 
     watcher.initialized = true;
+
     return true;
 }
 
@@ -175,6 +179,7 @@ add_directories :: (using watcher: *$T/File_Watcher, dir_paths: ..string) -> boo
     for path: dir_paths {
         absolute, success := Watch_File.get_absolute_path(path);
         if !success return false;
+
         seen := false;
 
         for root: roots if root == absolute {
@@ -183,6 +188,7 @@ add_directories :: (using watcher: *$T/File_Watcher, dir_paths: ..string) -> boo
         }
 
         if seen continue;
+
         entries: [..] Snapshot_Entry;
         entries.allocator = allocator;
         if !scan_directory(absolute, watch_recursively, *entries) {
@@ -192,6 +198,7 @@ add_directories :: (using watcher: *$T/File_Watcher, dir_paths: ..string) -> boo
 
         array_add(*roots, owned_path(absolute, allocator));
         for entry: entries array_add(*snapshot, entry);
+
         array_free(entries);
     }
 
@@ -202,6 +209,7 @@ deinit :: (using watcher: $T/File_Watcher) {
     if !initialized return;
     for root: roots free(root, allocator);
     for change: changes free(change.full_path, allocator);
+
     release_snapshot(*snapshot, allocator);
     array_free(roots);
     array_free(changes);

@@ -42,6 +42,7 @@ demux_destroy :: (demux: *Demux) {
     assert(entry.own_native, "A borrowed decoder is owned by its parent");
     raw_plm_demux_destroy(entry.native);
     if demux.destroy_buffer_when_done buffer_destroy(demux.buffer);
+
     forget_demux(demux);
 }
 
@@ -52,6 +53,7 @@ demux_has_headers :: (demux: *Demux) -> bool {
     result := raw_plm_demux_has_headers(entry.native);
 
     pull_demux(entry);
+
     return result != 0;
 }
 
@@ -62,6 +64,7 @@ demux_get_num_video_streams :: (demux: *Demux) -> s32 {
     result := raw_plm_demux_get_num_video_streams(entry.native);
 
     pull_demux(entry);
+
     return result;
 }
 
@@ -72,6 +75,7 @@ demux_get_num_audio_streams :: (demux: *Demux) -> s32 {
     result := raw_plm_demux_get_num_audio_streams(entry.native);
 
     pull_demux(entry);
+
     return result;
 }
 
@@ -89,6 +93,7 @@ demux_has_ended :: (demux: *Demux) -> bool {
     result := raw_plm_demux_has_ended(entry.native);
 
     pull_demux(entry);
+
     return result != 0;
 }
 
@@ -106,6 +111,7 @@ demux_get_start_time :: (demux: *Demux, type: Start_Code) -> float64 {
     result := raw_plm_demux_get_start_time(entry.native, cast(s32) type);
 
     pull_demux(entry);
+
     return result;
 }
 
@@ -116,6 +122,7 @@ demux_get_duration :: (demux: *Demux, type: Start_Code) -> float64 {
     result := raw_plm_demux_get_duration(entry.native, cast(s32) type);
 
     pull_demux(entry);
+
     return result;
 }
 
@@ -126,6 +133,7 @@ demux_seek :: (demux: *Demux, seek_time: float64, type: Start_Code, force_intra:
     result := raw_plm_demux_seek(entry.native, seek_time, cast(s32) type, cast(s32) force_intra);
 
     pull_demux(entry);
+
     return packet_result(demux, result);
 }
 
@@ -136,6 +144,7 @@ demux_decode :: (demux: *Demux) -> *Packet {
     result := raw_plm_demux_decode(entry.native);
 
     pull_demux(entry);
+
     return packet_result(demux, result);
 }
 
@@ -146,6 +155,7 @@ demux_decode_time :: (demux: *Demux) -> float64 {
     result := raw_plm_demux_decode_time(entry.native);
 
     pull_demux(entry);
+
     return result;
 }
 
@@ -156,6 +166,7 @@ demux_decode_packet :: (demux: *Demux, type: Start_Code) -> *Packet {
     result := raw_plm_demux_decode_packet(entry.native, cast(s32) type);
 
     pull_demux(entry);
+
     return packet_result(demux, result);
 }
 
@@ -168,5 +179,6 @@ get_packet :: (using demux: *Demux) -> *Packet {
     result := raw_plm_demux_get_packet(entry.native);
 
     pull_demux(entry);
+
     return packet_result(demux, result);
 }

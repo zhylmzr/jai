@@ -42,6 +42,7 @@ core_draw_button_label :: (r: Rect, text: string, state: *Button_State, theme: *
     label_theme.text_color = theme.text_color;
     if state.status & .OVER label_theme.text_color = theme.text_color_over;
     if state.status & .DOWN label_theme.text_color = theme.text_color_pressed;
+
     label(shrink(r, state.frame_pixels), text, *label_theme);
 }
 
@@ -142,11 +143,13 @@ break_into_lines :: (s: string, between_lines_string := "") -> [] string {
         array_add(*pieces, string.{ at - begin, s.data + begin });
         if between_lines_string.count > 0 array_add(*pieces, between_lines_string);
         if s[at] == 13 && at + 1 < s.count && s[at + 1] == 10 at += 1;
+
         at += 1;
         begin = at;
     }
 
     array_add(*pieces, string.{ s.count - begin, s.data + begin });
+
     return pieces;
 }
 
@@ -165,8 +168,10 @@ sanitize :: (s: string) -> string {
 
 get_insert_point_for_cursor :: (state: *Text_Input_State, font: *Font, text: string, current_frame_text_x: float, cursor_x: int, effect: Font_Effects, glyphs_prepped := false) -> int {
     if !font return 0;
+
     assert(draw_procs.prepare_text != null, "Cursor mapping needs prepare_text");
     if !draw_procs.prepare_text return 0;
+
     defer draw_procs.prepare_text(font, text, effect);
     width_before: float;
     at := 0;
@@ -177,6 +182,7 @@ get_insert_point_for_cursor :: (state: *Text_Input_State, font: *Font, text: str
         width_after := cast(float) draw_procs.prepare_text(font, string.{ next, text.data }, effect);
 
         if x < (width_before + width_after) / 2 return at;
+
         at = next;
         width_before = width_after;
     }

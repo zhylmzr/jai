@@ -8,14 +8,17 @@ visit_files :: (asset_manager: *AAssetManager, dir_name: string, recursive: bool
     if !recursive && !visit_directories {
         path := to_c_string(dir_name);
         if path == null return false;
+
         defer free(path);
         directory := AAssetManager_openDir(asset_manager, path);
         if directory == null return false;
+
         defer AAssetDir_close(directory);
 
         while true {
             native_name := AAssetDir_getNextFileName(directory);
             if native_name == null break;
+
             name := _sdk_asset_c_string(native_name);
             full := _sdk_asset_join(dir_name, name);
 
@@ -31,6 +34,7 @@ visit_files :: (asset_manager: *AAssetManager, dir_name: string, recursive: bool
     app := context.android_app;
     if app == null || app.activity == null || app.activity.vm == null return false;
     if app.activity.assetManager != asset_manager return false;
+
     vm := app.activity.vm;
     env: *JNIEnv;
     attached := false;
@@ -43,20 +47,27 @@ visit_files :: (asset_manager: *AAssetManager, dir_name: string, recursive: bool
 
     defer if attached vm.*.DetachCurrentThread(vm);
     if env == null || env.*.ExceptionCheck(env) != 0 return false;
+
     activity_class := env.*.GetObjectClass(env, app.activity.clazz);
     if _sdk_asset_jni_failed(env) || activity_class == null return false;
+
     defer env.*.DeleteLocalRef(env, activity_class);
     get_assets := env.*.GetMethodID(env, activity_class, cast(*u8) "getAssets\0", cast(*u8) "()Landroid/content/res/AssetManager;\0");
     if _sdk_asset_jni_failed(env) || get_assets == null return false;
+
     java_assets := env.*.CallObjectMethodA(env, app.activity.clazz, get_assets, null);
     if _sdk_asset_jni_failed(env) || java_assets == null return false;
+
     defer env.*.DeleteLocalRef(env, java_assets);
     if _sdk_asset_manager_from_java(env, java_assets) != asset_manager return false;
+
     asset_class := env.*.GetObjectClass(env, java_assets);
     if _sdk_asset_jni_failed(env) || asset_class == null return false;
+
     defer env.*.DeleteLocalRef(env, asset_class);
     list := env.*.GetMethodID(env, asset_class, cast(*u8) "list\0", cast(*u8) "(Ljava/lang/String;)[Ljava/lang/String;\0");
     if _sdk_asset_jni_failed(env) || list == null return false;
+
     return _sdk_asset_walk(asset_manager, env, java_assets, list, dir_name, recursive, user_data, proc, visit_files, visit_directories, 0);
 }
 
@@ -93,6 +104,7 @@ _sdk_asset_c_string :: (pointer: *u8) -> string #no_context {
 _sdk_asset_path :: (path: string) -> bool #no_context {
     if path.count < 0 || (path.count > 0 && path.data == null) return false;
     if path.count > 0 && (path[0] == 47 || path[0] == 92) return false;
+
     start: s64 = 0;
 
     for byte, index: path {
@@ -105,6 +117,7 @@ _sdk_asset_path :: (path: string) -> bool #no_context {
     }
 
     if path.count - start == 2 && path[start] == 46 && path[start + 1] == 46 return false;
+
     return true;
 }
 
@@ -114,14 +127,18 @@ _sdk_asset_join :: (directory: string, name: string) -> string {
     defer free_buffers(*builder);
     append(*builder, directory);
     if directory.count > 0 && directory[directory.count - 1] != 47 append(*builder, cast(u8) 47);
+
     append(*builder, name);
+
     return builder_to_string(*builder);
 }
 
 _sdk_asset_java_string :: (env: *JNIEnv, text: string) -> jstring {
     if text.count < 0 || text.count > 0x3fffffff return null;
+
     units := cast(*u16) alloc((text.count + 1) * 2);
     if units == null return null;
+
     defer free(units);
     input: s64 = 0;
     output: s32 = 0;
@@ -129,6 +146,7 @@ _sdk_asset_java_string :: (env: *JNIEnv, text: string) -> jstring {
     while input < text.count {
         scalar, consumed, status := Asset_Unicode.character_utf8_to_utf32(text.data + input, text.count - input);
         if status != .CONVERSION_OK return null;
+
         input += consumed;
 
         if scalar <= 0xffff {
@@ -148,8 +166,10 @@ _sdk_asset_java_string :: (env: *JNIEnv, text: string) -> jstring {
 _sdk_asset_from_java :: (env: *JNIEnv, value: jstring) -> string, bool {
     count := env.*.GetStringLength(env, value);
     if _sdk_asset_jni_failed(env) || count < 0 return "", false;
+
     characters := env.*.GetStringChars(env, value, null);
     if _sdk_asset_jni_failed(env) || characters == null return "", false;
+
     defer env.*.ReleaseStringChars(env, value, characters);
     builder: String_Builder;
 
@@ -162,10 +182,12 @@ _sdk_asset_from_java :: (env: *JNIEnv, value: jstring) -> string, bool {
 
         if scalar >= 0xd800 && scalar <= 0xdbff {
             if index == count return "", false;
+
             low := cast(u32) characters[index];
 
             index += 1;
             if low < 0xdc00 || low > 0xdfff return "", false;
+
             scalar = 0x10000 + ((scalar - 0xd800) << 10) + low - 0xdc00;
         } else if scalar >= 0xdc00 && scalar <= 0xdfff return "", false;
 
@@ -173,6 +195,7 @@ _sdk_asset_from_java :: (env: *JNIEnv, value: jstring) -> string, bool {
         encoded := string.{ 4, *buffer[0] };
 
         if Asset_Unicode.character_utf32_to_utf8(scalar, *encoded) != .CONVERSION_OK return "", false;
+
         append(*builder, encoded);
     }
 
@@ -181,34 +204,42 @@ _sdk_asset_from_java :: (env: *JNIEnv, value: jstring) -> string, bool {
 
 _sdk_asset_walk :: (manager: *AAssetManager, env: *JNIEnv, assets: jobject, list: jmethodID, directory: string, recursive: bool, user_data: $T, proc: (info: *File_Visit_Info, user_data: T), files: bool, directories: bool, depth: s64) -> bool {
     if depth >= 256 return false;
+
     java_path := _sdk_asset_java_string(env, directory);
     if _sdk_asset_jni_failed(env) || java_path == null return false;
+
     defer env.*.DeleteLocalRef(env, java_path);
     arguments: [1] jvalue;
     arguments[0].l = java_path;
     names := env.*.CallObjectMethodA(env, assets, list, *arguments[0]);
     if _sdk_asset_jni_failed(env) || names == null return false;
+
     defer env.*.DeleteLocalRef(env, names);
     count := env.*.GetArrayLength(env, names);
     if _sdk_asset_jni_failed(env) || count < 0 return false;
+
     index: s32 = 0;
     while index < count {
         java_name := env.*.GetObjectArrayElement(env, names, index);
 
         index += 1;
         if _sdk_asset_jni_failed(env) || java_name == null return false;
+
         defer env.*.DeleteLocalRef(env, java_name);
         name, converted := _sdk_asset_from_java(env, java_name);
         if !converted return false;
         if name.count == 0 return false;
+
         defer free(name);
         if !_sdk_asset_path(name) return false;
         for byte: name if byte == 47 return false;
+
         full := _sdk_asset_join(directory, name);
 
         defer free(full);
         native_path := to_c_string(full);
         if native_path == null return false;
+
         defer free(native_path);
         asset := AAssetManager_open(manager, native_path, cast(AASSET_MODE) 0);
         if asset != null {

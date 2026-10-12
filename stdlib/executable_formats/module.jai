@@ -48,13 +48,16 @@ is_macho :: (file_content: string) -> bool {
 is_pe :: (file_content: string) -> bool, coff_start: int {
     if file_content.count < 64 return false, 0;
     if file_content[0] != 0x4d || file_content[1] != 0x5a return false, 0;
+
     offset := cast(int) read_le_u32(file_content, 60);
     if offset > file_content.count - 4 return false, 0;
     if read_le_u32(file_content, offset) != PE_MAGIC_PREFIX return false, 0;
+
     coff_start := offset + 4;
     rest: string;
     rest.data = file_content.data + coff_start;
     rest.count = file_content.count - coff_start;
+
     return is_coff(rest), coff_start;
 }
 

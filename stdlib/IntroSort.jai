@@ -3,6 +3,7 @@
 
 intro_sort :: (array: [] $T, f: (T, T) -> int) {
     if array.count < 2 return;
+
     depth := 0;
     n := array.count;
 
@@ -56,6 +57,7 @@ partition :: (array: [] $T, lo: int, hi: int, f: (T, T) -> int) -> int {
     if f(array[mid], array[lo]) < 0 swap_items(array, mid, lo);
     if f(array[last], array[lo]) < 0 swap_items(array, last, lo);
     if f(array[last], array[mid]) < 0 swap_items(array, last, mid);
+
     pivot := array[mid];
     i := lo - 1;
     j := hi;
@@ -63,9 +65,11 @@ partition :: (array: [] $T, lo: int, hi: int, f: (T, T) -> int) -> int {
     while true {
         i += 1;
         while f(array[i], pivot) < 0 i += 1;
+
         j -= 1;
         while f(pivot, array[j]) < 0 j -= 1;
         if i >= j return j + 1;
+
         swap_items(array, i, j);
     }
 
@@ -95,6 +99,7 @@ sift_down :: (array: [] $T, base: int, start: int, count: int, f: (T, T) -> int)
         child := root * 2 + 1;
         if child + 1 < count && f(array[base + child], array[base + child + 1]) < 0 child += 1;
         if f(array[base + root], array[base + child]) >= 0 return;
+
         swap_items(array, base + root, base + child);
         root = child;
     }

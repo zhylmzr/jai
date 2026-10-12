@@ -2,6 +2,7 @@
 
 close_and_reset :: (s: *Socket, loc := #caller_location) {
     if s.* == INVALID_SOCKET return;
+
     #if OS == .WINDOWS result := closesocket(s.*);
     else result := close(s.*);
     assert(result == 0, "socket close failed", loc = loc);
@@ -11,6 +12,7 @@ close_and_reset :: (s: *Socket, loc := #caller_location) {
 bind :: (s: Socket, address: string, port: u16, family: type_of(sockaddr_in.sin_family) = AF_INET) -> s32 {
     terminated := to_c_string(address);
     if terminated == null return -1;
+
     defer free(terminated);
 
     if family == AF_INET {
@@ -19,6 +21,7 @@ bind :: (s: Socket, address: string, port: u16, family: type_of(sockaddr_in.sin_
         endpoint.sin_port = htons(port);
         #if OS == .MACOS || OS == .IOS endpoint.sin_len = cast(u8) size_of(sockaddr_in);
         if inet_pton(AF_INET, terminated, *endpoint.sin_addr) != 1 return -1;
+
         return bind(s, cast(*sockaddr) *endpoint, size_of(sockaddr_in));
     }
 
@@ -28,6 +31,7 @@ bind :: (s: Socket, address: string, port: u16, family: type_of(sockaddr_in.sin_
         endpoint.sin6_port = htons(port);
         #if OS == .MACOS || OS == .IOS endpoint.sin6_len = cast(u8) size_of(sockaddr_in6);
         if inet_pton(AF_INET6, terminated, *endpoint.sin6_addr) != 1 return -1;
+
         return bind(s, cast(*sockaddr) *endpoint, size_of(sockaddr_in6));
     }
 
@@ -46,6 +50,7 @@ bind :: (s: Socket, address: u32, port: u16) -> s32 {
     }
 
     #if OS == .MACOS || OS == .IOS endpoint.sin_len = cast(u8) size_of(sockaddr_in);
+
     return bind(s, cast(*sockaddr) *endpoint, size_of(sockaddr_in));
 }
 
@@ -55,6 +60,7 @@ bind :: (s: Socket, address: [16] u8, port: u16) -> s32 {
     endpoint.sin6_port = htons(port);
     memcpy(*endpoint.sin6_addr, *address, 16);
     #if OS == .MACOS || OS == .IOS endpoint.sin6_len = cast(u8) size_of(sockaddr_in6);
+
     return bind(s, cast(*sockaddr) *endpoint, size_of(sockaddr_in6));
 }
 
@@ -86,6 +92,7 @@ append_address :: (builder: *String_Builder, address: u32) {
 append_address :: (builder: *String_Builder, address: [16] u8) {
     words: [8] u16;
     for i: 0..7 words[i] = (cast(u16) address[i * 2]) << 8 | cast(u16) address[i * 2 + 1];
+
     longest_start: s64 = -1;
     longest_count: s64 = 1;
     i: s64 = 0;
@@ -141,12 +148,14 @@ to_string :: (addr: sockaddr_in6) -> string {
     append_address(*builder, bytes);
     append(*builder, "]:");
     append_decimal(*builder, ntohs(addr.sin6_port));
+
     return builder_to_string(*builder);
 }
 
 set_keepalive :: (s: Socket, keepalive: bool, idle_seconds_before_keepalive: s32 = 0,
     keepalive_interval_seconds: s32 = 0, num_keepalive_attempts: s32 = 0) -> bool {
     if idle_seconds_before_keepalive < 0 || keepalive_interval_seconds < 0 || num_keepalive_attempts < 0 return false;
+
     enabled: s32 = 0;
     if keepalive enabled = 1;
     if setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, cast(*u8) *enabled, 4) != 0 return false;
@@ -194,6 +203,7 @@ set_blocking :: (s: Socket, blocking: bool) -> bool {
         if flags < 0 return false;
         if blocking flags &= ~O_NONBLOCK;
         else flags |= O_NONBLOCK;
+
         return fcntl(s, F_SETFL, flags) == 0;
     }
 }

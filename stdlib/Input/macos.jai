@@ -37,14 +37,18 @@ mac_key_code :: (event: *Mac.NSEvent) -> Key_Code {
     if code == 119 return .END;
     if code == 116 return .PAGE_UP;
     if code == 121 return .PAGE_DOWN;
+
     function_codes: [20] u16 = .[122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111, 105, 107, 113, 106, 64, 79, 80, 90];
     for native, index: function_codes if native == code return cast(Key_Code) (cast(s64) Key_Code.F1 + index);
+
     text := Mac.NSEvent.charactersIgnoringModifiers(event);
     if !text return .UNKNOWN;
+
     bytes := Foundation.NSString.UTF8String(text);
     if !bytes return .UNKNOWN;
     if bytes[0] >= 97 && bytes[0] <= 122 return cast(Key_Code) (bytes[0] - 32);
     if bytes[0] >= 32 && bytes[0] < 127 return cast(Key_Code) bytes[0];
+
     return .UNKNOWN;
 }
 
@@ -80,6 +84,7 @@ mac_poll_geometry :: () {
         index += 1;
         view := Mac.NSWindow.contentView(window);
         if !view continue;
+
         frame := Mac.NSWindow.frame(window);
         area := Mac.NSView.convertRectToBacking(view, Mac.NSView.bounds(view));
         x := cast(s32) frame.origin.x;
@@ -93,6 +98,7 @@ mac_poll_geometry :: () {
             if entry.window != window continue;
             if width != entry.width || height != entry.height queue_window_resize(routed, width, height);
             if x != entry.x || y != entry.y queue_window_move(routed, x, y);
+
             entry.x = x;
             entry.y = y;
             entry.width = width;
@@ -117,6 +123,7 @@ mac_window_flag :: (window: *Mac.NSWindow, selector: *u8) -> bool {
 macos_poll_input :: () {
     application := Mac.NSApplication.sharedApplication();
     if !application return;
+
     pool := ObjC.objc_init(ObjC.objc_alloc(Foundation.NSAutoreleasePool));
 
     defer Foundation.NSAutoreleasePool.drain(pool);
@@ -125,6 +132,7 @@ macos_poll_input :: () {
         native := Mac.NSApplication.nextEventMatchingMask(application, .NSEventMaskAny,
             Foundation.NSDate.distantPast(), Mac.NSDefaultRunLoopMode, ObjC.YES);
         if !native break;
+
         window := mac_event_window(native);
         kind := Mac.NSEvent.type(native);
         flags := cast(u64) Mac.NSEvent.modifierFlags(native);
@@ -159,6 +167,7 @@ macos_poll_input :: () {
 
                 for mask, index: masks {
                     if ((flags ^ mac_modifier_mask) & mask) == 0 continue;
+
                     modifier_event := event;
                     modifier_event.type = .KEYBOARD;
                     modifier_event.key_code = codes[index];
@@ -171,6 +180,7 @@ macos_poll_input :: () {
                 event.key_code = .MOUSE_BUTTON_LEFT;
                 if kind == .NSEventTypeRightMouseDown || kind == .NSEventTypeRightMouseUp event.key_code = .MOUSE_BUTTON_RIGHT;
                 if kind == .NSEventTypeOtherMouseDown || kind == .NSEventTypeOtherMouseUp event.key_code = .MOUSE_BUTTON_MIDDLE;
+
                 queue_input_event(routed, event);
             } else if kind == .NSEventTypeScrollWheel {
                 event.type = .MOUSE_WHEEL;
@@ -208,11 +218,13 @@ macos_pointer_query :: (window: Window_Type, client_area: bool) -> float, float,
 
     if !native && application native = Mac.NSApplication.keyWindow(application);
     if !native return 0, 0, false;
+
     point := Mac.NSWindow.mouseLocationOutsideOfEventStream(native);
 
     if client_area {
         view := Mac.NSWindow.contentView(native);
         if !view return 0, 0, false;
+
         point = Mac.NSView.convertPoint(view, point, null);
         point = Mac.NSView.convertPointToBacking(view, point);
         area := Mac.NSView.convertRectToBacking(view, Mac.NSView.bounds(view));

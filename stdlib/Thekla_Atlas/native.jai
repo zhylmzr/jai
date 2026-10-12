@@ -64,6 +64,7 @@ to_current_options :: (source: *Atlas_Options) -> Native_Atlas_Options {
     result.packer_options.witness.texels_per_unit = source.packer_options.witness.texels_per_unit;
     result.packer_options.witness.block_align = source.packer_options.witness.block_align;
     result.packer_options.witness.conservative = source.packer_options.witness.conservative;
+
     return result;
 }
 
@@ -76,6 +77,7 @@ generate_with_current_atlas :: (input: *Atlas_Input_Mesh, options: *Atlas_Option
                                 error: *Atlas_Error, error_data: **Atlas_Error_Data) -> *Atlas_Output_Mesh {
     if error_data error_data.* = null;
     if error error.* = .Success;
+
     valid := input != null && options != null;
     if valid valid = input.vertex_count >= 0 && input.face_count >= 0 &&
                       (input.vertex_count == 0 || input.vertex_array != null) &&
@@ -107,12 +109,14 @@ generate_with_current_atlas :: (input: *Atlas_Input_Mesh, options: *Atlas_Option
     }
 
     if error error.* = atlas_error_from_current(native_error);
+
     // Current upstream provides an error enum, but no rich native error record.
     return result;
 }
 
 atlas_retry_isolated_faces :: (input: *Atlas_Input_Mesh, options: *Native_Atlas_Options) -> (*Atlas_Output_Mesh, s32) {
     if input.face_count > S32_MAX / 3 return null, 3;
+
     count := input.face_count * 3;
     vertices := cast(*Atlas_Input_Vertex) Basic.alloc(cast(s64) count * size_of(Atlas_Input_Vertex));
     faces := cast(*Atlas_Input_Face) Basic.alloc(cast(s64) input.face_count * size_of(Atlas_Input_Face));

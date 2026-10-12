@@ -66,6 +66,7 @@ init :: (group: *Thread_Group, num_threads: int, group_proc: Thread_Group_Proc,
 init :: (using group: *Thread_Group, num_threads: s32, group_proc: Native_Thread_Group_Proc,
     enable_work_stealing := false, temporary_storage_size: s32 = 16384) -> bool {
     if group == null || initted || num_threads <= 0 || group_proc == null return false;
+
     allocator = context.allocator;
     proc = group_proc;
     group.enable_work_stealing = enable_work_stealing;
@@ -124,6 +125,7 @@ init :: (using group: *Thread_Group, num_threads: s32, group_proc: Native_Thread
         worker_info = .{};
         worker_info_data_to_free = null;
         array_reset(*threads);
+
         return false;
     }
 
@@ -132,13 +134,16 @@ init :: (using group: *Thread_Group, num_threads: s32, group_proc: Native_Thread
     started = false;
     should_exit = false;
     shutdown_requested = false;
+
     return true;
 }
 
 add_work :: (group: *Thread_Group, work: *void, logging_name := "") -> bool {
     if group == null || !group.initted || group.shutdown_requested return false;
+
     entry := cast(*Work_Entry) alloc(size_of(Work_Entry), group.allocator);
     if entry == null return false;
+
     // Work is dealt to the workers round-robin.
     index := group.next_worker_index;
 
@@ -187,14 +192,17 @@ start :: (group: *Thread_Group) -> bool {
     }
 
     group.started = true;
+
     return true;
 }
 
 shutdown :: (using group: *Thread_Group, timeout_milliseconds: s32 = -1) -> bool {
     if group == null || !initted return true;
+
     shutdown_requested = true;
     atomic_write(*should_exit, true);
     for *worker: worker_info signal(*worker.available.semaphore);
+
     deadline := get_time(group) + cast(float64) timeout_milliseconds / 1000;
 
     for *thread: threads {
@@ -213,6 +221,7 @@ shutdown :: (using group: *Thread_Group, timeout_milliseconds: s32 = -1) -> bool
 
     for *worker: worker_info {
         if worker.available.count != 0 processed_all = false;
+
         thread_deinit(*threads[worker.worker_index]);
         free(worker.work_steal_indices.data, allocator);
         deinit_work_list(*worker.available, allocator);
@@ -226,6 +235,7 @@ shutdown :: (using group: *Thread_Group, timeout_milliseconds: s32 = -1) -> bool
     array_reset(*completed_work);
     started = false;
     initted = false;
+
     return processed_all;
 }
 
@@ -234,7 +244,9 @@ init_work_list :: (list: *Work_List) -> bool {
     list.first, list.last, list.count = null, null, 0;
     init(*list.mutex);
     if init(*list.semaphore) return true;
+
     destroy(*list.mutex);
+
     return false;
 }
 
@@ -282,6 +294,7 @@ append_work :: (list: *Work_List, entry: *Work_Entry) {
     lock(*list.mutex);
     if list.last == null list.first = entry;
     else list.last.next = entry;
+
     list.last = entry;
     list.count += 1;
     unlock(*list.mutex);
@@ -293,10 +306,13 @@ pop_work :: (list: *Work_List) -> *Work_Entry {
     defer unlock(*list.mutex);
     entry := list.first;
     if entry == null return null;
+
     list.first = entry.next;
     if list.first == null list.last = null;
+
     list.count -= 1;
     entry.next = null;
+
     return entry;
 }
 

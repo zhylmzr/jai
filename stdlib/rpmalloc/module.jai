@@ -47,6 +47,7 @@ rpmalloc_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size:
         }
 
         rp_allocator_count += 1;
+
         return native_heap_acquire();
     }
 
@@ -67,6 +68,7 @@ rpmalloc_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size:
     }
 
     if mode == .IS_THIS_YOURS return cast(*void) cast(u64) rp_owns(heap, old_memory);
+
     // Like Default_Allocator: blocks of a cache line or more start on one, so `New` of a
     // `#align 64` type is aligned (rpmalloc's size classes only promise 16).
     line_alignment := ifx requested_size >= 64 then 64 else 0;
@@ -79,6 +81,7 @@ rpmalloc_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size:
     }
 
     Basic.assert(false, "Unknown rpmalloc allocator protocol mode");
+
     return null;
 }
 

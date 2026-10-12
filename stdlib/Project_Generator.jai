@@ -27,6 +27,7 @@ get_folder_for_path :: (file_path: string) -> string {
     }
 
     if find_fragment(path, "..") >= 0 return "";
+
     return path;
 }
 
@@ -44,6 +45,7 @@ find_fragment :: (text: string, fragment: string) -> int {
         }
 
         if matches return candidate;
+
         candidate += 1;
     }
 

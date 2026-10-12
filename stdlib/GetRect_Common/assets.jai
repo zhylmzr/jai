@@ -6,6 +6,7 @@ getrect_asset_filenames := string.["ui_radiobox_full.png", "ui_radiobox_empty.pn
 set_asset_root :: (path: string) {
     assert(!initialized, "Configure assets before initializing GetRect");
     if initialized return;
+
     owner := context.allocator;
     saved := copy_string(path);
 
@@ -58,13 +59,16 @@ global_data :: (filename: string) -> (memory: string, success: bool) {
 
     defer free(path.data, allocator = owner);
     if path.count == 0 return "", false;
+
     memory, success = RH_Assets_File.read_entire_file(path, log_errors = true);
+
     return memory, success;
 }
 
 right_cached_asset :: (index: int) -> (memory: string, success: bool) {
     assert(index >= 0 && index < right_asset_buffers.count);
     if index < 0 || index >= right_asset_buffers.count return "", false;
+
     owner := context.allocator;
     path := right_asset_path(getrect_asset_filenames[index]);
     transferred := false;
@@ -96,6 +100,7 @@ right_cached_asset :: (index: int) -> (memory: string, success: bool) {
     right_asset_buffers[index] = bytes;
     right_asset_paths[index] = path;
     transferred = true;
+
     return bytes, true;
 }
 

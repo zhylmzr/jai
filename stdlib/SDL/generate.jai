@@ -52,6 +52,7 @@ build_sdl_variant :: (args: [] string, suffix: string, extra_config_args: [] str
         "-DSDL_SHARED=ON", "-DSDL_STATIC=OFF", "-DSDL_TEST=OFF", "-DSDL_TESTS=OFF");
     mode := "Release";
     if suffix == "debug" mode = "Debug";
+
     mode_flag := sprint("-DCMAKE_BUILD_TYPE=%", mode);
 
     defer free(mode_flag);
@@ -59,6 +60,7 @@ build_sdl_variant :: (args: [] string, suffix: string, extra_config_args: [] str
     for flag: forwarded array_add(*configure, flag);
     for flag: extra_config_args array_add(*configure, flag);
     if !SDL_Build_Run(configure) return false;
+
     parallelism := sprint("%", NUM_PARALLEL_CMAKE_JOBS);
 
     defer free(parallelism);
@@ -78,6 +80,7 @@ run_or_exit :: (command: ..string, working_directory := "") -> string {
     }
 
     free(error);
+
     return output;
 }
 
@@ -99,5 +102,6 @@ SDL_Build_Run :: (command: [] string) -> bool {
 
     defer free(output);
     defer free(error);
+
     return !timed_out && status.type == .EXITED && status.exit_code == 0;
 }

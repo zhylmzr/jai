@@ -17,6 +17,7 @@ Pixel_Read_Platform :: struct {
 pixel_read_begin :: (source: *Texture, dest_format: Texture_Format, width: s32 = -1, height: s32 = -1, srgb := false, flip := false) -> *Pixel_Read {
     if dest_format != .R8 && dest_format != .RG8 && dest_format != .RGB8 && dest_format != .RGBA8 && dest_format != .BGRA8 return null;
     if source && (source.flags & (.Cube | .Array | .Volume | .Buffer | .Multisampled)) return null;
+
     CheckInit();
     immediate_flush();
     source_width: s32;
@@ -34,12 +35,15 @@ pixel_read_begin :: (source: *Texture, dest_format: Texture_Format, width: s32 =
     }
 
     if source_width <= 0 || source_height <= 0 return null;
+
     raw_bytes, raw_stride := get_image_size(.RGBA8, source_width, source_height);
     if raw_bytes <= 0 || raw_stride > 0x7fff_ffff return null;
     if width < 0 width = source_width;
     if height < 0 height = source_height;
+
     bytes, stride := get_image_size(dest_format, width, height);
     if width <= 0 || height <= 0 || bytes <= 0 || stride > 0x7fff_ffff return null;
+
     reader := New(Pixel_Read, allocator = SIMP_HEAP);
     reader.dest_format = dest_format;
     reader.dest_width = width;
@@ -50,6 +54,7 @@ pixel_read_begin :: (source: *Texture, dest_format: Texture_Format, width: s32 =
     record.reader = reader;
     if source record.source_srgb = (source.flags & .sRGB) != 0;
     else if context.simp.texture_render_target record.source_srgb = (context.simp.texture_render_target.flags & .sRGB) != 0;
+
     bitmap_alloc(*record.raw, source_width, source_height, .RGBA8,, SIMP_HEAP);
 
     if record.raw.data.count <= 0 || !record.raw.data.data {
@@ -87,6 +92,7 @@ pixel_read_begin :: (source: *Texture, dest_format: Texture_Format, width: s32 =
     }
 
     array_add(*pixel_reads, record);
+
     return reader;
 }
 
@@ -113,6 +119,7 @@ pixel_read_end :: (reader: *Pixel_Read, bitmap: *Bitmap) {
 
     assert(record != null && bitmap != null, "Invalid screenshot reader or destination");
     if !record || !bitmap return;
+
     defer readback_destroy(record);
 
     #if render_api == .OPENGL {
@@ -139,6 +146,7 @@ pixel_read_end :: (reader: *Pixel_Read, bitmap: *Bitmap) {
 
         // Without `flip` the result is the upright image, top row first; rows are stored either way.
         if record.top_first == reader.flip sy = record.raw.height - 1 - sy;
+
         color := readback_bitmap_color(*record.raw, sx, sy);
 
         if record.source_srgb != reader.dest_srgb {
@@ -233,7 +241,9 @@ readback_bitmap_color :: (bitmap: *Bitmap, x: int, y: int) -> Vector4 {
     if bitmap.format == .RG8 return .{ p[0] / 255.0, p[1] / 255.0, 0, 1 };
     if bitmap.format == .RGB8 return .{ p[0] / 255.0, p[1] / 255.0, p[2] / 255.0, 1 };
     if bitmap.format == .BGRA8 return .{ p[2] / 255.0, p[1] / 255.0, p[0] / 255.0, p[3] / 255.0 };
+
     assert(bitmap.format == .RGBA8, "CPU screenshots require an 8-bit source format");
+
     return .{ p[0] / 255.0, p[1] / 255.0, p[2] / 255.0, p[3] / 255.0 };
 }
 
@@ -251,6 +261,7 @@ readback_store_color :: (bitmap: *Bitmap, x: int, y: int, color: Vector4) {
     // format). Window rows come back bottom first; textures are stored top first.
     gl_readback_begin :: (record: *Pixel_Read_Record, source: *Texture) -> bool {
         if !gl_api return false;
+
         gl_api.glGetError();
         old_framebuffer: s32;
         old_buffer: s32;
@@ -281,8 +292,10 @@ readback_store_color :: (bitmap: *Bitmap, x: int, y: int, color: Vector4) {
                 // A plain texture: attach it to a scratch framebuffer for the read.
                 gl_upload_pending(from_texture);
                 if !from_texture.gl_handle return false;
+
                 gl_api.glGenFramebuffers(1, *record.reader.dest_fbo_handle);
                 if !record.reader.dest_fbo_handle return false;
+
                 gl_api.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, record.reader.dest_fbo_handle);
                 gl_api.glFramebufferTexture2D(GL.GL_READ_FRAMEBUFFER, GL.GL_COLOR_ATTACHMENT0, GL.GL_TEXTURE_2D, from_texture.gl_handle, 0);
                 if gl_api.glCheckFramebufferStatus(GL.GL_READ_FRAMEBUFFER) != GL.GL_FRAMEBUFFER_COMPLETE return false;
@@ -296,15 +309,19 @@ readback_store_color :: (bitmap: *Bitmap, x: int, y: int, color: Vector4) {
 
         gl_api.glGenBuffers(1, *record.reader.pbo);
         if !record.reader.pbo return false;
+
         gl_api.glBindBuffer(GL.GL_PIXEL_PACK_BUFFER, record.reader.pbo);
         gl_api.glBufferData(GL.GL_PIXEL_PACK_BUFFER, record.raw.data.count, null, GL.GL_STREAM_READ);
         gl_api.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1);
         gl_api.glPixelStorei(GL.GL_PACK_ROW_LENGTH, 0);
         gl_api.glReadPixels(0, 0, cast(u32) record.raw.width, cast(u32) record.raw.height, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, null);
         if gl_api.glGetError() != GL.GL_NO_ERROR return false;
+
         record.fence = gl_api.glFenceSync(GL.GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
         if !record.fence return false;
+
         gl_api.glFlush();
+
         return true;
     }
 

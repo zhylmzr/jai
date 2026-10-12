@@ -44,6 +44,7 @@ Queue :: struct(User_Data: Type) {
 initialize_queue :: ($User_Data: Type) -> *Queue(User_Data), result := Error.{} {
     queue := New(Queue(User_Data));
     if !queue return null, error(.Catastrophic);
+
     queue.allocator = context.allocator;
     queue.requests.allocator = queue.allocator;
     queue.completions.allocator = queue.allocator;
@@ -77,8 +78,10 @@ initialize_queue :: ($User_Data: Type) -> *Queue(User_Data), result := Error.{} 
             completion := perform(request, owner.allocator);
 
             if request.path free(request.path, owner.allocator);
+
             Threads.lock(*owner.mutex);
             if request.file request.file.pending -= 1;
+
             array_add(*owner.completions, completion);
             Threads.wake_all(*owner.completed);
             Threads.unlock(*owner.mutex);
@@ -93,6 +96,7 @@ initialize_queue :: ($User_Data: Type) -> *Queue(User_Data), result := Error.{} 
         Threads.destroy(*queue.submitted);
         Threads.destroy(*queue.mutex);
         free(queue);
+
         return null, error(.Catastrophic);
     }
 
@@ -102,8 +106,10 @@ initialize_queue :: ($User_Data: Type) -> *Queue(User_Data), result := Error.{} 
 open_file :: (queue: *Queue($T), file_path: string, keep_existing_content := true) -> File(T), result := Error.{} {
     file_result: File(T);
     if !queue return file_result, error(.Catastrophic);
+
     stream, opened := open_random_access(file_path, keep_existing_content);
     if !opened return file_result, platform_error(.FileAccessFailed);
+
     state := New(File_State, allocator = queue.allocator);
     if !state {
         Sync.file_close(*stream);
@@ -138,6 +144,7 @@ open_file :: (queue: *Queue($T), file_path: string, keep_existing_content := tru
 
 close_file :: (queue: *Queue, file: File) {
     if !queue || !file.state || file.state.owner != queue return;
+
     Threads.lock(*queue.mutex);
     while file.state.pending > 0 Threads.wait(*queue.completed, *queue.mutex);
 
@@ -156,6 +163,7 @@ read_file :: (queue: *Queue($T), file: File, position: s64, data: [] u8, user_da
     request.position = position;
     request.data = data;
     request.user_data = user_data;
+
     return submit(queue, request);
 }
 
@@ -166,25 +174,30 @@ write_file :: (queue: *Queue($T), file: File, position: s64, data: [] u8, user_d
     request.position = position;
     request.data = data;
     request.user_data = user_data;
+
     return submit(queue, request);
 }
 
 read_entire_file :: (queue: *Queue($T), file_path: string, user_data: T) -> result := Error.{} {
     if !queue return error(.Catastrophic);
+
     request: Request(T);
     request.kind = .READ_ALL;
     request.path = owned_name(file_path, queue.allocator);
     request.user_data = user_data;
+
     return submit(queue, request);
 }
 
 write_entire_file :: (queue: *Queue($T), file_path: string, data: [] u8, user_data: T) -> result := Error.{} {
     if !queue return error(.Catastrophic);
+
     request: Request(T);
     request.kind = .WRITE_ALL;
     request.path = owned_name(file_path, queue.allocator);
     request.data = data;
     request.user_data = user_data;
+
     return submit(queue, request);
 }
 
@@ -220,6 +233,7 @@ wait_for_completion :: (queue: *Queue($T), check_only := false) -> T, data: [] u
 
 destroy_queue :: (queue: *Queue) {
     if !queue return;
+
     Threads.lock(*queue.mutex);
     queue.stopping = true;
     Threads.wake_all(*queue.submitted);
@@ -297,6 +311,7 @@ start_worker :: (queue: *Queue) -> bool {
 
 submit :: (queue: *Queue($T), request: Request(T)) -> Error {
     if !queue return error(.Catastrophic);
+
     Threads.lock(*queue.mutex);
     defer Threads.unlock(*queue.mutex);
 
@@ -318,6 +333,7 @@ submit :: (queue: *Queue($T), request: Request(T)) -> Error {
     array_add(*queue.requests, request);
     queue.outstanding += 1;
     Threads.wake(*queue.submitted);
+
     return .{};
 }
 
@@ -394,8 +410,10 @@ perform :: (request: Request($T), allocator: Allocator) -> Completion(T) {
     open_random_access :: (name: string, keep: bool) -> Sync.File, bool {
         mode := "w+b";
         if keep mode = "r+b";
+
         stream := Async_Posix.fopen(temp_c_string(name), temp_c_string(mode));
         if !stream && keep && Async_Posix.errno() == Async_Posix.ENOENT stream = Async_Posix.fopen(temp_c_string(name), temp_c_string("w+b"));
+
         return .{ stream }, stream != null;
     }
 }

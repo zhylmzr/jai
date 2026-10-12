@@ -1,6 +1,7 @@
 // RFC 1321 digest. The returned lowercase hexadecimal string is allocator-owned.
 md5 :: (input: string) -> string #must {
     if input.count < 0 return "";
+
     state: [4] u32 = .[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476];
     block: [64] u8;
     position: s64 = 0;
@@ -15,6 +16,7 @@ md5 :: (input: string) -> string #must {
 
     for i: 0..63 block[i] = 0;
     for i: 0..remaining - 1 block[i] = input.data[position + i];
+
     block[remaining] = 128;
 
     if remaining >= 56 {
@@ -24,9 +26,11 @@ md5 :: (input: string) -> string #must {
 
     bits := cast(u64) input.count * 8;
     for i: 0..7 block[56 + i] = cast,trunc(u8) (bits >> cast(u64) (i * 8));
+
     md5_compress(state.data, block);
     output := alloc_string(32);
     if !output.data return "";
+
     digits :: "0123456789abcdef";
 
     for i: 0..15 {

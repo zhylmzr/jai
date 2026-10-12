@@ -73,6 +73,7 @@ floor :: (x: float64) -> float64 {
     exponent := cast(s32) ((bits >> 52) & 2047) - 1023;
 
     if exponent >= 52 || value == 0 return value;
+
     negative := (bits >> 63) != 0;
 
     if exponent < 0 {
@@ -82,8 +83,10 @@ floor :: (x: float64) -> float64 {
 
     mask := ((cast(u64) 1) << cast(u64) (52 - exponent)) - 1;
     if (bits & mask) == 0 return value;
+
     truncated := float64_from_bits(bits & ~mask);
     if negative return truncated - 1;
+
     return truncated;
 }
 
@@ -95,10 +98,12 @@ ceil :: (x: float64) -> float64 {
 round :: (value: float64) -> float64 {
     if !is_finite(value) || value == 0 return value;
     if value < 0 return -round(-value);
+
     // Halves round away from zero. Compare the fraction, which is exact, rather than adding 0.5,
     // which can round: 0.49999999999999994 + 0.5 gives 1.0, and 2^52 + 1.5 gives 2^52 + 2.
     whole := floor(value);
     if value - whole >= 0.5 whole += 1;
+
     return whole;
 }
 
@@ -110,6 +115,7 @@ fmod_cycling :: (x: float64, y: float64) -> float64 {
     if y == 0 return FLOAT64_INFINITY;
     if !is_finite(x) || isnan(y) return FLOAT64_NAN;
     if isinf(y) return x;
+
     magnitude := abs(x);
     divisor := abs(y);
 
@@ -134,6 +140,7 @@ fmod_cycling :: (x: float64, y: float64) -> float64 {
 
 frexp :: (x: float64) -> (result: float64, pow2: s32) {
     if x == 0 || !is_finite(x) return x, 0;
+
     bits := float64_bits(x);
     exponent := cast(s32) ((bits >> 52) & 2047);
     correction: s32 = 0;
@@ -151,6 +158,7 @@ frexp :: (x: float64) -> (result: float64, pow2: s32) {
 
 ldexp :: (x: float64, pw2: s32) -> float64 {
     if x == 0 || !is_finite(x) return x;
+
     result := x;
     exponent := pw2;
 
@@ -167,6 +175,7 @@ ldexp :: (x: float64, pw2: s32) -> float64 {
     }
 
     result *= float64_from_bits((cast(u64) (1023 + exponent)) << 52);
+
     return result;
 }
 
@@ -176,6 +185,7 @@ sqrt :: (x: float64) -> float64 #no_aoc {
     value := x;
     if value == 0 || value == FLOAT64_INFINITY return value;
     if value < 0 || isnan(value) return FLOAT64_NAN;
+
     // value = significand * 2^exponent with an integer significand in [2^52, 2^53).
     fraction, power := frexp(value);
     significand := cast(u64) (fraction * 9007199254740992.0);
@@ -198,6 +208,7 @@ sqrt :: (x: float64) -> float64 #no_aoc {
         two_bits: u64;
         if pair >= 32 two_bits = (high >> cast(u64) (2 * (pair - 32))) & 3;
         else two_bits = (low >> cast(u64) (2 * pair)) & 3;
+
         remainder = (remainder << 2) | two_bits;
         trial := (root << 2) | 1;
 
@@ -213,6 +224,7 @@ sqrt :: (x: float64) -> float64 #no_aoc {
 
     // remainder = radicand - root^2; the exact root lies past root + 1/2 when remainder > root.
     if remainder > root root += 1;
+
     return ldexp(cast(float64) root, cast(s32) ((exponent - 52) / 2));
 }
 
@@ -221,6 +233,7 @@ log :: (x: float64) -> float64 {
     if isnan(value) || value < 0 return FLOAT64_NAN;
     if value == 0 return -FLOAT64_INFINITY;
     if isinf(value) return value;
+
     mantissa, exponent := frexp(value);
     mantissa *= 2;
     exponent -= 1;
@@ -242,6 +255,7 @@ exp :: (x: float64) -> float64 {
     if isnan(value) return value;
     if value > 709.782712893384 return FLOAT64_INFINITY;
     if value < -745.133219101941 return 0;
+
     exponent := cast(s32) round(value * 1.44269504088896340736);
     residual := (value - cast(float64) exponent * 0.6931471805599453) - cast(float64) exponent * 2.3190468138462996e-17;
     term: float64 = 1.0;
@@ -287,6 +301,7 @@ pow :: (x: float64, y: float64) -> float64 {
     }
 
     if base < 0 && !integral return FLOAT64_NAN;
+
     result: float64 = ---;
     exact_enough := false;
 
@@ -298,6 +313,7 @@ pow :: (x: float64, y: float64) -> float64 {
 
     if !exact_enough result = exp(exponent * log(abs(base)));
     if base < 0 && odd return -result;
+
     return result;
 }
 
@@ -335,6 +351,7 @@ in_safe_range :: (x: float64) -> bool {
 // or nearly does), leaving that case to exp/log.
 whole_power :: (base: float64, power: s64) -> float64, bool {
     if !in_safe_range(base) return 0, false;
+
     result_high: float64 = 1;
     result_low: float64 = 0;
     factor_high := base;
@@ -349,11 +366,13 @@ whole_power :: (base: float64, power: s64) -> float64, bool {
 
         remaining >>= 1;
         if remaining == 0 break;
+
         factor_high, factor_low = pair_multiply(factor_high, factor_low, factor_high, factor_low);
         if !in_safe_range(factor_high) return 0, false;
     }
 
     if power >= 0 return result_high + result_low, true;
+
     // 1 / (high + low): a first quotient plus one correction from the exact residual.
     quotient := 1 / result_high;
     product, error := exact_product(quotient, result_high);
@@ -367,11 +386,13 @@ sin :: (x: float64) -> float64 {
     value := x;
     if !is_finite(value) return FLOAT64_NAN;
     if value == 0 return value;
+
     reduced := fmod_cycling(abs(value), TAU64);
     if reduced > PI64 reduced -= TAU64;
     if value < 0 reduced = -reduced;
     if reduced > PI64 * 0.5 reduced = PI64 - reduced;
     else if reduced < -PI64 * 0.5 reduced = -PI64 - reduced;
+
     term := reduced;
     total := reduced;
     square_x := reduced * reduced;
@@ -387,8 +408,10 @@ sin :: (x: float64) -> float64 {
 cos :: (x: float64) -> float64 {
     value := x;
     if !is_finite(value) return FLOAT64_NAN;
+
     reduced := fmod_cycling(abs(value), TAU64);
     if reduced > PI64 reduced -= TAU64;
+
     sign: float64 = 1.0;
 
     if abs(reduced) > PI64 * 0.5 {
@@ -422,10 +445,12 @@ cot :: (x: float64) -> float64 {
 atan :: (x: float64) -> float64 {
     value := x;
     if isnan(value) || value == 0 return value;
+
     positive := abs(value);
     reciprocal := positive > 1;
 
     if reciprocal positive = 1 / positive;
+
     reduced := positive / (1 + sqrt(1 + positive * positive));
     reduced /= 1 + sqrt(1 + reduced * reduced);
     term := reduced;
@@ -439,11 +464,13 @@ atan :: (x: float64) -> float64 {
     result := 4 * total;
     if reciprocal result = PI64 * 0.5 - result;
     if value < 0 result = -result;
+
     return result;
 }
 
 atan2 :: (y: float64, x: float64) -> float64 {
     if isnan(x) || isnan(y) return FLOAT64_NAN;
+
     sign_y := (float64_bits(y) >> 63) != 0;
     sign_x := (float64_bits(x) >> 63) != 0;
 
@@ -568,6 +595,7 @@ half_to_float :: (h: u16) -> float {
 
     if exponent == 0 {
         if fraction == 0 return float32_from_bits(sign);
+
         power: s32 = -14;
 
         while (fraction & 1024) == 0 {

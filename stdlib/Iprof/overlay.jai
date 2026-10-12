@@ -110,12 +110,14 @@ draw :: (sx: float, sy: float, full_width: float, height: float, config: *Config
 
         bar := ifx it_index & 1 then config.bar_color_b else config.bar_color_a;
         if it_index == report.hilight bar = lighten(bar, config.selected_bar_whiten_amount);
+
         config.draw_rectangle(sx, y - line, sx + full_width, y, bar);
 
         color := lerp(config.zone_text_color_cold, config.zone_text_color_hot, cast(float) it.heat);
         label := it.name;
 
         if it.prefix != #char " " && it.prefix != 0 label = tprint("% %", string.{ 1, *it.prefix }, it.name);
+
         indent := line * (.5 + cast(float) it.indent);
 
         text_at(config, sx + indent, y - line, label, color);
@@ -124,6 +126,7 @@ draw :: (sx: float, sy: float, full_width: float, height: float, config: *Config
         if it.value_flag & VALUE_SELF text_right(config, name_right + column_w, y - line, number_text(it.self_time, digits), color);
         if it.value_flag & VALUE_HIER text_right(config, name_right + column_w * 2, y - line, number_text(it.hier_time, digits), color);
         if it.value_flag & VALUE_CALLS text_right(config, name_right + column_w * 3, y - line, number_text(it.calls, -1), color);
+
         y -= line;
     }
 }
@@ -156,6 +159,7 @@ draw_graph :: (sx: float, sy: float, width: float, height: float, config: *Confi
 
         target: float64 = 0.125;
         while target < tallest target *= 2;
+
         scaling.target_scale_ms = target;
         scaling.full_scale_ms += (target - scaling.full_scale_ms) * .25;
         full := max(scaling.full_scale_ms, 0.001);
@@ -186,12 +190,14 @@ draw_graph :: (sx: float, sy: float, width: float, height: float, config: *Confi
 
         for *zone: zones {
             if !zone.entered continue;
+
             is_root := zone == *zones[0];
             color := config.graph_colors[color_index % config.graph_colors.count];
 
             if !is_root color_index += 1;
             if is_root color = config.graph_current_time_history_color;
             if zone == graph_focus color = config.selected_graph_color;
+
             thickness := ifx zone == graph_focus then 2.5 else 1.0;
 
             for f: 0..frames - 2 {
@@ -266,6 +272,7 @@ lighten :: (c: Vector4, amount: float) -> Vector4 {
     result.x += (1 - c.x) * amount;
     result.y += (1 - c.y) * amount;
     result.z += (1 - c.z) * amount;
+
     return result;
 }
 

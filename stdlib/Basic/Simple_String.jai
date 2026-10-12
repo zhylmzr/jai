@@ -71,7 +71,9 @@ temp_c_string :: (s: string) -> *u8 {
     result := cast(*u8) temporary_alloc(s.count + 1);
     if !result return null;
     if s.count > 0 memcpy(result, s.data, s.count);
+
     result[s.count] = 0;
+
     return result;
 }
 
@@ -79,7 +81,9 @@ to_c_string :: (s: string) -> *u8 {
     result := cast(*u8) alloc(s.count + 1);
     if !result return null;
     if s.count > 0 memcpy(result, s.data, s.count);
+
     result[s.count] = 0;
+
     return result;
 }
 
@@ -163,6 +167,7 @@ string_to_float_type_T :: (_arg: string) -> result: $T, success: bool, remainder
 
     value := decimal_to_float64(digits.significand, digits.power_of_ten);
     if negative value = -value;
+
     return cast(T) value, true, advance(text, position);
 }
 
@@ -184,8 +189,10 @@ string_to_float :: (arg: string) -> result: float, success: bool, remainder: str
 // and the unconsumed suffix begins at the first byte that was not a digit.
 string_to_int :: (t: string, base := 10, $T := int) -> result: T, success: bool, remainder: string {
     if base < 2 || base > 36 return 0, false, t;
+
     info := cast(*Type_Info_Integer) type_info(T);
     if info.type != .INTEGER || info.runtime_size > 8 return 0, false, t;
+
     text := eat_spaces(t);
     position: s64 = 0;
     negative := false;
@@ -198,6 +205,7 @@ string_to_int :: (t: string, base := 10, $T := int) -> result: T, success: bool,
     }
 
     if negative && !info.signed return 0, false, t;
+
     limit: u64 = 0xffff_ffff_ffff_ffff;
     bits := info.runtime_size * 8;
 
@@ -219,12 +227,14 @@ string_to_int :: (t: string, base := 10, $T := int) -> result: T, success: bool,
         else if is_alpha(byte) digit = to_lower(byte) - #char "a" + 10;
         if digit >= cast(u64) base break;
         if value > (limit - digit) / cast(u64) base return 0, false, t;
+
         value = value * cast(u64) base + digit;
         position += 1;
     }
 
     if position == first_digit return 0, false, t;
     if negative && value != 0 value = ~value + 1;
+
     return cast,no_check(T) value, true, advance(text, position);
 }
 
@@ -295,6 +305,7 @@ decimal_to_float64 :: (significand: u64, power_of_ten: s64) -> float64 #no_aoc {
         shift: u64 = 1;
 
         while (top >> shift) != 0 shift += 1;
+
         mantissa = (top << (64 - shift)) | (bottom >> shift);
 
         if (bottom >> (shift - 1)) & 1 {
@@ -326,6 +337,7 @@ decimal_to_float64 :: (significand: u64, power_of_ten: s64) -> float64 #no_aoc {
         lead: u64 = 0;
 
         while ((upper << lead) & 0x8000_0000_0000_0000) == 0 lead += 1;
+
         mantissa = (upper << lead) | (lower >> (64 - lead));
 
         if (lower >> (63 - lead)) & 1 {
@@ -342,9 +354,11 @@ decimal_to_float64 :: (significand: u64, power_of_ten: s64) -> float64 #no_aoc {
     // Round the 64-bit mantissa to the 53 bits (fewer when subnormal) a float64 keeps.
     exponent := binary_exponent + 63;
     if exponent > 1023 return (cast(*float64) *infinity_bits).*;
+
     dropped: u64 = 11;
     if exponent < -1022 dropped += cast(u64) (-1022 - exponent);
     if dropped > 64 return 0;
+
     kept: u64 = 0;
     rest := mantissa;
 
@@ -355,6 +369,7 @@ decimal_to_float64 :: (significand: u64, power_of_ten: s64) -> float64 #no_aoc {
 
     half := (cast(u64) 1) << (dropped - 1);
     if rest > half || (rest == half && (kept & 1) != 0) kept += 1;
+
     bits: u64;
 
     if exponent < -1022 {

@@ -3,6 +3,7 @@
 gl_parse_version :: (version: string) -> major: s32, minor: s32 {
     at: s64 = 0;
     while at < version.count && (version[at] < 48 || version[at] > 57) at += 1;
+
     major: s32 = 0;
     minor: s32 = 0;
 
@@ -40,11 +41,14 @@ gl_supports_extension :: (ext: string) -> bool {
 #scope_module
 _gl_string :: (data: *u8) -> string {
     if !data return "";
+
     count: s64 = 0;
     while data[count] != 0 count += 1;
+
     result: string;
     result.data = data;
     result.count = count;
+
     return result;
 }
 
@@ -68,17 +72,21 @@ _gl_has_extension :: (procs: *GL_Procedures, wanted: string) -> bool {
 
     names := procs.glGetString(GL_EXTENSIONS);
     if !names return false;
+
     text := _gl_string(names);
     begin: s64 = 0;
 
     while begin < text.count {
         while begin < text.count && text[begin] == 32 begin += 1;
+
         end := begin;
         while end < text.count && text[end] != 32 end += 1;
+
         portion: string;
         portion.data = text.data + begin;
         portion.count = end - begin;
         if portion == wanted return true;
+
         begin = end;
     }
 
@@ -91,6 +99,7 @@ _gl_platform_get_proc :: (name: *u8) -> *void #c_call {
         if cast(u64) result > 3 && cast(u64) result != 0xffff_ffff_ffff_ffff return result;
         if !__gl_library_handle __gl_library_handle = _gl_win_open(cast(*u8) "opengl32.dll\0");
         if !__gl_library_handle return null;
+
         return _gl_win_symbol(__gl_library_handle, name);
     } else #if OS == .LINUX {
         return _gl_x11_resolver(name);

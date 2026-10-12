@@ -5,6 +5,7 @@ OS_IS_UNIX :: OS == .MACOS || OS == .LINUX || OS == .PS5 || OS == .IOS || OS == 
 
 __element_duplicate :: (start: *u8, num_elements: s64, size: s64) #c_call #no_aoc {
     if num_elements <= 1 || size <= 0 return;
+
     written: s64 = 1;
     while written < num_elements {
         memcpy(start + written * size, start, size);
@@ -75,6 +76,7 @@ runtime_support_report_assertion :: (loc: Source_Code_Location, message: string)
             write_string("    ", true);
             if node.info.name.count write_string(node.info.name, true);
             else write_string("(anonymous procedure)", true);
+
             write_strings(" at ", runtime_support_shown_path(node.info.location.fully_pathed_filename), to_standard_error = true);
             write_number_after(":", node.line_number, true);
             write_string("\n", true);
@@ -102,6 +104,7 @@ runtime_support_shown_path :: (path: string) -> string #no_context #no_abc {
     shown := path;
     shown.data += base.count;
     shown.count -= base.count;
+
     return shown;
 }
 
@@ -174,9 +177,11 @@ __arithmetic_overflow :: (left: s64, right: s64, type_code: u16, line_number: s6
     write_string("arithmetic overflow computing ", true);
     if signed write_number(left, to_standard_error = true);
     else write_nonnegative_number(cast,no_check(u64) left, to_standard_error = true);
+
     write_string(operator_text, true);
     if signed write_number(right, to_standard_error = true);
     else write_nonnegative_number(cast,no_check(u64) right, to_standard_error = true);
+
     write_string(ifx signed then " as s" else " as u", true);
     write_nonnegative_number(bits, to_standard_error = true);
     write_string(": the result does not fit\n", true);
@@ -225,6 +230,7 @@ runtime_support_check_failed :: (reason: s64, a: s64, b: s64, fatal: bool, line:
             write_string("cast of ", true);
             if b & 0x200 write_number(a, to_standard_error = true);
             else write_nonnegative_number(cast,no_check(u64) a, to_standard_error = true);
+
             write_string(ifx b & 0x100 then " to `s" else " to `u", true);
             write_nonnegative_number(cast,no_check(u64) (b & 0xff) * 8, to_standard_error = true);
             write_string("` overflows", true);
@@ -264,10 +270,12 @@ write_string_unsynchronized :: (s: string, to_standard_error := false) #no_conte
                 remaining := s.count - cursor;
 
                 if remaining > 0x7fff_ffff remaining = 0x7fff_ffff;
+
                 requested := cast(u32) remaining;
                 transferred: u32;
 
                 if WriteFile(handle, s.data + cursor, requested, *transferred, null) == 0 return;
+
                 amount := cast(s64) transferred;
             } else #if OS_IS_UNIX {
                 amount := host_write(ifx to_standard_error then 2 else 1, s.data + cursor, cast(u64) (s.count - cursor));
@@ -277,6 +285,7 @@ write_string_unsynchronized :: (s: string, to_standard_error := false) #no_conte
 
             // A failed or zero write cannot make forward progress.
             if amount <= 0 return;
+
             cursor += amount;
         }
     }
@@ -368,6 +377,7 @@ runtime_support_default_allocator_proc :: Default_Allocator.allocator_proc;
         first_thread_temporary_storage.data = first_thread_temporary_storage_data.data;
         first_thread_temporary_storage.size = TEMPORARY_STORAGE_SIZE;
         first_thread_context.temporary_storage = *first_thread_temporary_storage;
+
         return *first_thread_context;
     }
 
@@ -409,6 +419,7 @@ __instrumentation_second :: () {
         }
 
         __jai_runtime_fini(runtime_context);
+
         return exit_code;
     }
 }
@@ -481,16 +492,19 @@ __panic_due_to_runtime_call_of_compile_time_procedure :: (line_number: s64, file
         wide := CommandLineToArgvW(GetCommandLineW(), *count);
 
         if !wide return;
+
         heap := GetProcessHeap();
         arguments := cast(**u8) HeapAlloc(heap, 0, cast(u64) (count + 1) * size_of(*u8));
 
         if !arguments return;
+
         index: s32;
         while index < count {
             bytes := WideCharToMultiByte(CP_UTF8, 0, wide[index], -1, null, 0, null, null);
             text := cast(*u8) HeapAlloc(heap, 0, cast(u64) bytes + 1);
 
             if !text return;
+
             text[0] = 0;
             WideCharToMultiByte(CP_UTF8, 0, wide[index], -1, text, bytes, null, null);
             arguments[index] = text;

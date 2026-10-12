@@ -13,6 +13,7 @@ get_plugin :: () -> *Metaprogram_Plugin {
     state.plugin.handle_one_option = handle_one_option;
     state.plugin.shutdown = shutdown;
     state.plugin.message = message;
+
     return *state.plugin;
 }
 
@@ -35,6 +36,7 @@ shutdown :: (p: *Metaprogram_Plugin) {
 handle_one_option :: (p: *Metaprogram_Plugin, options: [] string, cursor: int) -> new_cursor: int {
     if cursor < 0 || cursor >= options.count return cursor;
     if options[cursor] != "-icon" return cursor;
+
     next := cursor + 1;
     if next == options.count {
         log_error("Missing filename after -icon.\n");
@@ -43,6 +45,7 @@ handle_one_option :: (p: *Metaprogram_Plugin, options: [] string, cursor: int) -
 
     state := cast(*Icon_Plugin) p;
     state.icon_filename = options[next];
+
     return next + 1;
 }
 
@@ -61,6 +64,7 @@ desktop_entry_text :: (name: string, executable_path: string, icon_path: string)
     print_to_builder(*entry, "Exec=%\n", executable_path);
     print_to_builder(*entry, "Icon=%\n", icon_path);
     append(*entry, "Terminal=false\n");
+
     return builder_to_string(*entry);
 }
 
@@ -74,6 +78,7 @@ write_desktop_entry :: (executable_path: string, icon_path: string) -> string {
 
     path := tprint("%.desktop", executable_path);
     if !write_entire_file(path, desktop_entry_text(name, executable_path, icon_path)) return "";
+
     return path;
 }
 
@@ -89,6 +94,7 @@ stamp_icon :: (icon_filename: string, workspace: Workspace, executable_name: str
         directory := options.output_path;
 
         if !directory directory = ".";
+
         executable := tprint("%/%", directory, executable_name);
         absolute, found := get_absolute_path(executable);
         icon_absolute, icon_found := get_absolute_path(icon_filename);

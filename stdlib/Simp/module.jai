@@ -101,6 +101,7 @@ prepare_window :: (window: Window_Type, wanted_msaa: int) -> chosen_msaa: s32 {
 backend_init :: (info: *Window_Info) {
     assert(info != null);
     if !info return;
+
     CheckInit();
 
     #if render_api == .OPENGL {
@@ -122,8 +123,10 @@ clear_render_target :: (r: float, g: float, b: float, a: float) {
 
         assert(target != null, "Select a render target before clearing");
         if !target return;
+
         assert(target.format == .RGBA8 || target.format == .BGRA8, "Software clears require RGBA8/BGRA8 targets");
         if target.format != .RGBA8 && target.format != .BGRA8 return;
+
         red := cast(u8) clamp(floor(cast(float64) r * 255 + 0.5), 0.0, 255.0);
         green := cast(u8) clamp(floor(cast(float64) g * 255 + 0.5), 0.0, 255.0);
         blue := cast(u8) clamp(floor(cast(float64) b * 255 + 0.5), 0.0, 255.0);
@@ -176,11 +179,13 @@ get_render_dimensions :: (window: Window_Type) -> (width: s32, height: s32) {
             width, height, border_width, depth: u32;
 
             X11.XGetGeometry(X11.x_global_display, window, *root, *x, *y, *width, *height, *border_width, *depth);
+
             return cast(s32) width, cast(s32) height;
         } else #if OS == .MACOS {
             // The backing store size is in real pixels even on high-density displays.
             view := AppKit.NSWindow.contentView(window);
             if !view return 0, 0;
+
             backing := AppKit.NSView.convertRectToBacking(view, AppKit.NSView.frame(view));
 
             return cast(s32) backing.size.width, cast(s32) backing.size.height;
@@ -189,6 +194,7 @@ get_render_dimensions :: (window: Window_Type) -> (width: s32, height: s32) {
 
     info := find_window_info(window);
     if info return info.window_width, info.window_height;
+
     return 0, 0;
 }
 
@@ -232,6 +238,7 @@ set_render_target :: (texture: *Texture, coords := Simp_Coordinate_System.RIGHT_
 
     assert((texture.flags & .Render_Target) != 0, "Simp requires a render-target texture");
     if !(texture.flags & .Render_Target) return;
+
     CheckInit();
     end_target_pass(coords);
     context.simp.texture_render_target = texture;
@@ -246,10 +253,12 @@ update_window :: (window: Window_Type) {
     drawing := *context.simp.current_window_info;
 
     if drawing.window != window return;
+
     size_changed := drawing.window_width != info.window_width || drawing.window_height != info.window_height;
 
     drawing.* = info.*;
     if !size_changed return;
+
     backend_resize_render_target(info.*);
     if context.simp.current_shader && !context.simp.texture_render_target set_projection();
 }

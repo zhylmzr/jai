@@ -72,18 +72,24 @@ plugin_finish :: (p: *Metaprogram_Plugin) {
 check_print_calls :: (tc: Typechecked) {
     for node: tc.subexpressions {
         if !node || node.kind != .PROCEDURE_CALL continue;
+
         call := cast(*Code_Procedure_Call) node;
         callee := call.resolved_procedure_expression;
 
         if !callee || callee.kind != .PROCEDURE_HEADER continue;
+
         header := cast(*Code_Procedure_Header) callee;
         if !is_printlike_or_scanlike(header) || !validate_printlike(header) continue;
+
         format_index, varargs_index := get_argument_indices_of_format_string_and_varargs(header);
         if format_index < 0 || format_index >= call.arguments_sorted.count continue;
+
         argument := call.arguments_sorted[format_index];
         if !argument || argument.kind != .LITERAL continue;
+
         literal := cast(*Code_Literal) argument;
         if literal.value_type != .STRING continue;
+
         required := count_percents(literal._string, literal);
         supplied := call.arguments_sorted.count - varargs_index;
 

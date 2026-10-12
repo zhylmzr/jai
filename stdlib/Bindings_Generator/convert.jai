@@ -35,14 +35,17 @@ get_children :: (c: Cursor) -> [..] Cursor {
 
 file_id_for :: (name: string) -> s64 {
     if !name return 0;
+
     g := context.generator;
     found, id := table_find(*g.file_ids, name);
 
     if found return id;
+
     array_add(*g.filenames, name);
     new_id := g.filenames.count;
 
     table_add(*g.file_ids, name, new_id);
+
     return new_id;
 }
 
@@ -61,6 +64,7 @@ cursor_location :: (c: Cursor) -> Location, string {
     loc.file = file_id_for(file);
     loc.line = cast(u32) line;
     loc.column = cast(u32) column;
+
     return loc, file;
 }
 
@@ -134,6 +138,7 @@ name_clashes :: (existing: *[..] *Declaration, name: string) -> bool {
 // Same name and the same argument types (the object argument is ignored on request).
 functions_are_equivalent :: (a: *Function, b: *Function, ignore_first_argument := false) -> bool {
     if a.output_name != b.output_name return false;
+
     at := a.type.type_of_function;
     bt := b.type.type_of_function;
     first := 0;
@@ -149,6 +154,7 @@ functions_are_equivalent :: (a: *Function, b: *Function, ignore_first_argument :
     }
 
     if at.arguments.count != bt.arguments.count return false;
+
     i := first;
     while i < at.arguments.count {
         if !is_same_type(at.arguments[i].type.*, bt.arguments[i].type.*) return false;
@@ -189,8 +195,10 @@ rename_equivalent_overload :: (existing: *[..] *Declaration, decl: *Declaration)
                 // Both get `/*const reference*/` comments to tell the overloads apart.
                 other := cast(*Function) it;
                 if other.type && other.type.type_of_function other.type.type_of_function.flags |= .ADD_C_TYPE_DETAILS;
+
                 self_func := cast(*Function) decl;
                 if self_func.type && self_func.type.type_of_function self_func.type.type_of_function.flags |= .ADD_C_TYPE_DETAILS;
+
                 clash = true;
                 break;
             }
@@ -202,6 +210,7 @@ rename_equivalent_overload :: (existing: *[..] *Declaration, decl: *Declaration)
         }
 
         if !clash break;
+
         count += 1;
         decl.output_name = tprint("%_%", original, count);
     }
@@ -280,6 +289,7 @@ struct_type_named :: (name: string, output_name: string, size: s64) -> *CType, *
     t.type_of_struct = New(Struct);
     t.type_of_struct.name = name;
     t.type_of_struct.output_name = output_name;
+
     return t, t.type_of_struct;
 }
 
@@ -312,6 +322,7 @@ strip_type :: (type: *CType, typedefs := false, enums := false) -> *CType {
         if typedefs && t.type_of_typedef under = t.type_of_typedef.type;
         else if enums && t.type_of_enum under = t.type_of_enum.type;
         if !under break;
+
         t = under;
     }
 
@@ -341,6 +352,7 @@ is_user_declaration :: (c: Cursor, name: string) -> bool {
     file := clang_text();
     if !file return false;
     if !clang("system_header", c) return true;
+
     options := *context.generator_options;
     lower := to_lower_copy(file);
 
@@ -359,8 +371,10 @@ is_user_declaration :: (c: Cursor, name: string) -> bool {
 
 fill_comment :: (comment: *Comment, c: Cursor, location: Location) {
     if !context.generator_options.try_to_preserve_comments return;
+
     text := clang_string("comment", c);
     if !text return;
+
     comment.text = text;
     // The location is only kept for a comment that starts on an earlier line than the
     // declaration: that makes it a prefix comment. A same-line comment follows the declaration.
@@ -431,6 +445,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             // their layout, and functions that pass one are stripped (see uses_wide_long_double).
             if size == 8 return g.type_def_float64;
             if size == 4 return g.type_def_float32;
+
             result = New(CType);
 
             if context.generator_options.use_jaic_long_double {
@@ -443,6 +458,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             result.size = size;
             result.alignment = clang("t_alignof", ty);
             result.flags |= .WIDE_LONG_DOUBLE;
+
             return result;
         case T_NULLPTR; return g.type_def_ptr_void;
 
@@ -489,6 +505,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             result = create_pointer_to(create_type(pointee, ctx));
             result.size = size;
             if clang("t_const", pointee) result.pointer_to = copy_ctype_const(result.pointer_to);
+
             return result;
 
         case T_BLOCKPOINTER;
@@ -511,6 +528,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             result = New(CType);
             result.type_of_struct = create_objc_interface(clang("t_decl", ty), true);
             result.size = 0;
+
             return result;
 
         case T_OBJCOBJECT;
@@ -522,7 +540,9 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
 
             // `id` and `Class` are pointers already.
             if inner == g.type_def_objc_id || inner == g.type_def_objc_class return inner;
+
             result = create_pointer_to(inner);
+
             return result;
 
         case T_LVALUEREF; #through;
@@ -532,7 +552,9 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             result = create_pointer_to(create_type(pointee, ctx));
             result.flags |= .REFERENCE;
             if clang("t_const", pointee) result.flags |= .CONST;
+
             result.size = g.pointer_size;
+
             return result;
 
         case T_RECORD;
@@ -547,6 +569,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             result = New(CType);
             result.type_of_enum = e;
             result.size = size;
+
             return result;
 
         case T_TYPEDEF;
@@ -566,6 +589,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
                 result.hardcoded_jai_string = name;
                 result.size = size;
                 result.alignment = clang("t_alignof", ty);
+
                 return result;
             }
 
@@ -577,6 +601,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             result = New(CType);
             result.type_of_typedef = td;
             result.size = size;
+
             return result;
 
         case T_FUNCTIONPROTO; #through;
@@ -584,6 +609,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             result = New(CType);
             result.type_of_function = create_function_type(ty, 0, null);
             result.size = size;
+
             return result;
 
         case T_CONSTANTARRAY;
@@ -591,6 +617,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             result.array_element_type = create_type(clang("t_element", ty), ctx);
             result.array_element_count = clang("t_array_size", ty);
             result.size = size;
+
             return result;
 
         case T_INCOMPLETEARRAY;
@@ -598,6 +625,7 @@ create_type :: (ty: Clang_Type, ctx: Cursor = 0) -> *CType {
             result.array_element_type = create_type(clang("t_element", ty), ctx);
             result.array_element_count = -1;
             result.size = -1;
+
             return result;
 
         case T_VARIABLEARRAY; #through;
@@ -633,8 +661,10 @@ create_block_type :: (ty: Clang_Type, ctx: Cursor) -> *CType {
     pk := type_kind(pointee);
 
     if pk != T_FUNCTIONPROTO && pk != T_FUNCTIONNOPROTO return g.type_def_ptr_void;
+
     ft := create_function_type(pointee, 0, null);
     if !ft.return_type return g.type_def_ptr_void;
+
     ft.return_type = erase_objc_type_params(ft.return_type);
     for ft.arguments it.type = erase_objc_type_params(it.type);
 
@@ -659,6 +689,7 @@ create_block_type :: (ty: Clang_Type, ctx: Cursor) -> *CType {
     s.name = name;
     s.output_name = name;
     if ctx s.location = cursor_location(ctx);
+
     s.flags |= .NO_STRUCT_CHECKS | .OBJC_BLOCK;
     s.type = New(CType);
     s.type.type_of_struct = s;
@@ -678,6 +709,7 @@ create_block_type :: (ty: Clang_Type, ctx: Cursor) -> *CType {
 
     array_add(*arguments, block_arg);
     for ft.arguments array_add(*arguments, it);
+
     ft.arguments = arguments;
     invoke_type := New(CType);
     invoke_type.type_of_function = ft;
@@ -687,6 +719,7 @@ create_block_type :: (ty: Clang_Type, ctx: Cursor) -> *CType {
 
     array_add(*g.global_scope.members, s);
     table_add(*g.added_to_scope, s, true);
+
     return create_pointer_to(s.type);
 }
 
@@ -718,11 +751,13 @@ sanitize_for_identifier :: (text: string) -> string {
 create_record_type :: (ty: Clang_Type, decl: Cursor, ctx: Cursor, size: s64) -> *CType {
     base := clang("specialized_template", decl);
     if base decl = base;
+
     s := create_struct(decl);
     result := New(CType);
     result.type_of_struct = s;
     result.size = size;
     if base fill_template_arguments(ty, result, ctx);
+
     return result;
 }
 
@@ -765,6 +800,7 @@ create_unexposed_type :: (ty: Clang_Type, ctx: Cursor) -> *CType {
 
     collect_references(ctx, *refs, 0);
     if refs.count == 0 return null;
+
     name := cursor_name(refs[0]);
     is_template_ref := cursor_kind(refs[0]) == .TEMPLATE_REF;
 
@@ -779,8 +815,10 @@ create_unexposed_type :: (ty: Clang_Type, ctx: Cursor) -> *CType {
         i := 1;
         while i < refs.count {
             if cursor_kind(refs[i]) != .TYPE_REF return null;
+
             arg := create_type(clang("type", refs[i]), refs[i]);
             if !arg return null;
+
             array_add(*result.template_instantiation_params, arg);
             i += 1;
         }
@@ -831,6 +869,7 @@ fill_template_arguments :: (ty: Clang_Type, result: *CType, ctx: Cursor) -> bool
         }
 
         if !arg return false;
+
         array_add(*result.template_instantiation_params, arg);
         i += 1;
     }
@@ -850,6 +889,7 @@ template_argument_text :: (spelling: string, index: s64) -> string {
     }
 
     if start < 0 return "";
+
     depth := 0;
     current := 0;
     arg_start := start;
@@ -944,17 +984,20 @@ create_function_type :: (ty: Clang_Type, cur: Cursor, func: *Function) -> *Funct
         parent_type.size = clang("t_sizeof", clang("type", parent));
         this_arg.type = create_pointer_to(parent_type);
         if clang("is_const_method", cur) this_arg.type.flags |= .CONST;
+
         array_add(*ft.arguments, this_arg);
     }
 
     ft.return_type = create_type(clang("t_result", ty), cur);
     if clang("t_variadic", ty) ft.flags |= .VARIADIC;
+
     // MSVC virtual destructors take a hidden flags argument (bit 0: free the memory, bit 1: delete[]).
     windows_virtual_destructor := kind == .DESTRUCTOR && context.generator_options.os == .WINDOWS && clang("is_virtual", cur);
 
     count := clang("t_num_args", ty);
 
     if count < 0 count = 0;
+
     cursor_args := 0;
     if cur cursor_args = clang("num_args", cur);
 
@@ -966,6 +1009,7 @@ create_function_type :: (ty: Clang_Type, cur: Cursor, func: *Function) -> *Funct
         arg.kind = .DECLARATION;
         arg_cursor: Cursor;
         if i < cursor_args arg_cursor = clang("arg", cur, i);
+
         arg_type := clang("t_arg", ty, i);
 
         if arg_cursor {
@@ -1023,6 +1067,7 @@ create_function_type :: (ty: Clang_Type, cur: Cursor, func: *Function) -> *Funct
 name_function_arguments :: (ty: *CType, c: Cursor) {
     while ty && ty.pointer_to ty = ty.pointer_to;
     if !ty || !ty.type_of_function return;
+
     ft := ty.type_of_function;
     children := get_children(c);
     index := 0;
@@ -1030,6 +1075,7 @@ name_function_arguments :: (ty: *CType, c: Cursor) {
     for children {
         if cursor_kind(it) != .PARM_DECL continue;
         if index >= ft.arguments.count break;
+
         name := cursor_name(it);
         if name {
             ft.arguments[index].name = name;
@@ -1097,6 +1143,7 @@ operator_names :: (name: string, argument_count: s64) -> output_name: string, ov
 
     // Every spelled symbol starts with `_`; conversion operators (`operator int`) do not.
     if !begins_with(spelled, "_") spelled = tprint("_%", spelled);
+
     return tprint("operator%", spelled), false;
 }
 
@@ -1152,6 +1199,7 @@ create_function :: (c: Cursor, parent: *Declaration) -> *Function {
         constructor_name := "";
 
         if ft.flags & .CONSTRUCTOR constructor_name = tprint("%C1E", name);
+
         i := 0;
         while i < manglings {
             mangled := normalize_mangled_name(clang_string("mangling_item", i));
@@ -1234,6 +1282,7 @@ create_expression_from_cursor :: (c: Cursor, target_type: *CType) -> *Expression
         lit := New(Literal);
         lit.literal_kind = .RAW_CPP_TOKENS;
         lit.raw_value = ifx tokens.count > 0 then tokens[0].spelling else "false";
+
         return lit;
     }
 
@@ -1267,6 +1316,7 @@ create_expression_from_cursor :: (c: Cursor, target_type: *CType) -> *Expression
         cast_children := get_children(c);
         for cast_children {
             if !is_expression_kind(xx cursor_kind(it)) continue;
+
             inner := create_expression_from_cursor(it, null);
             if inner && inner.kind == .LITERAL {
                 inner_lit := cast(*Literal) inner;
@@ -1287,12 +1337,14 @@ create_expression_from_cursor :: (c: Cursor, target_type: *CType) -> *Expression
         bits := clang("eval_double");
 
         lit.float_value = <<cast(*float64) *bits;
+
         return lit;
     } else if result == 4 {
         lit := New(Literal);
         lit.literal_kind = .STRING;
         clang("eval_string");
         lit.string_value = clang_text();
+
         return lit;
     }
 
@@ -1361,11 +1413,14 @@ create_expression_from_cursor :: (c: Cursor, target_type: *CType) -> *Expression
     // Anything else: keep the tokens and print them as written.
     tokens := tokens_of(c);
     if tokens.count == 0 return null;
+
     lit := New(Literal);
     lit.literal_kind = .RAW_CPP_TOKENS;
     builder: String_Builder;
     for tokens append(*builder, it.spelling);
+
     lit.raw_value = builder_to_string(*builder);
+
     return lit;
 }
 
@@ -1459,6 +1514,7 @@ create_struct :: (c: Cursor) -> *Struct {
 
     key := clang("definition", c);
     if !key key = clang("canonical", c);
+
     found, existing := table_find(*g.declarations_by_cursor, key);
     if found return cast(*Struct) existing;
 
@@ -1506,6 +1562,7 @@ create_struct :: (c: Cursor) -> *Struct {
     }
 
     if is_template g.template_depth += 1;
+
     fill_struct_members(s, key);
     if is_template g.template_depth -= 1;
 
@@ -1522,8 +1579,10 @@ create_constant_declaration :: (c: Cursor) -> *Declaration {
     ty := clang("type", c);
 
     if !clang("t_const", ty) return null;
+
     result := clang("evaluate", c);
     if result != 1 && result != 2 return null;
+
     name := cursor_name(c);
     decl := New(Declaration);
     decl.kind = .DECLARATION;
@@ -1545,6 +1604,7 @@ create_constant_declaration :: (c: Cursor) -> *Declaration {
     }
 
     table_set(*g.known_constants, name, true);
+
     return decl;
 }
 
@@ -1554,8 +1614,10 @@ add_method :: (s: *Struct, c: Cursor) {
     key := clang("canonical", c);
 
     if table_contains(*g.declarations_by_cursor, key) return;
+
     func := create_function(c, s);
     if !func return;
+
     table_add(*g.declarations_by_cursor, key, func);
     ft := func.type.type_of_function;
     if !context.generator_options.use_jaic_long_double && uses_wide_long_double(ft) {
@@ -1632,10 +1694,12 @@ fill_struct_members :: (s: *Struct, key: Cursor) {
                 // struct B : public A  becomes  B :: struct { #as using a: A; }
                 parent_type := create_type(clang("type", it), it);
                 if !parent_type continue;
+
                 base_name: string;
                 if parent_type.type_of_struct base_name = parent_type.type_of_struct.name;
                 else if parent_type.type_of_typedef base_name = parent_type.type_of_typedef.name;
                 else continue;
+
                 parent_decl := New(Declaration);
                 parent_decl.kind = .DECLARATION;
                 parent_decl.name = to_lower_copy(base_name);
@@ -1747,8 +1811,10 @@ is_msvc_layout :: () -> bool {
 fits_msvc_unit :: (bitfield: *Bitfield, field: *Declaration) -> bool {
     first := bitfield.members[0];
     if !first.type || !field.type || first.type.size != field.type.size return false;
+
     unit_bits := first.type.size * 8;
     if unit_bits <= 0 return false;
+
     return field.bit_offset_in_parent / unit_bits == first.bit_offset_in_parent / unit_bits;
 }
 
@@ -1853,6 +1919,7 @@ create_objc_object_type :: (ty: Clang_Type) -> *CType {
     }
 
     if !decl return g.type_def_objc_id;
+
     result := New(CType);
     result.type_of_struct = create_objc_interface(decl, true);
     result.size = 0;
@@ -1875,6 +1942,7 @@ objc_self_type :: (s: *Struct) -> *CType {
     result.type_of_struct = s;
     result.size = 0;
     for s.template_type_params array_add(*result.template_instantiation_params, make_type_param_placeholder(it.name));
+
     return result;
 }
 
@@ -1952,6 +2020,7 @@ create_objc_interface :: (c: Cursor, resolving_type_only := false) -> *Struct {
     if kind == .OBJC_INTERFACE_DECL && s.template_type_params.count == 0 {
         for get_children(c) {
             if cursor_kind(it) != .TEMPLATE_TYPE_PARAMETER continue;
+
             param := New(Declaration);
             param.kind = .DECLARATION;
             param.name = cursor_name(it);
@@ -1968,6 +2037,7 @@ create_objc_interface :: (c: Cursor, resolving_type_only := false) -> *Struct {
     // only a declaration whose definition was seen elsewhere is skipped.
     definition := clang("definition", c);
     if !clang("is_definition", c) && definition return s;
+
     s.objc_filled = true;
     s.flags &= ~Struct.Flags.IS_INCOMPLETE;
     s.location = cursor_location(c);
@@ -1985,10 +2055,12 @@ create_objc_interface :: (c: Cursor, resolving_type_only := false) -> *Struct {
             case .OBJC_PROTOCOL_REF;
                 ref := clang("referenced", it);
                 if !ref continue;
+
                 parent := create_objc_interface(ref, true);
                 parent_type := parent.type;
 
                 if child_kind == .OBJC_SUPER_CLASS_REF && parent.template_type_params.count > 0 parent_type = objc_superclass_type(parent, children, it_index);
+
                 add_objc_parent(s, to_lower_copy(parent.name), parent_type, it);
 
             case .OBJC_IVAR_DECL;
@@ -2027,6 +2099,7 @@ add_objc_ivar :: (s: *Struct, c: Cursor) {
     field.output_name = avoid_reserved_names(field.name);
     offset := clang("field_offset", c);
     if offset >= 0 field.bit_offset_in_parent = offset;
+
     avoid_name_clash(*s.declarations, field); // Adds it.
 }
 
@@ -2159,6 +2232,7 @@ create_enum :: (c: Cursor) -> *Enum {
     key := clang("definition", c);
 
     if !key key = clang("canonical", c);
+
     found, existing := table_find(*g.declarations_by_cursor, key);
     if found return cast(*Enum) existing;
 
@@ -2166,9 +2240,11 @@ create_enum :: (c: Cursor) -> *Enum {
     e := New(Enum);
     e.kind = .ENUM;
     if !anonymous_spelling(spelling) && !clang("is_anonymous", key) e.name = spelling;
+
     e.location = cursor_location(key);
     fill_comment(*e.comment, key, e.location);
     if e.name e.output_name = avoid_reserved_names(stripped_name(e.name), true);
+
     table_add(*g.declarations_by_cursor, key, e);
 
     int_type := clang("enum_int_type", key);
@@ -2192,10 +2268,12 @@ create_enum :: (c: Cursor) -> *Enum {
     children := get_children(key);
     for children {
         if cursor_kind(it) != .ENUM_CONSTANT_DECL continue;
+
         value := New(Literal);
         value.literal_kind = .INTEGER;
         if is_signed_storage(e.type) value.int_value = clang("enum_value", it);
         else value.int_value = cast,no_check(s64) clang("enum_uvalue", it);
+
         en := new_enumerator(e, cursor_name(it), cursor_location(it), value);
 
         fill_comment(*en.comment, it, en.location);
@@ -2206,6 +2284,7 @@ create_enum :: (c: Cursor) -> *Enum {
     }
 
     if e.name compute_enum_names(e, false);
+
     return e;
 }
 
@@ -2227,6 +2306,7 @@ new_enumerator :: (e: *Enum, name: string, location: Location, value: *Literal) 
     en.parent = e;
     en.expression = value;
     en.decl_flags |= .IS_CONST;
+
     return en;
 }
 
@@ -2282,6 +2362,7 @@ compute_enum_names :: (e: *Enum, already_stripped := false) {
     if e.name return;
     if detected e.output_name = trim_right(detected, "_");
     if !e.output_name e.output_name = "anon_enum";
+
     avoid_name_clash(*context.generator.anon_declarations, e);
 }
 
@@ -2300,15 +2381,18 @@ detect_value_prefix :: (e: *Enum) -> string {
 
     for e.enumerates {
         if it_index == 0 continue;
+
         limit := min(shared.count, it.output_name.count - 1);
         same := 0;
 
         while same < limit && shared[same] == it.output_name[same] same += 1;
+
         shared.count = same;
     }
 
     // Only whole words: cut back to where a word ends in every name.
     while shared.count > 0 && !ends_word_in_all(e, shared.count) shared.count -= 1;
+
     return shared;
 }
 
@@ -2319,6 +2403,7 @@ ends_word_in_all :: (e: *Enum, length: int) -> bool {
     first := e.enumerates[0].output_name;
     if first[length - 1] == #char "_" return true;
     if length < 2 return false;
+
     previous := first[length - 1];
     if !((previous >= #char "a" && previous <= #char "z") || is_digit(previous)) return false;
 
@@ -2340,6 +2425,7 @@ macro_literal_suffix_ok :: (suffix: string) -> bool {
 // Converts a C numeric literal to Jai, or returns ok = false.
 convert_number_literal :: (text: string) -> string, bool {
     if !text return "", false;
+
     is_hex := begins_with(text, "0x") || begins_with(text, "0X");
     is_float := false;
 
@@ -2348,6 +2434,7 @@ convert_number_literal :: (text: string) -> string, bool {
         while i < text.count && ((text[i] >= #char "0" && text[i] <= #char "9") || (text[i] >= #char "a" && text[i] <= #char "f") || (text[i] >= #char "A" && text[i] <= #char "F")) i += 1;
         if i == 2 return "", false;
         if !macro_literal_suffix_ok(slice(text, i, text.count - i)) return "", false;
+
         return slice(text, 0, i), true;
     }
 
@@ -2368,6 +2455,7 @@ convert_number_literal :: (text: string) -> string, bool {
     }
 
     if i == 0 return "", false;
+
     body := slice(text, 0, i);
     suffix := slice(text, i, text.count - i);
 
@@ -2376,6 +2464,7 @@ convert_number_literal :: (text: string) -> string, bool {
         if s != "" && s != "f" && s != "l" return "", false;
         if ends_with(body, ".") body = join(body, "0");
         if begins_with(body, ".") body = join("0", body);
+
         return body, true;
     }
 
@@ -2407,6 +2496,7 @@ builtin_integer_typedef :: (name: string) -> string {
     n := name;
     while begins_with(n, "_") n = advance(n, 1);
     if begins_with(n, "u_int") n = advance(n, 2); // u_int32_t -> int32_t (unsigned below)
+
     unsigned := begins_with(name, "u_") || begins_with(n, "u");
 
     if begins_with(n, "u") n = advance(n, 1);
@@ -2416,6 +2506,7 @@ builtin_integer_typedef :: (name: string) -> string {
     if n == "int64_t" return ifx unsigned then "u64" else "s64";
     if name == "size_t" || name == "__size_t" || name == "uintptr_t" return "u64";
     if name == "ssize_t" || name == "__ssize_t" || name == "intptr_t" return "s64";
+
     return "";
 }
 
@@ -2452,6 +2543,7 @@ macro_type_name :: (words: [] string) -> string {
     if base == "char" return ifx unsigned then "u8" else "s8";
     if base == "short" return ifx unsigned then "u16" else "s16";
     if longs > 0 return ifx unsigned then "u64" else "s64";
+
     return ifx unsigned then "u32" else "s32";
 }
 
@@ -2500,6 +2592,7 @@ macro_primary :: (p: *Macro_Parser) -> string {
                 stars_text := "";
 
                 for 1..stars stars_text = join(stars_text, "*");
+
                 // A negative or complemented value does not fit an unsigned type without `,trunc`.
                 trunc := ifx begins_with(operand, "-") || begins_with(operand, "(-") || begins_with(operand, "~") || begins_with(operand, "(~") then ",trunc" else "";
 
@@ -2554,6 +2647,7 @@ macro_primary :: (p: *Macro_Parser) -> string {
         }
 
         p.index += 1;
+
         return tprint("(%)", inner);
     }
 
@@ -2587,6 +2681,7 @@ macro_primary :: (p: *Macro_Parser) -> string {
             }
 
             p.ok = false;
+
             return "";
         }
 
@@ -2603,10 +2698,13 @@ macro_primary :: (p: *Macro_Parser) -> string {
         // Identifier: only names that will exist in the output.
         found := table_contains(*context.generator.known_constants, s);
         if found return s;
+
         is_type, type_name := table_find(*context.generator.known_types, s);
         if is_type return type_name;
+
         p.ok = false;
         p.unresolved = true;
+
         return "";
     }
 
@@ -2616,6 +2714,7 @@ macro_primary :: (p: *Macro_Parser) -> string {
     }
 
     p.ok = false;
+
     return "";
 }
 
@@ -2638,6 +2737,7 @@ binary_precedence :: (op: string) -> s64 {
     if op == "&" return 6;
     if op == "^" return 5;
     if op == "|" return 4;
+
     return 0;
 }
 
@@ -2667,6 +2767,7 @@ macro_binary :: (p: *Macro_Parser, min_precedence: s64) -> string, binding: s64 
         prec := binary_precedence(op);
 
         if prec == 0 || prec < min_precedence break;
+
         p.index += 1;
         rhs, rhs_binding := macro_binary(p, prec + 1);
         binding := jai_binding(op);
@@ -2700,6 +2801,7 @@ macro_expression :: (p: *Macro_Parser) -> string {
 // True when the first token's parenthesis closes at the last token.
 is_wrapped_in_parens :: (tokens: [] Macro_Token) -> bool {
     if tokens.count < 3 || tokens[0].spelling != "(" || tokens[tokens.count - 1].spelling != ")" return false;
+
     depth := 0;
 
     for tokens {
@@ -2718,6 +2820,7 @@ convert_macro_body :: (tokens_in: [] Macro_Token) -> string, bool, bool {
     // `(X)` is the value X; a cast like `(int)(X)` closes its first paren earlier.
     while is_wrapped_in_parens(tokens) tokens = array_view(tokens, 1, tokens.count - 2);
     if tokens.count == 0 return "", false, false;
+
     p: Macro_Parser;
     p.tokens = tokens;
 
@@ -2737,6 +2840,7 @@ convert_macro_body :: (tokens_in: [] Macro_Token) -> string, bool, bool {
     result := macro_expression(*p);
 
     if !p.ok || p.index != tokens.count return "", false, p.unresolved;
+
     return result, true, false;
 }
 
@@ -2750,6 +2854,7 @@ create_macro_definition :: (c: Cursor) -> *Declaration {
     tokens := tokens_of(c);
     // The first token is the macro name.
     if tokens.count < 2 return null;
+
     body := array_view(tokens, 1, tokens.count - 1);
     // Drop trailing comments.
     while body.count > 0 && body[body.count - 1].kind == 4 body.count -= 1;
@@ -2782,6 +2887,7 @@ create_macro_definition :: (c: Cursor) -> *Declaration {
 
     decl.macro_value_result = .KEEP;
     table_set(*context.generator.known_constants, name, true);
+
     return decl;
 }
 
@@ -2792,8 +2898,10 @@ add_to_scope :: (scope: *[..] *Declaration, decl: *Declaration) {
     g := context.generator;
 
     if !decl return;
+
     already := table_contains(*g.added_to_scope, decl);
     if already return;
+
     table_set(*g.added_to_scope, decl, true);
     array_add(scope, decl);
 }
@@ -2863,6 +2971,7 @@ handle_toplevel_cursor :: (c: Cursor, scope: *[..] *Declaration, parent: *Declar
 
         case .FUNCTION_DECL;
             if !name return;
+
             func := create_function(c, parent);
             ft := func.type.type_of_function;
 
@@ -2887,6 +2996,7 @@ handle_toplevel_cursor :: (c: Cursor, scope: *[..] *Declaration, parent: *Declar
             found := table_contains(*g.declarations_by_cursor, key);
 
             if found return;
+
             table_add(*g.declarations_by_cursor, key, func);
 
             // C++ overloads: only names seen before can clash.
@@ -2904,6 +3014,7 @@ handle_toplevel_cursor :: (c: Cursor, scope: *[..] *Declaration, parent: *Declar
         case .CLASS_TEMPLATE;
             // Explicit specializations are not generated.
             if clang("specialized_template", c) return;
+
             s := create_struct(c);
             if s.name {
                 s.parent = parent;
@@ -2934,6 +3045,7 @@ handle_toplevel_cursor :: (c: Cursor, scope: *[..] *Declaration, parent: *Declar
         case .TYPEDEF_DECL; #through;
         case .TYPE_ALIAS_DECL;
             if should_unwrap_typedef(name) return;
+
             td := create_typedef(c);
             td.parent = parent;
             add_to_scope(scope, td);

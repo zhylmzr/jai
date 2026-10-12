@@ -22,6 +22,7 @@ float_to_half_fast3 :: (_f: float32) -> Float16 {
 
     if half_exponent <= 0 {
         if half_exponent < -10 return cast(Float16) sign;
+
         significand := fraction | 0x800000;
         shift := 14 - half_exponent;
         retained := significand >> cast(u32) shift;
@@ -29,6 +30,7 @@ float_to_half_fast3 :: (_f: float32) -> Float16 {
         halfway := (cast(u32) 1) << cast(u32) (shift - 1);
 
         if discarded > halfway || (discarded == halfway && (retained & 1) != 0) retained += 1;
+
         return cast(Float16) (sign | cast(u16) retained);
     }
 

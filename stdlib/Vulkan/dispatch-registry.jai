@@ -44,10 +44,12 @@ _vk_registry_new :: () -> *_Vk_Handle_Record {
 
 _vk_registry_stamp :: (node: *_Vk_Handle_Record) -> bool {
     if _vk_registry_next_generation == 0 return false;
+
     node.generation = _vk_registry_next_generation;
     _vk_registry_next_generation += 1;
     node.next = _vk_registry_head;
     _vk_registry_head = node;
+
     return true;
 }
 
@@ -123,7 +125,9 @@ _vk_physical_instance :: (physical: VkPhysicalDevice) -> VkInstance {
     _vk_registry_lock();
     node := _vk_registry_physical(physical);
     if _vk_registry_valid_instance(node) result = node.instance;
+
     _vk_registry_unlock();
+
     return result;
 }
 
@@ -140,7 +144,9 @@ _vk_queue_device :: (queue: VkQueue) -> VkDevice {
     _vk_registry_lock();
     node := _vk_registry_queue(queue);
     if _vk_registry_valid_device(node) result = node.device;
+
     _vk_registry_unlock();
+
     return result;
 }
 
@@ -148,8 +154,10 @@ _vk_queue_device :: (queue: VkQueue) -> VkDevice {
 #scope_export
 vk_register_instance :: (instance: VkInstance) -> bool {
     if instance == null return false;
+
     fresh := _vk_registry_new();
     if fresh == null return false;
+
     fresh.family = .INSTANCE;
     fresh.instance = instance;
     _vk_registry_lock();
@@ -163,13 +171,16 @@ vk_register_instance :: (instance: VkInstance) -> bool {
 
     _vk_registry_unlock();
     if !inserted _vk_registry_free(fresh);
+
     return inserted || existing != null;
 }
 
 vk_register_physical_device :: (instance: VkInstance, physical: VkPhysicalDevice) -> bool {
     if physical == null || instance == null return false;
+
     fresh := _vk_registry_new();
     if fresh == null return false;
+
     fresh.family = .PHYSICAL_DEVICE;
     fresh.instance = instance;
     fresh.physical = physical;
@@ -193,13 +204,16 @@ vk_register_physical_device :: (instance: VkInstance, physical: VkPhysicalDevice
 
     _vk_registry_unlock();
     if !inserted _vk_registry_free(fresh);
+
     return valid;
 }
 
 vk_register_device :: (physical: VkPhysicalDevice, device: VkDevice) -> bool {
     if physical == null || device == null return false;
+
     fresh := _vk_registry_new();
     if fresh == null return false;
+
     fresh.family = .DEVICE;
     fresh.physical = physical;
     fresh.device = device;
@@ -219,19 +233,23 @@ vk_register_device :: (physical: VkPhysicalDevice, device: VkDevice) -> bool {
             fresh.physical_generation = parent.generation;
             inserted = _vk_registry_stamp(fresh);
             if inserted fresh.device_generation = fresh.generation;
+
             valid = inserted;
         }
     }
 
     _vk_registry_unlock();
     if !inserted _vk_registry_free(fresh);
+
     return valid;
 }
 
 vk_register_queue :: (device: VkDevice, queue: VkQueue) -> bool {
     if device == null || queue == null return false;
+
     fresh := _vk_registry_new();
     if fresh == null return false;
+
     fresh.family = .QUEUE;
     fresh.device = device;
     fresh.queue = queue;
@@ -258,6 +276,7 @@ vk_register_queue :: (device: VkDevice, queue: VkQueue) -> bool {
 
     _vk_registry_unlock();
     if !inserted _vk_registry_free(fresh);
+
     return valid;
 }
 
@@ -342,6 +361,7 @@ vkDestroyInstance :: (instance: VkInstance, pAllocator: *VkAllocationCallbacks) 
 
 vkEnumeratePhysicalDevices :: (instance: VkInstance, pPhysicalDeviceCount: *u32, pPhysicalDevices: *VkPhysicalDevice) -> VkResult {
     if !_vk_registered_instance(instance) return .ERROR_INITIALIZATION_FAILED;
+
     status := _vk_sdk_vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices);
     if pPhysicalDevices != null && (status == .SUCCESS || status == .INCOMPLETE) {
         for i: 0..cast(s64) pPhysicalDeviceCount.* - 1 {
@@ -354,6 +374,7 @@ vkEnumeratePhysicalDevices :: (instance: VkInstance, pPhysicalDeviceCount: *u32,
 
 vkCreateDevice :: (physicalDevice: VkPhysicalDevice, pCreateInfo: *VkDeviceCreateInfo, pAllocator: *VkAllocationCallbacks, pDevice: *VkDevice) -> VkResult {
     if _vk_physical_instance(physicalDevice) == null return .ERROR_INITIALIZATION_FAILED;
+
     status := _vk_sdk_vkCreateDevice(physicalDevice, pCreateInfo, pAllocator, pDevice);
     if status == .SUCCESS {
         vk_unregister_device(pDevice.*);
@@ -401,6 +422,7 @@ _vk_register_groups :: (instance: VkInstance, count: u32, groups: *VkPhysicalDev
 #scope_export
 vkEnumeratePhysicalDeviceGroups :: (instance: VkInstance, pPhysicalDeviceGroupCount: *u32, pPhysicalDeviceGroupProperties: *VkPhysicalDeviceGroupProperties) -> VkResult {
     if !_vk_registered_instance(instance) return .ERROR_INITIALIZATION_FAILED;
+
     status := _vk_sdk_vkEnumeratePhysicalDeviceGroups(instance, pPhysicalDeviceGroupCount, pPhysicalDeviceGroupProperties);
     if pPhysicalDeviceGroupProperties != null && (status == .SUCCESS || status == .INCOMPLETE) {
         if !_vk_register_groups(instance, pPhysicalDeviceGroupCount.*, pPhysicalDeviceGroupProperties) return .ERROR_OUT_OF_HOST_MEMORY;

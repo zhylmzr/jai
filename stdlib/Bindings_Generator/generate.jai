@@ -33,6 +33,7 @@ generator_command :: (loc: Source_Code_Location) -> string {
     }
 
     if script array_add(*args, script);
+
     extra: [] string;
 
     if #compile_time {
@@ -64,6 +65,7 @@ generate_bindings :: (options: Generate_Bindings_Options, filename: string, log_
     }
 
     if generated log_error("Bindings_Generator: could not write the bindings to \"%\"\n", filename);
+
     return false;
 }
 
@@ -87,6 +89,7 @@ generate_bindings :: (options_in: Generate_Bindings_Options, log_results := fals
 
     if options.libpaths.count == 0 array_add(*options.libpaths, ".");
     for options.library_search_paths array_add(*options.libpaths, it);
+
     context.generator_options = options;
 
     // Libraries ---------------------------------------------------------
@@ -165,6 +168,7 @@ generate_bindings :: (options_in: Generate_Bindings_Options, log_results := fals
 
     temp_builder: String_Builder;
     for options.source_files print_to_builder(*temp_builder, "#include \"%\"\n", include_path_for_clang(it));
+
     clang("file", 0, 0, "generate_temp.h");
     clang("contents", 0, 0, builder_to_string(*temp_builder));
 
@@ -199,6 +203,7 @@ generate_bindings :: (options_in: Generate_Bindings_Options, log_results := fals
     for < g.pending_anon_enums {
         e := it._enum;
         if table_contains(*g.added_to_scope, e) continue;
+
         compute_enum_names(e, false);
         table_set(*g.added_to_scope, e, true);
         array_insert_at(it.scope, e, min(it.index, it.scope.count));
@@ -224,6 +229,7 @@ generate_bindings :: (options_in: Generate_Bindings_Options, log_results := fals
     // Print ---------------------------------------------------------------
     if options.add_generator_command print_to_builder(*builder, GENERATED_FILE_HEADER_WITH_COMMAND, generator_command(loc));
     else append(*builder, GENERATED_FILE_HEADER);
+
     print_to_builder(*builder, "%\n\n", options.header);
 
     previous: Location;
@@ -237,11 +243,13 @@ generate_bindings :: (options_in: Generate_Bindings_Options, log_results := fals
 
     print_objc_selector_table(*builder, g);
     for g.deferred_struct_checks print_struct_checks(*builder, it);
+
     print_file_scope_part(*builder, g, *options);
     append(*builder, options.footer);
 
     clang("dispose");
     if log_results log_generator_results(g);
+
     return builder, true;
 }
 
@@ -255,6 +263,7 @@ print_file_scope_part :: (builder: *String_Builder, g: *Generator_State, options
     if options.generate_compile_time_struct_checks array_add(*uses, "assert");
     if g.int128_was_referenced array_add(*uses, "S128/U128");
     if g.generated_printf_wrapper array_add(*uses, "tprint");
+
     declare_libraries := options.generate_library_declarations && g.libraries.count > 0;
     if !uses.count && !declare_libraries && !g.long_double_was_referenced return;
 
@@ -274,6 +283,7 @@ print_file_scope_part :: (builder: *String_Builder, g: *Generator_State, options
 
         if lib.is_system_library modifiers = ",system";
         if !lib.is_shared_library modifiers = join(modifiers, ",no_dll");
+
         print_to_builder(builder, "% :: #library% \"%\";\n", lib.identifier, modifiers, path);
     }
 }
@@ -355,6 +365,7 @@ post_process :: (g: *Generator_State, options: *Generate_Bindings_Options) {
 
     for decl: g.global_scope.members {
         if decl.kind != .MACRO_DEFINITION || decl.macro_value_result != .NEEDS_CHECKING continue;
+
         lit := cast(*Literal) decl.expression;
         converted, ok := convert_macro_body(lit.macro_value.tokens);
 
@@ -391,9 +402,11 @@ post_process :: (g: *Generator_State, options: *Generate_Bindings_Options) {
                 }
 
                 if !enum_name continue;
+
                 // The enum takes the place of its first macro.
                 e, is_new := find_or_create_enum_for_macro(g, enum_name, decl);
                 if is_new array_add(*kept, e);
+
                 duplicate := false;
                 for e.enumerates if it.name == decl.name duplicate = true;
 
@@ -484,6 +497,7 @@ rewrite_enum_macro_references :: (g: *Generator_State, text: string, current: *E
 
         j := i;
         while j < text.count && is_ident_char(text[j]) j += 1;
+
         ident := slice(text, i, j - i);
         // `X.Y` member access: only the head can be a macro.
         after_dot := i > 0 && text[i - 1] == #char ".";
@@ -513,6 +527,7 @@ rewrite_enum_macro_references :: (g: *Generator_State, text: string, current: *E
     }
 
     if !changed return text;
+
     return builder_to_string(*builder);
 }
 
@@ -531,7 +546,9 @@ find_or_create_enum_for_macro :: (g: *Generator_State, name: string, decl: *Decl
     options := *context.generator_options;
     if options.alias_original_enum_names made.flags |= .ALIAS_ORIGINAL_NAMES;
     if options_mimic_enums() made.flags |= .MIMIC_SPACING;
+
     array_add(*g.enum_macros, made);
+
     return made, true;
 }
 
@@ -568,6 +585,7 @@ assign_libraries :: (g: *Generator_State, scope: *[..] *Declaration, options: *G
         if decl.kind == .FUNCTION || (decl.kind == .DECLARATION && decl.storage_class == .Extern) {
             symbol := decl.foreign_name;
             if !symbol symbol = decl.name;
+
             lib := find_library_for_symbol(g, symbol);
             if lib {
                 decl.library = lib;
@@ -638,11 +656,13 @@ load_library_info :: (paths: [] string, name: string, identifier: string, is_sys
     }
 
     if dot > 0 stem = slice(file, 0, dot);
+
     has_extension := dot > 0;
 
     lib.name = stem;
     lib.identifier = identifier;
     if !lib.identifier lib.identifier = make_valid_identifier(to_lower_copy(stem));
+
     lib.full_path = join(dir, stem);
 
     shared_suffix := options.shared_library_suffix;
@@ -670,6 +690,7 @@ load_library_info :: (paths: [] string, name: string, identifier: string, is_sys
         } else {
             array_add(*candidates, .{ join(prefix, name, shared_suffix), true });
             if options.os == .MACOS array_add(*candidates, .{ join(prefix, name, ".tbd"), true });
+
             array_add(*candidates, .{ join(prefix, name, static_suffix), false });
 
             // `libnames = "foo"` also finds `libfoo.*`.
@@ -682,8 +703,10 @@ load_library_info :: (paths: [] string, name: string, identifier: string, is_sys
 
     for candidates {
         if !file_exists(it.path) continue;
+
         lib.full_path = strip_library_extension(it.path);
         if is_system lib.full_path = stem;
+
         lib.is_shared_library = it.shared;
 
         if ends_with(it.path, ".tbd") {
@@ -712,16 +735,19 @@ load_library_info :: (paths: [] string, name: string, identifier: string, is_sys
             for tries {
                 handle := POSIX.dlopen(temp_c_string(it), POSIX.RTLD_LAZY | POSIX.RTLD_LOCAL);
                 if !handle continue;
+
                 lib.handle = handle;
                 lib.is_system_library = true;
                 lib.is_shared_library = true;
                 lib.full_path = stem;
+
                 return lib;
             }
         }
     }
 
     log("Bindings_Generator: library '%' was not found; functions no other library exports are assigned to it.\n", name);
+
     return lib;
 }
 
@@ -733,6 +759,7 @@ strip_library_extension :: (path: string) -> string {
 
     if dot < 0 dot = find_index_from_right(file, #char ".");
     if dot <= 0 return path;
+
     return slice(path, 0, slash + 1 + dot);
 }
 
@@ -740,6 +767,7 @@ strip_library_extension :: (path: string) -> string {
 read_symbols :: (lib: *Library_Info, path: string, strip_underscore: bool) -> bool {
     result, output := run_command("nm", "-g", path, capture_and_return_output = true);
     if result.exit_code != 0 return false;
+
     names: [..] string;
     remainder := output;
 
@@ -749,19 +777,24 @@ read_symbols :: (lib: *Library_Info, path: string, strip_underscore: bool) -> bo
         remainder = rest;
         line = trim(line);
         if !line continue;
+
         sp := find_index_from_right(line, #char " ");
         if sp < 0 continue;
+
         symbol := slice(line, sp + 1, line.count - sp - 1);
         before := trim(slice(line, 0, sp));
 
         if before.count < 1 continue;
+
         kind := before[before.count - 1];
         if kind == #char "U" || kind == #char "u" || kind == #char ":" continue;
         if strip_underscore && begins_with(symbol, "_") symbol = advance(symbol, 1);
+
         add_library_symbol(lib, *names, symbol);
     }
 
     lib.symbol_names = names;
+
     return true;
 }
 
@@ -777,6 +810,7 @@ add_library_symbol :: (lib: *Library_Info, names: *[..] string, symbol: string) 
 read_tbd_symbols :: (lib: *Library_Info, path: string, options: Generate_Bindings_Options, depth := 0) -> bool {
     text, ok := read_entire_file(path, log_errors = false);
     if !ok return false;
+
     arch := ifx options.cpu == .ARM64 then "arm64" else "x86_64";
     names: [..] string;
 
@@ -799,9 +833,11 @@ read_tbd_symbols :: (lib: *Library_Info, path: string, options: Generate_Binding
             colon := find_index_from_left(trimmed, #char ":");
 
             if colon <= 0 continue;
+
             list_key = trim(slice(trimmed, 0, colon));
             value := trim(advance(trimmed, colon + 1));
             if !begins_with(value, "[") continue;
+
             body = advance(value, 1);
             in_list = true;
             if list_key == "targets" || list_key == "archs" section_matches = false;
@@ -839,6 +875,7 @@ read_tbd_symbols :: (lib: *Library_Info, path: string, options: Generate_Binding
     }
 
     lib.symbol_names = names;
+
     return true;
 }
 
@@ -852,6 +889,7 @@ struct_is_checkable :: (s: *Struct) -> bool {
     if s.decl_flags & .OMIT_FROM_OUTPUT return false;
     if (s.decl_flags & .TEMPLATE) || (s.flags & (Struct.Flags.NO_STRUCT_CHECKS | .IS_INCOMPLETE | .IS_ANON)) return false;
     if !s.name || !s.type || s.type.size <= 0 return false;
+
     return true;
 }
 
@@ -887,6 +925,7 @@ print_struct_checks :: (builder: *String_Builder, s: *Struct) {
 
             for s.declarations {
                 if it.decl_flags & .OMIT_FROM_OUTPUT continue;
+
                 is_field, is_anon := is_struct_field(it);
                 if !is_field || is_anon || is_operator(it) continue;
                 if it.kind != .DECLARATION || it.storage_class == .Static continue;

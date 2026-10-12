@@ -12,6 +12,7 @@ random_sequence_cases :: () -> bool {
     if random_get(*state) != 11122429259955245428 return false;
     if random_get(*state) != 3597186161380831872 return false;
     if random_get(*state) != 4063032141588118201 return false;
+
     saved := state;
     first := random_get(*state);
 
@@ -23,6 +24,7 @@ random_sequence_cases :: () -> bool {
         opened := random_get_zero_to_one_open(*state);
 
         if closed < 0 || closed > 1 || opened < 0 || opened >= 1 return false;
+
         wide := random_get_zero_to_one_open_new(*state);
         if wide < 0 || wide >= 1 return false;
     }
@@ -32,6 +34,7 @@ random_sequence_cases :: () -> bool {
     if random_get(*pcg_state) != 1971522493 return false;
     if random_get(*pcg_state) != 242089394 return false;
     if random_get(*pcg_state) != 3457789919 return false;
+
     return true;
 }
 

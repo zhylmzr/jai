@@ -13,7 +13,9 @@ initialize_if_needed :: inline () -> did_init: bool {
     lock_ledger();
     defer unlock_ledger();
     if allocator_default_heap return false;
+
     allocator_default_heap = create_heap_locked();
+
     return allocator_default_heap != null;
 }
 
@@ -51,6 +53,7 @@ allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64, old
 
         if mode == .ALLOCATE || !old_memory {
             if mode == .FREE return null;
+
             entry := obtain_block(requested_size);
             if !entry return null;
 
@@ -66,6 +69,7 @@ allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64, old
 
         #if ENABLE_ASSERTS assert_owned(slot >= 0);
         if slot < 0 return null;
+
         entry := heap.slots[slot];
 
         if mode == .RESIZE && requested_size > 0 {
@@ -82,6 +86,7 @@ allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64, old
 
         release_block(entry);
         remove_allocation(heap, slot);
+
         return null;
     }
 
@@ -105,9 +110,11 @@ allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size: s64, old
     }
 
     if mode == .THREAD_START || mode == .THREAD_STOP return null;
+
     lock_ledger();
     defer unlock_ledger();
     if mode == .CREATE_HEAP return create_heap_locked();
+
     heap := cast(*Heap) allocator_data;
     if !heap {
         if !allocator_default_heap allocator_default_heap = create_heap_locked();
@@ -184,10 +191,12 @@ regrow_block :: (entry: *void, size: s64) -> entry: *void {
     wide := (bits & WIDE_BLOCK) != 0;
 
     if !wide && size < CACHE_LINE return c_realloc(entry, cast(u64) size);
+
     was_at: u64 = ifx wide then (bits & 3) * 16 else 0;
     origin := c_realloc(entry_origin(entry), cast(u64) (size + WIDE_SLACK));
 
     if !origin return null;
+
     return wide_entry(origin, was_at, size);
 }
 
@@ -217,11 +226,13 @@ unlock_ledger :: () {
 create_heap_locked :: () -> *Heap {
     heap := cast(*Heap) c_malloc(cast(u64) size_of(Heap));
     if !heap return null;
+
     heap.slots = null;
     heap.capacity = 0;
     heap.count = 0;
     heap.next = heaps;
     heaps = heap;
+
     return heap;
 }
 
@@ -240,6 +251,7 @@ destroy_heap_locked :: (heap: *Heap) {
     if allocator_default_heap == heap allocator_default_heap = null;
     for i: 0..heap.capacity - 1 if heap.slots[i] release_block(heap.slots[i]);
     if heap.slots c_free(heap.slots);
+
     c_free(heap);
 }
 
@@ -251,6 +263,7 @@ slot_home :: (heap: *Heap, pointer: *void) -> s64 #no_aoc {
 // entry hashes like its address.
 find_allocation :: (heap: *Heap, pointer: *void) -> s64 {
     if !heap.capacity return -1;
+
     mask := heap.capacity - 1;
     slot := slot_home(heap, pointer);
 
@@ -271,6 +284,7 @@ add_allocation :: (heap: *Heap, pointer: *void) -> bool {
         slots := cast(**void) c_calloc(cast(u64) capacity, size_of(*void));
 
         if !slots return false;
+
         heap.slots = slots;
         heap.capacity = capacity;
         heap.count = 0;
@@ -279,6 +293,7 @@ add_allocation :: (heap: *Heap, pointer: *void) -> bool {
     }
 
     place_allocation(heap, pointer);
+
     return true;
 }
 
@@ -288,6 +303,7 @@ place_allocation :: (heap: *Heap, pointer: *void) #no_aoc {
     slots := heap.slots;
 
     while slots[slot] slot = (slot + 1) & mask;
+
     slots[slot] = pointer;
     heap.count += 1;
 }
@@ -304,11 +320,13 @@ remove_allocation :: (heap: *Heap, slot: s64) {
         next = (next + 1) & mask;
         pointer := heap.slots[next];
         if !pointer break;
+
         home := slot_home(heap, pointer);
         // Stays if its home lies cyclically in (hole, next].
         stays := ifx hole <= next then hole < home && home <= next else hole < home || home <= next;
 
         if stays continue;
+
         heap.slots[hole] = pointer;
         heap.slots[next] = null;
         hole = next;

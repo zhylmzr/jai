@@ -44,6 +44,7 @@ occlusion_per_window_update :: (window: Window_Type) {
 occluder_start :: (widget: *Active_Widget, rect: Rect) {
     assert(widget != null, "An occluder needs a retained widget");
     if !widget return;
+
     array_add(*occlusions_next_frame, .{ serial = cast(s32) occlusions_next_frame.count + 1, rect = rect, widget = widget });
     array_add(*left_occluder_stack, widget);
     occluder_being_drawn = widget;
@@ -77,9 +78,11 @@ occluder_finish :: (widget: *Active_Widget, rect := Rect.{}) {
 events_occluded :: (widget_if_querying_outside_of_render_time: *Active_Widget = null) -> bool {
     blocker := occluder_under_the_cursor;
     if !blocker return false;
+
     query := widget_if_querying_outside_of_render_time;
     if !query && state_stack.count > 0 query = state_stack[state_stack.count - 1];
     if query == blocker || (query && query.exists_on_occluder == blocker) || blocker.is_on_state_stack return false;
+
     return true;
 }
 

@@ -84,6 +84,7 @@ immediate_set_texture :: (texture: *Texture) {
 immediate_set_shader :: (s: *Shader) {
     CheckInit();
     if context.simp.current_shader && context.simp.current_shader != s immediate_flush();
+
     context.simp.current_shader = s;
 
     #if render_api == .OPENGL {
@@ -97,6 +98,7 @@ immediate_flush :: () {
     CheckInit();
     state := context.simp;
     if state.num_vertices == 0 return;
+
     assert(state.current_shader != null, "Tried to immediate_flush when no shader was set.");
 
     if !state.current_shader {
@@ -208,6 +210,7 @@ immediate_set_2d_projection :: (render_target_width: s32, render_target_height: 
     m: Matrix4 = ---;
     if context.simp.coordinate_system == .LEFT_HANDED m = orthographic_projection_matrix(0, width, height, 0, -1.0, 1.0);
     else m = orthographic_projection_matrix(0, width, 0, height, -1.0, 1.0);
+
     backend_tweak_projection_matrix(*m);
     set_parameter(shader, "projection", m);
 }
@@ -225,9 +228,11 @@ reserve_vertices :: (count: s32) -> *Immediate_Vertex {
     CheckInit();
     assert(count > 0 && count <= Immediate_State.MAX_VERTICES);
     if context.simp.num_vertices + count > Immediate_State.MAX_VERTICES immediate_flush();
+
     result := *context.simp.vertices[context.simp.num_vertices];
 
     context.simp.num_vertices += count;
+
     return result;
 }
 
@@ -249,6 +254,7 @@ software_submit :: (state: *Immediate_State) {
 
     assert(target != null, "Install a bitmap render target before drawing");
     if !target return;
+
     assert(target.format == .RGBA8 || target.format == .BGRA8, "CPU render targets require RGBA8 or BGRA8");
     if target.format != .RGBA8 && target.format != .BGRA8 return;
     for i: 0..state.num_vertices / 3 - 1 software_triangle(state, target, state.vertices[i * 3], state.vertices[i * 3 + 1], state.vertices[i * 3 + 2]);
@@ -261,6 +267,7 @@ edge :: (a: Vector2, b: Vector2, p: Vector2) -> float {
 software_triangle :: (state: *Immediate_State, target: *Bitmap, a: Immediate_Vertex, b: Immediate_Vertex, c: Immediate_Vertex) {
     area := edge(a.position, b.position, c.position);
     if area == 0 return;
+
     lo := min(a.position, min(b.position, c.position));
     hi := max(a.position, max(b.position, c.position));
     x0 := max(cast(int) floor(lo.x), 0);
@@ -286,6 +293,7 @@ software_triangle :: (state: *Immediate_State, target: *Bitmap, a: Immediate_Ver
         if wa == 0 && !owns_edge(b.position, c.position, area) continue;
         if wb == 0 && !owns_edge(c.position, a.position, area) continue;
         if wc == 0 && !owns_edge(a.position, b.position, area) continue;
+
         color := a.color_scale * wa + b.color_scale * wb + c.color_scale * wc;
         uv := a.uv0 * wa + b.uv0 * wb + c.uv0 * wc;
         sprite := state.current_shader == *shader_sprite_right_handed || state.current_shader == *shader_sprite_left_handed;
@@ -293,6 +301,7 @@ software_triangle :: (state: *Immediate_State, target: *Bitmap, a: Immediate_Ver
         if sprite || state.current_shader == *shader_text {
             // The right-handed sprite shader flips v, because bitmaps are stored top row first.
             if state.current_shader == *shader_sprite_right_handed uv.y = 1 - uv.y;
+
             sample := software_sample(state.specific.texture, uv);
 
             if sprite {
@@ -309,6 +318,7 @@ software_triangle :: (state: *Immediate_State, target: *Bitmap, a: Immediate_Ver
         }
 
         if state.current_shader == *shader_gradient color = software_gradient(state, p, color);
+
         pixel := target.data.data + software_row(y, target.height) * target.stride + x * 4;
         red: int = 0;
         blue: int = 2;
@@ -344,6 +354,7 @@ owns_edge :: (a: Vector2, b: Vector2, area: float) -> bool {
 software_sample :: (texture: *Texture, uv: Vector2) -> Vector4 {
     bitmap := texture_bitmap(texture);
     if !bitmap || !bitmap.data.count return .{ 1, 1, 1, 1 };
+
     x := clamp(cast(int) floor(uv.x * bitmap.width), 0, bitmap.width - 1);
     y := clamp(cast(int) floor(uv.y * bitmap.height), 0, bitmap.height - 1);
     bpp := get_image_bytes_per_texel(bitmap.format);
@@ -351,6 +362,7 @@ software_sample :: (texture: *Texture, uv: Vector2) -> Vector4 {
 
     if bitmap.format == .R8 return .{ cast(float) pixel[0] / 255, 0, 0, 1 };
     if bitmap.format == .RG8 return .{ cast(float) pixel[0] / 255, cast(float) pixel[1] / 255, 0, 1 };
+
     result := Vector4.{ cast(float) pixel[0] / 255, cast(float) pixel[1] / 255, cast(float) pixel[2] / 255, 1 };
     if bpp == 4 result.w = cast(float) pixel[3] / 255;
 

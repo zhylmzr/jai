@@ -36,6 +36,7 @@ file_open :: (name: string, for_writing := false, keep_existing_content := false
     }
 
     if !stream && log_errors log_error("Unable to open '%'", name);
+
     return .{ stream }, stream != null;
 }
 
@@ -48,6 +49,7 @@ file_close :: (file: *File) -> bool {
 
 file_read_checked :: (f: File, vdata: *void, bytes_to_read: s64) -> (success: bool, total_read: s64) {
     if !is_valid(f) || bytes_to_read < 0 || (!vdata && bytes_to_read > 0) return false, 0;
+
     cursor: s64;
     while cursor < bytes_to_read {
         amount := fread(cast(*u8) vdata + cursor, 1, cast(u64) (bytes_to_read - cursor), native_handle(f));
@@ -60,6 +62,7 @@ file_read_checked :: (f: File, vdata: *void, bytes_to_read: s64) -> (success: bo
 
 file_write :: (file: *File, data: *void, length: s64) -> bool {
     if !is_valid(file.*) || length < 0 || (!data && length > 0) return false;
+
     offset: s64;
     while offset < length {
         amount := fwrite(cast(*u8) data + offset, 1, cast(u64) (length - offset), native_handle(file.*));
@@ -105,6 +108,7 @@ file_seek :: (file: File, pos: s64, type: Seek_Type) -> (success: bool) {
 file_length_checked :: (file: File) -> (length: s64, success: bool) {
     old, valid := file_current_position(file);
     if !valid || !file_seek(file, 0, .END) return 0, false;
+
     size, measured := file_current_position(file);
     restored := file_set_position(file, old);
 
@@ -130,6 +134,7 @@ file_link :: (linkpath: string, filepath: string) -> bool {
 delete_directory :: (dirname: string) -> bool {
     stream := opendir(temp_c_string(dirname));
     if !stream return false;
+
     success := true;
 
     while true {
@@ -142,6 +147,7 @@ delete_directory :: (dirname: string) -> bool {
 
         name := to_string(entry.d_name.data);
         if name == "." || name == ".." continue;
+
         path := Strings.join(dirname, "/", name);
         state: stat_t;
 
@@ -163,6 +169,7 @@ delete_directory :: (dirname: string) -> bool {
 
     if closedir(stream) != 0 success = false;
     if !success return false;
+
     return rmdir(temp_c_string(dirname)) == 0;
 }
 
@@ -180,9 +187,11 @@ make_directory_helper :: (dir_name: string, attribs: mode_t) -> directory_now_ex
 get_absolute_path_unix :: (relative_path: string) -> string, success: bool {
     resolved := realpath(temp_c_string(relative_path), null);
     if !resolved return "", false;
+
     result := copy_temporary_string(to_string(resolved));
 
     c_free(resolved);
+
     return result, true;
 }
 

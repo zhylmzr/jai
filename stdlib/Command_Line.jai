@@ -18,6 +18,7 @@ Is_Set :: struct(T: Type) {
         text := builder_to_string(*generated);
 
         free_buffers(*generated);
+
         return text;
     };
 }
@@ -68,6 +69,7 @@ parse_arguments_from :: (argv: [] string, $T: Type, flags := Default_Argument_Fl
 
         prefix_size: s64 = 1;
         if flags & .DOUBLE_DASH_REQUIRED prefix_size = 2;
+
         option := !positional_only && word.count >= prefix_size;
         if option {
             for i: 0..prefix_size - 1 if word[i] != #char "-" option = false;
@@ -99,6 +101,7 @@ parse_arguments_from :: (argv: [] string, $T: Type, flags := Default_Argument_Fl
             for trigger: help_triggers if name == trigger requested_help = true;
             if requested_help show_help(T, flags, help_triggers);
             else log_error("Unknown command-line option: %", name);
+
             accepted = false;
             break;
         }
@@ -260,6 +263,7 @@ cli_read_value :: (slot: *u8, descriptor: *Type_Info, argv: [] string, cursor: *
     }
 
     if cursor.* >= argv.count return false;
+
     text := argv[cursor.*];
 
     if descriptor.type == .STRING {
@@ -284,17 +288,22 @@ cli_read_value :: (slot: *u8, descriptor: *Type_Info, argv: [] string, cursor: *
     }
 
     if descriptor.type != .INTEGER && descriptor.type != .FLOAT return false;
+
     // Work in temporary storage so a failed full-token conversion cannot mutate the result.
     storage: u64;
 
     if descriptor.runtime_size != 1 && descriptor.runtime_size != 2 && descriptor.runtime_size != 4 && descriptor.runtime_size != 8 return false;
+
     value: Any;
     value.type = descriptor;
     value.value_pointer = *storage;
     remaining := text;
     if !Reflection.set_value_from_string(value, *remaining) || remaining.count return false;
+
     bytes := cast(*u8) *storage;
     for i: 0..descriptor.runtime_size - 1 slot[i] = bytes[i];
+
     cursor.* += 1;
+
     return true;
 }

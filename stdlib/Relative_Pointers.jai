@@ -26,6 +26,7 @@ decode :: (p: *Relative_String) -> string {
     result.count = cast(s64) p.count;
     result.data = cast(*u8) decode_relative_pointer_static(p.Storage_Type, *p.data);
     assert(result.count == 0 || result.data != null);
+
     return result;
 }
 
@@ -97,5 +98,6 @@ relative_displacement :: (width: s32, address: *void) -> s64, bool {
     }
 
     assert(false, "Relative pointer width must be 1, 2, 4, or 8 bytes");
+
     return 0, false;
 }

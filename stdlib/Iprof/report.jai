@@ -76,6 +76,7 @@ create_report :: () -> *Report {
 
     last_rows.count = 0;
     for r.records array_add(*last_rows, it.zone);
+
     return r;
 }
 
@@ -106,6 +107,7 @@ select_parent :: () {
 
     for every_node {
         if it.zone != graph_focus || !it.parent continue;
+
         ms := it.smooth[smoothing_level].hier_ms;
         if ms > best_ms {
             best_ms = ms;
@@ -129,9 +131,11 @@ text_report :: (report: *Report) -> string {
 
     print_to_builder(*b, "%", report.title);
     if report.title_right print_to_builder(*b, "    [%]", report.title_right);
+
     append(*b, "\n");
 
     for col: 1..NUM_HEADER - 1 pad_left(*b, report.header[col], COLUMN_WIDTH);
+
     append(*b, "  ");
     append(*b, report.header[0]);
     append(*b, "\n");
@@ -209,6 +213,7 @@ write_exit_report :: (csv_filename: string) {
 
     log_text_report(summary);
     if csv_filename.count == 0 return;
+
     saved := save_csv_report(summary, csv_filename);
     if saved log("Iprof: wrote the report to '%'.\n", csv_filename);
     else log_error("Iprof: could not write '%'.\n", csv_filename);
@@ -243,6 +248,7 @@ pick_zone_values :: () {
 
     sum_zone_nodes(0);
     for *zones if it.entered it.heat = column_value(it.shown, column);
+
     sum_zone_nodes(SMOOTHING_LEVELS - 1);
 
     for *zones {
@@ -277,6 +283,7 @@ row_for :: (zone: *Zone, values: Sample64) -> Report_Row {
     row.calls = values.calls;
     row.heat = zone.heat;
     row.zone = zone;
+
     return row;
 }
 
@@ -343,9 +350,11 @@ add_to_edge :: (edges: *[..] Edge, zone: *Zone, node: *Call_Node) {
 
     for *edges.* {
         if it.zone != zone continue;
+
         it.values.self_ms += v.self_ms;
         it.values.hier_ms += v.hier_ms;
         it.values.calls += v.calls;
+
         return;
     }
 
@@ -354,6 +363,7 @@ add_to_edge :: (edges: *[..] Edge, zone: *Zone, node: *Call_Node) {
 
 fill_call_graph :: (r: *Report) {
     if !graph_focus graph_focus = *zones[0];
+
     focus := graph_focus;
 
     set_titles(r, tprint("call graph of %", focus.name));
@@ -367,6 +377,7 @@ fill_call_graph :: (r: *Report) {
     for every_node {
         if it.zone != focus continue;
         if it.parent && it.parent.zone != focus add_to_edge(*callers, it.parent.zone, it);
+
         child := it.first_child;
         while child {
             if child.zone != focus add_to_edge(*callees, child.zone, child);

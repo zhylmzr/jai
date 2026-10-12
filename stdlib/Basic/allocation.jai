@@ -15,13 +15,17 @@ New :: ($T: Type, $initialized := true, allocator := context.allocator) -> *T {
 // inside a slightly larger block; free `unaligned_base`, not `result.data`.
 NewArray :: (count: s64, $T: Type, $initialized := true, alignment: s32 = -1) -> (result: [] T, unaligned_base: *void) {
     if count <= 0 return .[], null;
+
     extra: s64 = 0;
     if alignment > 0 extra = alignment;
     if size_of(T) != 0 && count > (0x7fff_ffff_ffff_ffff - extra) / size_of(T) return .[], null;
+
     base := alloc(count * size_of(T) + extra);
     if !base return .[], null;
+
     data := base;
     if alignment > 0 data = cast(*void) align_forward(cast(s64) base, alignment);
+
     result: [] T;
     result.count = count;
     result.data = cast(*T) data;
@@ -45,8 +49,10 @@ NewArray :: (count: s64, $T: Type, $initialized := true, alignment: s32 = -1) ->
 alloc_string :: (count: int, allocator := context.allocator) -> string {
     assert(count >= 0, "negative string size");
     if count == 0 return "";
+
     memory := alloc(count, allocator);
     if !memory return "";
+
     return .{ count, cast(*u8) memory };
 }
 
@@ -57,6 +63,7 @@ talloc_string :: (count: int) -> string {
 // Returns `size` bytes of memory from `allocator`. Release it with [free].
 alloc :: (size: s64, allocator := context.allocator) -> *void {
     if size < 0 || !allocator.proc return null;
+
     memory := allocator.proc(.ALLOCATE, size, 0, null, allocator.data);
 
     #if MEMORY_DEBUGGER {
@@ -68,6 +75,7 @@ alloc :: (size: s64, allocator := context.allocator) -> *void {
 
 realloc :: (memory: *void, size: s64, old_size: s64, allocator := context.allocator) -> *void {
     if size < 0 || old_size < 0 || !allocator.proc return null;
+
     replacement := allocator.proc(.RESIZE, size, old_size, memory, allocator.data);
 
     #if MEMORY_DEBUGGER {
@@ -80,6 +88,7 @@ realloc :: (memory: *void, size: s64, old_size: s64, allocator := context.alloca
 // Gives memory from [alloc] back to `allocator`.
 free :: (ptr: *void, allocator := context.allocator) {
     if !ptr return;
+
     assert(allocator.proc != null, "free requires an allocator");
 
     #if MEMORY_DEBUGGER {
@@ -166,16 +175,19 @@ temporary_alloc :: inline (size: s64) -> *void {
 
 init_temporary_storage :: (ts: *Temporary_Storage, size: s64 = 16384, starting_storage: *u8 = null, allocator := context.allocator) -> bool {
     if size < 0 return false;
+
     ts.* = .{};
     data := starting_storage;
     if !data && size > 0 data = cast(*u8) alloc(size, allocator);
     if !data && size > 0 return false;
+
     ts.data = data;
     ts.size = size;
     arena := temporary_arena(ts);
     arena.original_data = data;
     arena.original_size = size;
     arena.overflow_allocator = allocator;
+
     return true;
 }
 
@@ -196,6 +208,7 @@ set_temporary_storage_mark :: inline (state: Temporary_Storage_State, loc := #ca
     storage := context.temporary_storage;
     if !storage return;
     if !release_temporary_pages(storage, state.top_overflow_page) return;
+
     arena := temporary_arena(storage);
     page := state.top_overflow_page;
 
@@ -217,6 +230,7 @@ set_temporary_storage_mark :: inline (state: Temporary_Storage_State, loc := #ca
 reset_temporary_storage :: () {
     storage := context.temporary_storage;
     if !storage return;
+
     state: Temporary_Storage_State;
 
     set_temporary_storage_mark(state);
@@ -243,8 +257,10 @@ temporary_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
 
     if mode == .IS_THIS_YOURS {
         if !storage || !old_memory return null;
+
         arena := temporary_arena(storage);
         if temporary_range_contains(arena.original_data, arena.original_size, old_memory) return cast(*void) 1;
+
         page := arena.overflow_pages;
         while page {
             start := cast(*u8) page + ALIGNED_OVERFLOW_PAGE_ALLOCATION;
@@ -267,6 +283,7 @@ temporary_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
     }
 
     if mode == .RESIZE && old_memory && requested_size <= align_forward(old_size, 8) return old_memory;
+
     arena := temporary_arena(storage);
     size := align_forward(requested_size, 8);
 
@@ -285,6 +302,7 @@ temporary_allocator_proc :: (mode: Allocator_Mode, requested_size: s64, old_size
     arena.current_page_bytes_occupied += size;
     storage.total_bytes_occupied += size;
     if storage.total_bytes_occupied > storage.high_water_mark storage.high_water_mark = storage.total_bytes_occupied;
+
     return result;
 }
 
@@ -316,10 +334,13 @@ add_temporary_page :: (storage: *Temporary_Storage, required: s64) -> bool {
 
     if capacity < 16384 capacity = 16384;
     if capacity < required capacity = required;
+
     allocator := arena.overflow_allocator;
     if !allocator.proc || allocator.proc == temporary_allocator_proc allocator = Context_Base.default_allocator;
+
     base := allocator.proc(.ALLOCATE, capacity + ALIGNED_OVERFLOW_PAGE_ALLOCATION, 0, null, allocator.data);
     if !base return false;
+
     page := cast(*Temporary_Page) base;
     page.next = arena.overflow_pages;
     page.allocator = allocator;
@@ -328,6 +349,7 @@ add_temporary_page :: (storage: *Temporary_Storage, required: s64) -> bool {
     storage.data = cast(*u8) base + ALIGNED_OVERFLOW_PAGE_ALLOCATION;
     storage.size = capacity;
     arena.current_page_bytes_occupied = 0;
+
     return true;
 }
 

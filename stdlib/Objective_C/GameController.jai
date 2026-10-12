@@ -226,6 +226,7 @@ GCMotion :: struct {
             invoke: (output: *GCAcceleration, sdk_receiver: *void, sdk_selector: SEL) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "gravity\0"));
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL) -> GCAcceleration #c_call;
@@ -239,6 +240,7 @@ GCMotion :: struct {
             invoke: (output: *GCAcceleration, sdk_receiver: *void, sdk_selector: SEL) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "userAcceleration\0"));
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL) -> GCAcceleration #c_call;
@@ -257,6 +259,7 @@ GCMotion :: struct {
             invoke: (output: *GCQuaternion, sdk_receiver: *void, sdk_selector: SEL) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "attitude\0"));
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL) -> GCQuaternion #c_call;
@@ -270,6 +273,7 @@ GCMotion :: struct {
             invoke: (output: *GCRotationRate, sdk_receiver: *void, sdk_selector: SEL) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "rotationRate\0"));
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL) -> GCRotationRate #c_call;

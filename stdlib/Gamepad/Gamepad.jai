@@ -90,12 +90,15 @@ init_gamepad :: () {
 
 update_gamepad :: () {
     if gamepad.buttons.data == null init_gamepad();
+
     sample: Gamepad_Sample;
     connected := false;
 
     if gamepad_sample_source != null connected = gamepad_sample_source(*sample);
+
     gamepad.connected = connected;
     if !connected sample = .{};
+
     gamepad.left_stick = filter_stick(sample.left_stick, gamepad.left_stick_deadzone, gamepad.left_stick_rotation_angle);
     gamepad.right_stick = filter_stick(sample.right_stick, gamepad.right_stick_deadzone, gamepad.right_stick_rotation_angle);
     gamepad.left_trigger = filter_trigger(sample.left_trigger, gamepad.left_trigger_deadzone);
@@ -115,6 +118,7 @@ update_gamepad :: () {
         if code == .RIGHT_STICK_DOWN pressed = gamepad.right_stick.y < -gamepad.right_stick_threshold;
         if code == .RIGHT_STICK_LEFT pressed = gamepad.right_stick.x < -gamepad.right_stick_threshold;
         if code == .RIGHT_STICK_RIGHT pressed = gamepad.right_stick.x > gamepad.right_stick_threshold;
+
         update_button_state(pressed, code);
     }
 }
@@ -132,6 +136,7 @@ filter_stick :: (stick: Vector2, deadzone: float, angle: float) -> Vector2 {
     zone := clamp(deadzone, 0.0, 0.9999);
 
     if length <= zone return .{};
+
     scale := clamp((length - zone) / (1 - zone), 0.0, 1.0) / length;
     x := stick.x * scale;
     y := stick.y * scale;
@@ -147,8 +152,10 @@ update_button_state :: (pressed: bool, code: Gamepad_Code) {
     if pressed == was_down return;
     if pressed button.* |= .DOWN | .START;
     else button.* = (button.* & ~Key_Current_State.DOWN) | .END;
+
     left_stick := index >= cast(s64) Gamepad_Code.LEFT_STICK_UP && index <= cast(s64) Gamepad_Code.LEFT_STICK_RIGHT;
     if !gamepad.generate_events && !(left_stick && gamepad.generate_left_stick_events) return;
+
     event: Input.Event;
     event.type = .KEYBOARD;
     event.key_pressed = xx (pressed);
@@ -163,6 +170,7 @@ update_button_state :: (pressed: bool, code: Gamepad_Code) {
         sample.* = .{};
         state: XINPUT_STATE;
         if XInputGetState(0, *state) != 0 return false;
+
         sample.left_stick = .{ cast(float) state.Gamepad.sThumbLX / 32768, cast(float) state.Gamepad.sThumbLY / 32768 };
         sample.right_stick = .{ cast(float) state.Gamepad.sThumbRX / 32768, cast(float) state.Gamepad.sThumbRY / 32768 };
         sample.left_trigger = cast(float) state.Gamepad.bLeftTrigger / 255;

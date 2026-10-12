@@ -57,6 +57,7 @@ array_resize :: (array: *[] $T, new_count: s64, $initialize := true) {
     replacement, base := NewArray(new_count, T, initialize);
 
     for i: 0..min(old.count, new_count) - 1 replacement[i] = old[i];
+
     free(old.data);
     array.* = replacement;
 }
@@ -84,6 +85,7 @@ array_reserve :: (array: *Resizable_Array, desired_items: s64, element_size: s64
     assert(desired_items >= 0 && element_size > 0);
     if desired_items <= array.allocated return;
     if !array.allocator.proc array.allocator = context.allocator;
+
     next := max(desired_items, max(8, array.allocated + array.allocated / 2));
     block := alloc(next * element_size, array.allocator);
 
@@ -91,6 +93,7 @@ array_reserve :: (array: *Resizable_Array, desired_items: s64, element_size: s64
     if !block return;
     if array.count > 0 memcpy(block, array.data, array.count * element_size);
     if array.data free(array.data, array.allocator);
+
     array.data = block;
     array.allocated = next;
 }
@@ -110,6 +113,7 @@ array_add :: (array: *[..] $T) -> *T #must {
 
     Initialize(result);
     array.count += 1;
+
     return result;
 }
 
@@ -119,6 +123,7 @@ array_add :: (array: *[..] $T, item: T) -> *T {
     result := array.data + array.count;
     result.* = item;
     array.count += 1;
+
     return result;
 }
 
@@ -130,8 +135,10 @@ array_add :: (array: *[..] $T, to_append: ..T) {
 array_add_if_unique :: (array: *[..] $T, item: T) -> bool, s64 {
     exists, index := _array_find_index(array.*, item);
     if exists return false, index;
+
     index = array.count;
     array_add(array, item);
+
     return true, index;
 }
 

@@ -68,6 +68,7 @@ break_command_into_strings :: (input: string) -> [..] string {
     while index < input.count {
         while index < input.count && command_space(input[index]) index += 1;
         if index == input.count break;
+
         word: String_Builder;
 
         init_string_builder(*word);
@@ -115,12 +116,14 @@ run_command_line :: (command: string, capture_and_return_output := false) -> (ex
 
     if status.type == .EXITED code = status.exit_code;
     else if status.type == .SIGNALED code = 128 + status.signal;
+
     return code, output, error, timeout;
 }
 
 run_command :: (args: ..string, working_directory := "", capture_and_return_output := false, print_captured_output := false, timeout_ms := -1, arg_quoting := Process_Argument_Quoting.QUOTE_IF_NEEDED) -> (process_result: Process_Result, output_string := "", error_string := "", timeout_reached := false) {
     process: Process;
     if !create_process(*process, ..args, working_directory, capture_and_return_output, arg_quoting) return .{ type = .FAILED_TO_LAUNCH };
+
     defer deinit(*process);
     // Nothing is ever written to a captured child here: close its input so a child that reads
     // stdin sees the end instead of waiting for us forever.
@@ -177,6 +180,7 @@ run_command :: (args: ..string, working_directory := "", capture_and_return_outp
     }
 
     if !success status = .{ type = .FAILED_TO_LAUNCH, exit_code = -1 };
+
     return status, builder_to_string(*out), builder_to_string(*err), timed_out;
 }
 
@@ -219,11 +223,13 @@ append_quoted :: (builder: *String_Builder, s: string) {
         repetitions := slashes;
         if byte == #char "\"" repetitions = slashes * 2 + 1;
         for j: 0..repetitions - 1 append(builder, "\\");
+
         slashes = 0;
         append(builder, String.slice(s, i, 1));
     }
 
     for j: 0..slashes * 2 - 1 append(builder, "\\");
+
     append(builder, "\"");
 }
 

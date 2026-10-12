@@ -21,17 +21,21 @@
 
     os_clipboard_get_text :: (hwnd: W.HWND) -> string {
         if !W.OpenClipboard(hwnd) return "";
+
         defer W.CloseClipboard();
         handle := W.GetClipboardData(13);
         if !handle return "";
+
         pointer := cast(*u16) W.GlobalLock(handle);
         if !pointer return "";
+
         defer W.GlobalUnlock(handle);
         maximum := clipboard_global_size(handle) / 2;
         length: u64;
 
         while length < maximum && pointer[length] != 0 length += 1;
         if length == maximum return "";
+
         return os_wide_to_utf8(pointer, xx length, temporary = false);
     }
 
@@ -40,8 +44,10 @@
         count: s64;
 
         while wide[count] != 0 count += 1;
+
         memory := W.GlobalAlloc(2, xx ((count + 1) * 2));
         if !memory return;
+
         pointer := W.GlobalLock(memory);
         if !pointer {
             clipboard_global_free(memory);
@@ -62,9 +68,11 @@
     os_clipboard_set_bitmap :: (hwnd: W.HWND, width: s32, height: s32, pixels: *u8, channels: s32, flip := false) {
         dib, valid := make_dib(width, height, pixels, channels, flip);
         if !valid return;
+
         defer free(dib);
         memory := W.GlobalAlloc(2, xx dib.count);
         if !memory return;
+
         pointer := W.GlobalLock(memory);
         if !pointer {
             clipboard_global_free(memory);
@@ -97,10 +105,12 @@
         value := objc_one(board, clipboard_selector("stringForType:"), clipboard_nsstring("public.utf8-plain-text"));
 
         if !value return "";
+
         count := objc_encoding_length(value, clipboard_selector("lengthOfBytesUsingEncoding:"), 4);
         bytes := cast(*u8) objc_zero(value, clipboard_selector("UTF8String"));
 
         if !bytes return "";
+
         return copy_string(string.{ xx count, bytes });
     }
 
@@ -126,6 +136,7 @@
         defer objc_clear(pool, clipboard_selector("drain"));
         bmp, valid := make_bmp(width, height, pixels, channels, flip);
         if !valid return;
+
         defer free(bmp);
         data := objc_bytes(clipboard_class("NSData"), clipboard_selector("dataWithBytes:length:"), bmp.data, xx bmp.count);
         board := clipboard_board();
@@ -173,10 +184,12 @@
         status, out, err, timeout := Processes.run_command(..slice_array(arguments, 0, 2), capture_and_return_output = true);
 
         if status.type == .EXITED && status.exit_code == 0 return copy_string(out);
+
         x_arguments: [4] string = .["xclip", "-selection", "clipboard", "-o"];
 
         status, out, err, timeout = Processes.run_command(..x_arguments, capture_and_return_output = true);
         if status.type == .EXITED && status.exit_code == 0 return copy_string(out);
+
         return "";
     }
 
@@ -196,9 +209,11 @@
     os_clipboard_set_bitmap :: (width: s32, height: s32, pixels: *u8, channels: s32, flip := false) {
         bmp, valid := make_bmp(width, height, pixels, channels, flip);
         if !valid return;
+
         defer free(bmp);
         arguments: [3] string = .["wl-copy", "--type", "image/bmp"];
         if clipboard_send(arguments, bmp) return;
+
         fallback: [5] string = .["xclip", "-selection", "clipboard", "-t", "image/bmp"];
 
         clipboard_send(fallback, bmp);
@@ -208,6 +223,7 @@
     clipboard_send :: (arguments: [] string, data: string) -> bool {
         process: Processes.Process;
         if !Processes.create_process(*process, ..arguments, capture_and_return_output = true) return false;
+
         defer Processes.deinit(*process);
         offset: int;
         while offset < data.count {
@@ -254,12 +270,15 @@
 #scope_file
 make_dib :: (width: s32, height: s32, pixels: *u8, channels: s32, flip: bool) -> string, bool {
     if width <= 0 || height <= 0 || !pixels || channels != 3 && channels != 4 return "", false;
+
     pitch := (cast(s64) width * 3 + 3) & ~3;
     if pitch > (0xffff_ffff - 40) / cast(s64) height return "", false;
+
     count := pitch * height + 40;
     bytes := cast(*u8) alloc(count);
 
     if !bytes return "", false;
+
     memset(bytes, 0, count);
     write_le32(bytes, 40);
     write_le32(bytes + 4, xx width);
@@ -287,15 +306,18 @@ make_dib :: (width: s32, height: s32, pixels: *u8, channels: s32, flip: bool) ->
 make_bmp :: (width: s32, height: s32, pixels: *u8, channels: s32, flip: bool) -> string, bool {
     dib, valid := make_dib(width, height, pixels, channels, flip);
     if !valid return "", false;
+
     defer free(dib);
     bytes := cast(*u8) alloc(dib.count + 14);
     if !bytes return "", false;
+
     memset(bytes, 0, 14);
     bytes[0] = #char "B";
     bytes[1] = #char "M";
     write_le32(bytes + 2, xx (dib.count + 14));
     write_le32(bytes + 10, 54);
     memcpy(bytes + 14, dib.data, dib.count);
+
     return .{ dib.count + 14, bytes }, true;
 }
 

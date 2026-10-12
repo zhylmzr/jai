@@ -304,6 +304,7 @@ heap_is_this_yours :: (heap: *Heap, memory: *void) -> bool {
 
 is_in_span :: (memory: *void, span: *Span) -> bool {
     if !span || !memory return false;
+
     first := cast(u64) span;
     address := cast(u64) memory;
     span_bytes := cast(u64) span.span_count * native_config().span_size;

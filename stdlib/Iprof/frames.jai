@@ -13,6 +13,7 @@ frames_recorded: s64; // Frames folded in so far.
 // (for example while loading); the call tree is kept either way.
 update :: (record_data: bool) {
     if !live return;
+
     busy = true;
     defer busy = false;
 
@@ -60,6 +61,7 @@ charge_open_nodes :: (now: s64) {
 
         node.frame_hier += part;
         if node.parent node.parent.frame_child += part;
+
         node.opened_at = now;
         node = node.parent;
     }
@@ -70,6 +72,7 @@ frame_sample :: (node: *Call_Node) -> Sample64 {
     s.hier_ms = cast(float64) node.frame_hier / TICKS_PER_MS;
     s.self_ms = cast(float64) (node.frame_hier - node.frame_child) / TICKS_PER_MS;
     s.calls = cast(float64) node.frame_calls;
+
     return s;
 }
 

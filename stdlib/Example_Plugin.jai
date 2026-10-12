@@ -19,6 +19,7 @@ handle_one_option :: (p: *Metaprogram_Plugin, options: [] string, cursor: int) -
     }
 
     log("Example_Plugin: -option %.\n", options[cursor + 1]);
+
     return cursor + 2;
 }
 
@@ -31,6 +32,7 @@ get_plugin :: () -> *Metaprogram_Plugin {
     plugin.message = message;
     plugin.finish = finish;
     plugin.shutdown = shutdown;
+
     return plugin;
 }
 

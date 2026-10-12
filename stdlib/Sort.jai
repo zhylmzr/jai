@@ -65,10 +65,12 @@ quick_sort :: (array: [] $T, f: (T, T) -> $R) -> [] T {
         if f(b, a) < 0 swap_items(*a, *b);
         if f(c, b) < 0 swap_items(*b, *c);
         if f(b, a) < 0 swap_items(*a, *b);
+
         return b;
     }
 
     if array.count > 1 sort_range(array.data, array.count, f);
+
     return array;
 }
 
@@ -117,6 +119,7 @@ quick_sort :: (array: [] $T, f: (T) -> $R) -> [] T {
     }
 
     if array.count > 1 sort_range(array.data, array.count, f);
+
     return array;
 }
 

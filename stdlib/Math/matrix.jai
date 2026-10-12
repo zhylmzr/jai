@@ -321,6 +321,7 @@ make_matrix4 :: (values: ..float) -> Matrix4 #must #deprecated "Use a struct lit
 
     if limit > 16 limit = 16;
     for i: 0..limit - 1 result.coef[i / 4][i % 4] = values[i];
+
     return result;
 }
 
@@ -353,12 +354,14 @@ make_look_at_matrix :: (viewpoint: Vector3, look_at: Vector3, reference_up_vecto
 
     if x_is_forward result = make_matrix_from_rows(forward, side, up);
     else result = make_matrix_from_rows(-side, up, -forward); // right-handed: x = forward x up
+
     transformed := multiply(result, xyzw(viewpoint, 0));
     offset := xyz(-transformed.x, -transformed.y, -transformed.z);
 
     result._14 = offset.x;
     result._24 = offset.y;
     result._34 = offset.z;
+
     return result;
 }
 
@@ -408,6 +411,7 @@ make_projection_matrix :: (fov_vertical: float, aspect_ratio_horizontal_over_ver
     result := make_frustum_matrix(-horizontal, horizontal, -vertical, vertical, z_near, z_far, depth_range_01);
     result._13 = x_offset;
     result._23 = y_offset;
+
     return result;
 }
 
@@ -420,6 +424,7 @@ make_translation_matrix4 :: (v: Vector3) -> Matrix4 #must {
     result._14 = v.x;
     result._24 = v.y;
     result._34 = v.z;
+
     return result;
 }
 
@@ -672,6 +677,7 @@ inverse :: (m: Matrix4) -> Matrix4 #must, bool {
 
     result: Matrix4;
     for r: 0..3 for c : 0..3 result.coef[r][c] = cast(float) augmented[r][c + 4];
+
     return result, true;
 }
 
@@ -689,6 +695,7 @@ isometry_inverse :: (m: Matrix4) -> Matrix4 #must {
     result._14 = -(result._11 * m._14 + result._12 * m._24 + result._13 * m._34);
     result._24 = -(result._21 * m._14 + result._22 * m._24 + result._23 * m._34);
     result._34 = -(result._31 * m._14 + result._32 * m._24 + result._33 * m._34);
+
     return result;
 }
 
@@ -760,6 +767,7 @@ polar_decomp :: (M: Matrix3) -> (Q: Matrix3, S: Matrix3, det: float) {
 
     symmetric := transpose(orthogonal) * M;
     symmetric = (symmetric + transpose(symmetric)) * 0.5;
+
     return orthogonal, symmetric, determinant_value;
 }
 

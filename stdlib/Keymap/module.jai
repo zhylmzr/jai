@@ -56,8 +56,10 @@ Add_Mapping_Error_Type :: enum u8 {
 add_keymap :: (set: *Keymap_Set, section_name: string) -> *Keymap {
     existing := find_section(set, section_name);
     if existing != null return existing;
+
     keymap, _ := find_and_occupy_empty_slot(*set.keymaps);
     keymap.section_name = copy_string(section_name);
+
     return keymap;
 }
 
@@ -137,6 +139,7 @@ add_mapping :: (keymap: *Keymap, key: Key_Code, modifier_flags: Event.Modifier_F
 
 keymap_handle_event :: (keymap: Keymap, e: Event) -> bool {
     if !keymap.enabled || (e.type != .KEYBOARD && e.type != .TEXT_INPUT) return false;
+
     key := cast(u32) e.key_code;
     pressed := e.key_pressed != 0;
 
@@ -147,11 +150,13 @@ keymap_handle_event :: (keymap: Keymap, e: Event) -> bool {
     }
 
     if key >= 97 && key <= 122 key -= 32;
+
     index := keymap.mappings.count;
     while index > 0 {
         index -= 1;
         mapping := *keymap.mappings[index];
         if mapping.utf32 != key continue;
+
         ignore_modifiers := keymap.ignore_modifier_keys;
         if !mapping.respect_ignore_modifier_keys ignore_modifiers = !ignore_modifiers;
         if pressed && !ignore_modifiers && mapping.modifier_flags.packed != e.modifier_flags.packed continue;
@@ -169,12 +174,15 @@ keymap_handle_event :: (keymap: Keymap, e: Event) -> bool {
 
             if !pressed return false;
             if info.press_\proc != null info.press_\proc();
+
             return true;
         }
 
         if !pressed return false;
         if keymap.command_string_proc == null return false;
+
         keymap.command_string_proc(mapping.command_string);
+
         return true;
     }
 
@@ -183,6 +191,7 @@ keymap_handle_event :: (keymap: Keymap, e: Event) -> bool {
 
 keymap_copy :: (source: *Keymap, dest: *Keymap) {
     if source == dest return;
+
     reset_keymap(dest);
     keymap_copy_procs(source, dest);
     dest.command_string_proc = source.command_string_proc;
@@ -199,8 +208,10 @@ keymap_copy :: (source: *Keymap, dest: *Keymap) {
 
 keymap_copy_procs :: (source: *Keymap, dest: *Keymap) {
     if source == dest return;
+
     release_holds(dest);
     for info: dest.procs free(info.name);
+
     dest.procs.count = 0;
 
     for info: source.procs {
@@ -250,6 +261,7 @@ load_from_handler :: (set: *Keymap_Set, keymap: *Keymap, handler: *Text_File_Han
     while true {
         line, found := consume_next_line(handler);
         if !found break;
+
         line = trim_keymap_text(line);
         if line.count == 0 continue;
 
@@ -308,6 +320,7 @@ load_from_handler :: (set: *Keymap_Set, keymap: *Keymap, handler: *Text_File_Han
         }
 
         if handler.failed break;
+
         recognized, code := map_string_to_key(token);
         if !recognized || command.count == 0 {
             handler.failed = true;
@@ -316,6 +329,7 @@ load_from_handler :: (set: *Keymap_Set, keymap: *Keymap, handler: *Text_File_Han
 
         is_proc := command.data[0] != 58;
         if !is_proc command = trim_keymap_text(text_range(command, 1, command.count - 1));
+
         mapping, error_type := make_mapping(current, code, flags, true, command, is_proc);
         if error_type != .NO_ERROR {
             handler.failed = true;
@@ -331,6 +345,7 @@ load_from_handler :: (set: *Keymap_Set, keymap: *Keymap, handler: *Text_File_Han
     }
 
     for entry: pending install_mapping(entry.keymap, entry.mapping);
+
     return true;
 }
 
@@ -347,14 +362,17 @@ map_string_to_key :: (s: string) -> bool, Key_Code {
     value, valid := single_codepoint(s);
     if !valid return false, .UNKNOWN;
     if value >= 97 && value <= 122 value -= 32;
+
     return true, cast(Key_Code) value;
 }
 
 map_key_to_string :: (k: Key_Code) -> string {
     for named: named_keys if named.key == k return named.name;
+
     value := cast(u32) k;
     if value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff) return "Unknown";
     if value >= cast(u32) Key_Code.F1 && value <= cast(u32) Key_Code.F24 return tprint("F%", value - cast(u32) Key_Code.F1 + 1);
+
     bytes: [4] u8;
     count: s64;
 
@@ -381,6 +399,7 @@ map_key_to_string :: (k: Key_Code) -> string {
     result: string = .{ count, cast(*u8) alloc(count, temp) };
 
     memcpy(result.data, *bytes[0], count);
+
     return result;
 }
 
@@ -415,6 +434,7 @@ named_keys: [] struct {
 
 single_codepoint :: (s: string) -> u32, bool {
     if s.count < 1 || s.count > 4 return 0, false;
+
     first := s.data[0];
     count: s64;
     value: u32;
@@ -512,7 +532,9 @@ make_mapping :: (keymap: *Keymap, key: Key_Code, flags: Modifier_Flags,
     }
 
     if keymap.command_string_proc == null return result, .UNKNOWN_COMMAND;
+
     result.command_string = copy_string(command);
+
     return result, .NO_ERROR;
 }
 
@@ -528,6 +550,7 @@ install_mapping :: (keymap: *Keymap, mapping: Single_Key_Mapping) {
 
         free(old.command_string);
         old.* = mapping;
+
         return;
     }
 
@@ -537,8 +560,10 @@ install_mapping :: (keymap: *Keymap, mapping: Single_Key_Mapping) {
 release_holds :: (keymap: *Keymap) {
     for *mapping: keymap.mappings {
         if !mapping.toggled_on continue;
+
         mapping.toggled_on = false;
         if mapping.proc_index < 0 || mapping.proc_index >= keymap.procs.count continue;
+
         proc := keymap.procs[mapping.proc_index].toggle_proc;
         if proc != null proc(false);
     }

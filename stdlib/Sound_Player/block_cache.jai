@@ -52,6 +52,7 @@ decode_queue: [..] *Decoded_Block = .{ allocator = SOUND_HEAP };
 open_vorbis_cache :: (data: *Sound_Data) -> *Block_Cache {
     handle := open_vorbis_handle(data);
     if !handle return null;
+
     info := stb_vorbis_get_info(handle);
     if info.channels < 1 || info.channels > MAX_CHANNELS_PER_SOUND || info.sample_rate == 0 {
         stb_vorbis_close(handle);
@@ -66,12 +67,14 @@ open_vorbis_cache :: (data: *Sound_Data) -> *Block_Cache {
     cache.rate = info.sample_rate;
     cache.length = stb_vorbis_stream_length_in_samples(handle);
     cache.block_frames = VORBIS_BLOCK_FRAMES;
+
     return cache;
 }
 
 open_adpcm_cache :: (data: *Sound_Data) -> *Block_Cache {
     if !data.samples || data.nBlockAlign <= 0 || data.wSamplesPerBlock <= 0 return null;
     if data.nchannels < 1 || data.nchannels > MAX_CHANNELS_PER_SOUND return null;
+
     cache := New(Block_Cache);
     cache.codec = .IMA_ADPCM;
     cache.sound = data;
@@ -79,6 +82,7 @@ open_adpcm_cache :: (data: *Sound_Data) -> *Block_Cache {
     cache.rate = data.sampling_rate;
     cache.length = data.nsamples_times_nchannels / data.nchannels;
     cache.block_frames = ADPCM_PACKETS_PER_BLOCK * cast(s64) data.wSamplesPerBlock;
+
     return cache;
 }
 
@@ -114,6 +118,7 @@ keep_blocks_near_cursor :: (stream: *Sound_Stream) {
         }
 
         if cache.last_hit == block cache.last_hit = null;
+
         drop_block(block);
         array_unordered_remove_by_index(*cache.blocks, index);
     }
@@ -155,6 +160,7 @@ decode_one_queued_block :: () -> bool {
     lock(*player.lock);
     land_block(block);
     unlock(*player.lock);
+
     return true;
 }
 
@@ -175,6 +181,7 @@ open_vorbis_handle :: (data: *Sound_Data) -> *stb_vorbis {
     }
 
     if data.buffer.count == 0 || data.buffer.count > S32_MAX return null;
+
     return stb_vorbis_open_memory(data.buffer.data, cast(s32) data.buffer.count, *status, null);
 }
 
@@ -190,6 +197,7 @@ want_frames :: (cache: *Block_Cache, from: s64, to: s64) {
         }
 
         if !block block = request_block(cache, first);
+
         block.wanted = true;
         first += cache.block_frames;
     }
@@ -222,6 +230,7 @@ land_block :: (block: *Decoded_Block) {
     block.ready = true;
     cache.in_flight -= 1;
     if cache.in_flight > 0 || !cache.parked_stream return;
+
     stream := cache.parked_stream;
 
     close_block_cache(cache);
@@ -249,6 +258,7 @@ decode_vorbis_range :: (cache: *Block_Cache, first: s64, out: *s16) -> s64 {
     wanted := min(cache.block_frames, cache.length - first);
     if wanted <= 0 || first > U32_MAX return 0;
     if !stb_vorbis_seek(cache.vorbis, cast(u32) first) return 0;
+
     got := 0;
     while got < wanted {
         values_left := (wanted - got) * cache.channels;
@@ -285,6 +295,7 @@ decode_adpcm_range :: (cache: *Block_Cache, first: s64, out: *s16) -> s64 {
     for 0..ADPCM_PACKETS_PER_BLOCK - 1 {
         offset := (packet + it) * packet_bytes;
         if offset + packet_bytes > payload_bytes break;
+
         source: [] u8;
         source.data = payload + offset;
         source.count = packet_bytes;
@@ -293,6 +304,7 @@ decode_adpcm_range :: (cache: *Block_Cache, first: s64, out: *s16) -> s64 {
         target.count = capacity - written;
         produced := IMA_ADPCM_decode(info, source, target);
         if produced <= 0 break;
+
         written += produced;
     }
 

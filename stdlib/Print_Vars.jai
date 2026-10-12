@@ -32,6 +32,7 @@ print_helper :: (builder: *Basic.String_Builder, config: Print_Vars_Config, name
     if flags & .PRINT_NAME emit_column(builder, config.before_name, name, name_width, config.name_indentation, config.after_name);
     if flags & .PRINT_VALUE emit_column(builder, config.before_value, value, value_width, config.value_indentation, config.after_value);
     if flags & .PRINT_TYPE emit_column(builder, config.before_type, Basic.tprint("%", type), 0, .NONE, config.after_type);
+
     Basic.append(builder, config.line_separator);
 }
 
@@ -39,8 +40,10 @@ emit_column :: (builder: *Basic.String_Builder, prefix: string, text: string, wi
     Basic.append(builder, prefix);
     fill := width - text.count;
     if side == .RIGHT_JUSTIFIED pad_spaces(builder, fill);
+
     Basic.append(builder, text);
     if side == .LEFT_JUSTIFIED pad_spaces(builder, fill);
+
     Basic.append(builder, suffix);
 }
 
@@ -51,9 +54,11 @@ pad_spaces :: (builder: *Basic.String_Builder, n: s64) {
 get_code_name :: (code: Code) -> string #compile_time {
     root := Compiler.compiler_get_nodes(code);
     if root.kind == .IDENT return Basic.copy_string((cast(*Compiler.Code_Ident) root).name);
+
     builder: Basic.String_Builder;
 
     PP.print_expression(*builder, root);
+
     return Basic.builder_to_string(*builder);
 }
 

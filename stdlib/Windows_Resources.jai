@@ -10,15 +10,18 @@ find_visual_studio_in_a_ridiculous_garbage_way :: () -> (library_path := "", lin
     // already supplies COM; this function must not uninitialize someone else's.
     initialized := CoInitializeEx(null, 0);
     if initialized < 0 && initialized != -2147417850 return "", "";
+
     defer if initialized >= 0 CoUninitialize();
     clsid := uid("177F0C4A-1CD3-4DE7-A32C-71DBBB9FA36D");
     iid := uid(ISetupConfiguration.uuid);
     configuration: *ISetupConfiguration;
 
     if CoCreateInstance(*clsid, null, cast(CLSCTX) 1, *iid, cast(**void) *configuration) < 0 || configuration == null return "", "";
+
     defer IUnknown_Release(cast(*IUnknown) configuration);
     instances: *IEnumSetupInstances;
     if configuration.vtable.EnumInstances(configuration, *instances) < 0 || instances == null return "", "";
+
     defer IUnknown_Release(cast(*IUnknown) instances);
     best_version: [4] u32;
 
@@ -29,38 +32,47 @@ find_visual_studio_in_a_ridiculous_garbage_way :: () -> (library_path := "", lin
 
         if result < 0 || fetched == 0 break;
         if instance == null break;
+
         defer IUnknown_Release(cast(*IUnknown) instance);
         path_bstr: BSTR;
         version_bstr: BSTR;
 
         if instance.vtable.GetInstallationPath(instance, *path_bstr) < 0 || path_bstr == null continue;
+
         defer SysFreeString(path_bstr);
         if instance.vtable.GetInstallationVersion(instance, *version_bstr) < 0 || version_bstr == null continue;
+
         defer SysFreeString(version_bstr);
         installation, path_ok := wide_to_utf8(path_bstr);
         if !path_ok continue;
+
         defer free(installation);
         version, version_ok := wide_to_utf8(version_bstr);
         if !version_ok continue;
+
         defer free(version);
         components, parsed := _sdk_vs_version(version);
         if !parsed continue;
         if library_path.count > 0 && !_sdk_vs_newer(components, best_version) continue;
+
         version_file := _sdk_vs_join(installation, "VC\\Auxiliary\\Build\\Microsoft.VCToolsVersion.default.txt");
 
         defer free(version_file);
         tools_version, read_ok := read_entire_file(version_file);
         if !read_ok || tools_version.count == 0 continue;
+
         defer free(tools_version);
         start: s64 = 0;
         end := tools_version.count;
 
         while start < end && tools_version[start] <= 32 start += 1;
         while end > start && tools_version[end - 1] <= 32 end -= 1;
+
         trimmed := string.{ end - start, tools_version.data + start };
         _, tools_parsed := _sdk_vs_version(trimmed);
 
         if !tools_parsed continue;
+
         tools_prefix := _sdk_vs_join(installation, "VC\\Tools\\MSVC");
 
         defer free(tools_prefix);
@@ -97,6 +109,7 @@ find_visual_studio_in_a_ridiculous_garbage_way :: () -> (library_path := "", lin
 
         if library_path.count > 0 free(library_path);
         if linker_path.count > 0 free(linker_path);
+
         library_path = candidate_library;
         linker_path = candidate_linker;
         best_version = components;
@@ -167,6 +180,7 @@ MEMICONDIRENTRY :: struct {
 _sdk_vs_version :: (text: string) -> [4] u32, bool {
     values: [4] u32;
     if text.count == 0 return values, false;
+
     component: s64 = 0;
     digits := false;
 
@@ -177,8 +191,10 @@ _sdk_vs_version :: (text: string) -> [4] u32, bool {
             digits = false;
         } else {
             if character < 48 || character > 57 return values, false;
+
             digit := cast(u32) character - 48;
             if values[component] > (0xffffffff - digit) / 10 return values, false;
+
             values[component] = values[component] * 10 + digit;
             digits = true;
         }
@@ -202,13 +218,16 @@ _sdk_vs_join :: (left: string, right: string) -> string {
     defer free_buffers(*builder);
     append(*builder, left);
     if left.count > 0 && left[left.count - 1] != 92 && left[left.count - 1] != 47 append(*builder, cast(u8) 92);
+
     append(*builder, right);
+
     return builder_to_string(*builder);
 }
 
 _sdk_vs_file :: (path: string) -> bool {
     wide, success := utf8_to_wide(path);
     if !success || wide == null return false;
+
     defer free(wide);
     attributes := GetFileAttributesW(wide);
 

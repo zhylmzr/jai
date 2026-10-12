@@ -323,6 +323,7 @@ NSProcessInfo :: struct {
             invoke: (output: *NSOperatingSystemVersion, sdk_receiver: *void, sdk_selector: SEL) -> void #c_call;
             invoke = cast(type_of(invoke)) objc_msgSend_stret;
             invoke(*result, cast(*void) self, sel_registerName(cast(*u8) "operatingSystemVersion\0"));
+
             return result;
         } else {
             invoke: (sdk_receiver: *void, sdk_selector: SEL) -> NSOperatingSystemVersion #c_call;

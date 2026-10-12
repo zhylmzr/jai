@@ -34,6 +34,7 @@ operator *[] :: (array: Bucket_Array, index: int) -> *array.type {
 
     assert(bucket_index < array.all_buckets.count);
     assert(array.all_buckets[bucket_index].occupied[slot]);
+
     return *array.all_buckets[bucket_index].data[slot];
 }
 
@@ -57,6 +58,7 @@ for_expansion :: (array: *$T/Bucket_Array, body: Code, flags: For_Flags) #expand
 
         physical += stride;
         if !bucket.occupied[slot] continue;
+
         #if REVERSE it_index -= 1;
         else it_index += 1;
 
@@ -87,6 +89,7 @@ bucket_array_find :: (array: *Bucket_Array, locator: Bucket_Locator) -> array.ty
     bucket := array.all_buckets[locator.bucket_index];
 
     assert(bucket.occupied[locator.slot_index]);
+
     return bucket.data[locator.slot_index];
 }
 
@@ -97,6 +100,7 @@ bucket_array_remove :: (array: *Bucket_Array, locator: Bucket_Locator) {
 
     assert(bucket.occupied[locator.slot_index]);
     if bucket.count == array.items_per_bucket array_add(*array.unfull_buckets, bucket);
+
     bucket.occupied[locator.slot_index] = false;
     bucket.count -= 1;
     array.count -= 1;
@@ -110,6 +114,7 @@ bucket_array_reset :: (array: *Bucket_Array) {
     allocator := array.allocator;
     if !allocator.proc allocator = context.allocator;
     for array.all_buckets free(it, allocator);
+
     array_free(array.all_buckets);
     array_free(array.unfull_buckets);
     array.all_buckets = .{};
@@ -119,16 +124,19 @@ bucket_array_reset :: (array: *Bucket_Array) {
 
 find_and_occupy_empty_slot :: (array: *Bucket_Array, $initialize := true) -> *array.type, Bucket_Locator {
     if array.unfull_buckets.count == 0 add_bucket(array);
+
     bucket := array.unfull_buckets[array.unfull_buckets.count - 1];
     slot := bucket.lowest_maybe_not_occupied;
 
     while slot < array.items_per_bucket && bucket.occupied[slot] slot += 1;
+
     assert(slot < array.items_per_bucket);
     bucket.occupied[slot] = true;
     bucket.count += 1;
     bucket.lowest_maybe_not_occupied = slot + 1;
     array.count += 1;
     if bucket.count == array.items_per_bucket array.unfull_buckets.count -= 1;
+
     pointer := *bucket.data[slot];
 
     #if initialize {
@@ -145,6 +153,7 @@ find_and_occupy_empty_slot :: (array: *Bucket_Array, $initialize := true) -> *ar
 
 add_bucket :: (array: *Bucket_Array) -> *array.My_Bucket {
     if !array.allocator.proc array.allocator = context.allocator;
+
     array.all_buckets.allocator = array.allocator;
     array.unfull_buckets.allocator = array.allocator;
     assert(array.all_buckets.count < 0xffff_ffff);
@@ -154,5 +163,6 @@ add_bucket :: (array: *Bucket_Array) -> *array.My_Bucket {
     bucket.bucket_index = cast(u32) array.all_buckets.count;
     array_add(*array.all_buckets, bucket);
     array_add(*array.unfull_buckets, bucket);
+
     return bucket;
 }

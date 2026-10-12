@@ -114,6 +114,7 @@ video_destroy :: (video: *Video) {
     assert(entry.own_native, "A borrowed decoder is owned by its parent");
     raw_plm_video_destroy(entry.native);
     if video.destroy_buffer_when_done buffer_destroy(video.buffer);
+
     forget_video(video);
 }
 
@@ -124,6 +125,7 @@ video_get_framerate :: (video: *Video) -> float64 {
     result := raw_plm_video_get_framerate(entry.native);
 
     pull_video(entry);
+
     return result;
 }
 
@@ -155,6 +157,7 @@ video_has_ended :: (video: *Video) -> bool {
     result := raw_plm_video_has_ended(entry.native);
 
     pull_video(entry);
+
     return result != 0;
 }
 
@@ -165,6 +168,7 @@ video_decode :: (video: *Video) -> *Frame {
     result := raw_plm_video_decode(entry.native);
 
     pull_video(entry);
+
     return result;
 }
 
@@ -175,6 +179,7 @@ video_has_header :: (video: *Video) -> bool {
     result := raw_plm_video_has_header(entry.native);
 
     pull_video(entry);
+
     return result != 0;
 }
 
@@ -185,6 +190,7 @@ video_decode_sequence_header :: (video: *Video) -> bool {
     result := raw_plm_video_decode_sequence_header(entry.native);
 
     pull_video(entry);
+
     return result != 0;
 }
 
@@ -230,6 +236,7 @@ video_decode_motion_vector :: (video: *Video, r_size: s32, motion: s32) -> s32 {
     result := raw_plm_video_decode_motion_vector(entry.native, r_size, motion);
 
     pull_video(entry);
+
     return result;
 }
 

@@ -718,6 +718,7 @@ MTLOriginMake :: (x: NSUInteger, y: NSUInteger, z: NSUInteger) -> MTLOrigin {
     result.x = x;
     result.y = y;
     result.z = z;
+
     return result;
 }
 
@@ -732,6 +733,7 @@ MTLSizeMake :: (width: NSUInteger, height: NSUInteger, depth: NSUInteger) -> MTL
     result.width = width;
     result.height = height;
     result.depth = depth;
+
     return result;
 }
 
@@ -2318,6 +2320,7 @@ MTLDevice :: struct {
             send_stret: (output: *MTLSize, receiver: *MTLDevice, selector: SEL) -> void #c_call;
             send_stret = cast(type_of(send_stret)) objc_msgSend_stret;
             send_stret(*value, self, sel_registerName(cast(*u8) "maxThreadsPerThreadgroup\0"));
+
             return value;
         } else {
             invoke: (receiver: *MTLDevice, selector: SEL) -> MTLSize #c_call;
@@ -3167,6 +3170,7 @@ MTLRenderPassColorAttachmentDescriptor :: struct {
             send_stret: (output: *MTLClearColor, receiver: *MTLRenderPassColorAttachmentDescriptor, selector: SEL) -> void #c_call;
             send_stret = cast(type_of(send_stret)) objc_msgSend_stret;
             send_stret(*value, self, sel_registerName(cast(*u8) "clearColor\0"));
+
             return value;
         } else {
             invoke: (receiver: *MTLRenderPassColorAttachmentDescriptor, selector: SEL) -> MTLClearColor #c_call;
@@ -3324,6 +3328,7 @@ MTLClearColorMake :: (red: float64, green: float64, blue: float64, alpha: float6
     result.green = green;
     result.blue = blue;
     result.alpha = alpha;
+
     return result;
 }
 

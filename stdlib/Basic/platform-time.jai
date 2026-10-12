@@ -5,6 +5,7 @@
         frequency: s64;
 
         if !clock_query_counter(*ticks) || !clock_query_frequency(*frequency) || frequency <= 0 return APOLLO_TIME_INVALID;
+
         seconds := ticks / frequency;
         fraction := ticks % frequency;
 
@@ -22,6 +23,7 @@
         epoch_ticks :: 116444736000000000;
 
         if ticks < epoch_ticks return APOLLO_TIME_INVALID;
+
         since_epoch := ticks - epoch_ticks;
         seconds := cast(s64) (since_epoch / 10000000);
         nanoseconds := cast(s64) (since_epoch % 10000000) * 100;
@@ -35,12 +37,16 @@
         ft: Clock_Filetime;
 
         if !ok return ft, false;
+
         total := ticks / 100;
         if ticks < 0 && ticks % 100 != 0 total -= 1;
+
         total += 116444736000000000;
         if total < 0 return ft, false;
+
         ft.dwLowDateTime = cast,no_check(u32) ((cast(u64) total) & 0xffff_ffff);
         ft.dwHighDateTime = cast,no_check(u32) ((cast(u64) total) >> 32);
+
         return ft, true;
     }
 
@@ -68,15 +74,19 @@
     get_working_directory :: () -> string {
         required := clock_get_cwd(0, null);
         if required == 0 return "";
+
         buffer := cast(*u16) alloc(cast(s64) required * 2 + 2, temp);
         written := clock_get_cwd(required, buffer);
 
         if written == 0 || written >= required return "";
+
         bytes := clock_wide_to_utf8(65001, 0, buffer, cast(s32) written, null, 0, null, null);
         if bytes <= 0 return "";
+
         out := cast(*u8) alloc(cast(s64) bytes, temp);
 
         clock_wide_to_utf8(65001, 0, buffer, cast(s32) written, out, bytes, null, null);
+
         return string.{ cast(s64) bytes, out };
     }
 
@@ -107,12 +117,14 @@
         result: [] u16;
 
         if count <= 0 && text.count > 0 return result;
+
         buffer := cast(*u16) alloc((cast(s64) count + 1) * 2, temp);
 
         clock_utf8_to_wide_raw(65001, 0, text.data, cast(s32) text.count, buffer, count);
         buffer[count] = 0;
         result.data = buffer;
         result.count = count;
+
         return result;
     }
     #scope_export
@@ -126,6 +138,7 @@
 
         stamp: Clock_Timespec;
         if clock_get_time(clock, *stamp) != 0 return APOLLO_TIME_INVALID;
+
         return seconds_to_apollo(stamp.tv_sec) + nanoseconds_to_apollo(stamp.tv_nsec);
     }
 
@@ -154,8 +167,10 @@
             nanoseconds_total, ok := to_nanoseconds(elapsed, DO_ROUNDING = true);
 
             if !ok || at == APOLLO_TIME_INVALID || nanoseconds_total < 0 return ts, false; // timespec cannot go negative
+
             ts.tv_sec = nanoseconds_total / 1_000_000_000;
             ts.tv_nsec = nanoseconds_total % 1_000_000_000;
+
             return ts, true;
         }
     } else {
@@ -166,6 +181,7 @@
 
     sleep_milliseconds :: (milliseconds: s32) {
         if milliseconds <= 0 return;
+
         requested: Clock_Timespec;
         requested.tv_sec = milliseconds / 1000;
         requested.tv_nsec = (milliseconds % 1000) * 1000000;
@@ -237,8 +253,10 @@ seconds_since_init :: () -> float64 {
     now_ns, valid := to_nanoseconds(now);
 
     if !valid || now_ns < 0 return 0;
+
     installed, origin := compare_and_swap(*clock_initial_nanoseconds, cast(s64) -1, now_ns);
     if installed origin = now_ns;
+
     return cast(float64) max(0, now_ns - origin) / 1000000000.0;
 }
 

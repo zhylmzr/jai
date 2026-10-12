@@ -25,8 +25,10 @@ Text_File_Handler :: struct {
 
 consume_next_line :: (sp: *string) -> string, bool {
     if sp.count == 0 return "", false;
+
     n := 0;
     while n < sp.count && sp.data[n] != 10 && sp.data[n] != 13 n += 1;
+
     line := String.slice(sp.*, 0, n);
     consumed := n;
 
@@ -38,6 +40,7 @@ consume_next_line :: (sp: *string) -> string, bool {
 
     sp.data += consumed;
     sp.count -= consumed;
+
     return line, true;
 }
 
@@ -62,6 +65,7 @@ break_by_spaces :: (line: string) -> left: string, right: string {
 start_from_memory :: (handler: *Text_File_Handler, _short_name: string, _full_path: string, _file_data: string, loc := #caller_location) {
     // A buffer owned from an earlier start_file is no longer referenced once we switch.
     if handler.file_data_to_free.data Basic.free(handler.file_data_to_free);
+
     handler.file_data_to_free = "";
     handler.file_data = _file_data;
     handler.short_name, handler.full_path = _short_name, _full_path;
@@ -80,7 +84,9 @@ start_file :: (handler: *Text_File_Handler, short_name: string, full_path: strin
         handler.version = -1;
         handler.line_number = 0;
         if !optional handler.failed = true;
+
         handler.file_data = "";
+
         return;
     }
 
@@ -122,6 +128,7 @@ file_to_table :: (filename: string, do_trim := true, skip_blank_lines := true, d
     }
 
     Basic.array_free(lines);
+
     return success, table;
 }
 
@@ -131,20 +138,24 @@ file_to_array :: (filename: string, do_trim := true, skip_blank_lines := true, d
     handler.auto_skip_blank_lines = skip_blank_lines;
     if use_data_from_memory start_from_memory(*handler, filename, filename, data_from_memory, loc);
     else start_file(*handler, filename, filename, loc = loc);
+
     array: [..] string;
 
     while true {
         line, found := consume_next_line(*handler.file_data);
         if !found break;
+
         handler.line_number += 1;
         comment := String.find_index_from_left(line, handler.comment_character);
         if comment >= 0 line = String.slice(line, 0, comment);
         if do_trim line = String.trim(line);
         if skip_blank_lines && String.trim(line).count == 0 continue;
+
         Basic.array_add(*array, Basic.copy_string(line));
     }
 
     deinit(*handler);
+
     return !handler.failed, array;
 }
 
@@ -154,8 +165,10 @@ read_version_line :: (handler: *Text_File_Handler) -> bool {
     line, found := consume_next_line(handler);
     if !found || line.count < 3 return false;
     if line[0] != #char "[" || line[line.count - 1] != #char "]" return false;
+
     number, parsed := Basic.string_to_int(String.slice(line, 1, line.count - 2));
     if parsed handler.version = number;
+
     return parsed;
 }
 
@@ -173,5 +186,6 @@ clean_line :: (handler: *Text_File_Handler, raw: string) -> text: string, keep: 
     }
 
     if text.count == 0 && handler.auto_skip_blank_lines return "", false;
+
     return text, true;
 }

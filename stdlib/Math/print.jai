@@ -24,6 +24,7 @@ print_matrix :: (builder: *Basic.String_Builder, any: Any, user_data: *void) -> 
     if any.type == type_info(Matrix3) return print_known_matrix(builder, (cast(*Matrix3) any.value_pointer).*);
     if any.type == type_info(Matrix4) return print_known_matrix(builder, (cast(*Matrix4) any.value_pointer).*);
     if any.type == type_info(Matrix4x3) return print_known_matrix(builder, (cast(*Matrix4x3) any.value_pointer).*);
+
     return false;
 }
 
@@ -40,5 +41,6 @@ math_struct_printer :: (builder: *Basic.String_Builder, any: Any, user_data: *vo
     view.data = cast(*float) any.value_pointer;
     view.count = lanes;
     print_numeric_row(builder, view);
+
     return true;
 }

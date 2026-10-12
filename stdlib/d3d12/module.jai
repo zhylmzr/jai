@@ -10,6 +10,7 @@ D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING :: (Src0: s32, Src1: s32, Src2: s32, Src
     lanes[2] = Src2;
     lanes[3] = Src3;
     for lane: 0..3 encoded |= (lanes[lane] & D3D12_SHADER_COMPONENT_MAPPING_MASK) << (lane * D3D12_SHADER_COMPONENT_MAPPING_SHIFT);
+
     return cast(D3D12_SHADER_COMPONENT_MAPPING) encoded;
 }
 
@@ -27,6 +28,7 @@ D3D12_ENCODE_BASIC_FILTER :: (min: D3D12_FILTER_TYPE, mag: D3D12_FILTER_TYPE, mi
     filter |= ((cast(s32) mag) & D3D12_FILTER_TYPE_MASK) << D3D12_MAG_FILTER_SHIFT;
     filter |= ((cast(s32) mip) & D3D12_FILTER_TYPE_MASK) << D3D12_MIP_FILTER_SHIFT;
     filter |= ((cast(s32) reduction) & D3D12_FILTER_REDUCTION_TYPE_MASK) << D3D12_FILTER_REDUCTION_TYPE_SHIFT;
+
     return cast(D3D12_FILTER) filter;
 }
 

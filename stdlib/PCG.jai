@@ -18,6 +18,7 @@ random_get_within_bound :: (state: *u64, range: u32) -> u32 {
     candidate := random_get(state);
 
     while candidate < threshold candidate = random_get(state);
+
     return candidate % range;
 }
 

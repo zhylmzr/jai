@@ -5,11 +5,14 @@ Strings :: #import "String";
 
 copy_file :: (source: string, dest: string) -> bool {
     if source == dest || same_file(source, dest) return false;
+
     input, opened := file_open(source);
     if !opened return false;
+
     defer file_close(*input);
     output, created := file_open(dest, for_writing = true);
     if !created return false;
+
     defer file_close(*output);
     buffer: [65536] u8;
 
@@ -61,6 +64,7 @@ File_Visit_Info :: struct {
 
 visit_files :: (dir_name: string, recursive: bool, user_data: $T, proc: (info: *File_Visit_Info, user_data: T), visit_files := true, visit_directories := false, visit_symlinks := true, follow_directory_symlinks := true) -> bool {
     if !proc return true;
+
     pending: [..] string;
     pending.allocator = temp;
     visited: [..] string;
@@ -73,6 +77,7 @@ visit_files :: (dir_name: string, recursive: bool, user_data: $T, proc: (info: *
         cursor += 1;
         canonical, resolved := get_absolute_path(directory);
         if !resolved return false;
+
         already_seen := false;
 
         for seen: visited if seen == canonical {
@@ -81,6 +86,7 @@ visit_files :: (dir_name: string, recursive: bool, user_data: $T, proc: (info: *
         }
 
         if already_seen continue;
+
         array_add(*visited, canonical);
         entries, scanned := directory_entries(directory);
         if !scanned return false;
@@ -105,5 +111,6 @@ file_list :: (path: string, recursive := false, follow_directory_symlinks := tru
     }
 
     visit_files(path, recursive, *result, visitor, follow_directory_symlinks = follow_directory_symlinks);
+
     return result;
 }

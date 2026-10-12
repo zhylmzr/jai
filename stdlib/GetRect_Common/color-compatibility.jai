@@ -54,10 +54,12 @@ draw_color_gradient_bar :: (area: Rect, theme: *Color_Animation_Editor_Theme, st
 
 draw_color_keyframe :: (index: int, rect: Rect, theme: *Color_Animation_Editor_Theme, state: *Color_Animation_Editor_State) {
     if index < 0 || index >= state.color_keyframes.count return;
+
     frame := *state.color_keyframes[index];
     breadth := rect.h * theme.keyframe_width_relative_to_bar_height_nondragging;
 
     if state.dragging_in_strip && state.dragging_keyframe_index == index breadth *= theme.keyframe_scale_when_dragging;
+
     marker := Rect.{ rect.x + clamp(frame.t, 0.0, 1.0) * rect.w - breadth / 2, rect.y, max(breadth, 1.0), rect.h };
 
     frame.pos_x = marker.x + marker.w / 2;
@@ -99,6 +101,7 @@ update_keyframes :: (rect: Rect, theme: *Color_Animation_Editor_Theme, state: *C
 
     if mouse_button_right_state & .START && hit >= 0 && has_focus(rect) {
         for i: hit + 1..state.color_keyframes.count - 1 state.color_keyframes[i - 1] = state.color_keyframes[i];
+
         state.color_keyframes.count -= 1;
         state.dragging_in_strip = false;
         state.color_picker_subwindow_info.open = false;
@@ -120,17 +123,20 @@ update_keyframes :: (rect: Rect, theme: *Color_Animation_Editor_Theme, state: *C
 my_color_slider :: (rect: Rect, alpha: float, theme: *Color_Animation_Editor_Theme, state: *Color_Animation_Editor_State) -> (changed: bool) {
     before := NewArray(state.color_keyframes.count, Color_Keyframe,, Basic.temp);
     for frame, index: state.color_keyframes before[index] = frame.base;
+
     update_keyframes(rect, theme, state);
     left_color_strip(rect, state, clamp(alpha, 0.0, 1.0));
     for frame, index: state.color_keyframes draw_color_keyframe(index, rect, theme, state);
     if before.count != state.color_keyframes.count return true;
     for frame, index: state.color_keyframes if frame.t != before[index].t || frame.color_rgb != before[index].color_rgb return true;
+
     return false;
 }
 
 #scope_module
 left_color_strip :: (rect: Rect, state: *Color_Animation_Editor_State, alpha: float) {
     if rect.w <= 0 || rect.h <= 0 return;
+
     count := max(cast(int) ceil(rect.w), 1);
 
     array_resize(*state.color_samples, count);
@@ -155,14 +161,17 @@ left_color_sample_at :: (sorted: [] *Augmented_Keyframe, interp: Interpolation, 
     output: [1] Vector4;
 
     generate_color_samples(shifted, interp, output);
+
     return output[0];
 }
 
 left_disc_square :: (point: Vector2, warp: bool) -> Vector2 {
     if !warp return .{ clamp(point.x, -1.0, 1.0), clamp(point.y, -1.0, 1.0) };
+
     magnitude := min(length(point), 1.0);
     maximum := max(abs(point.x), abs(point.y));
 
     if maximum <= EPSILON return .{};
+
     return point * (magnitude / maximum);
 }

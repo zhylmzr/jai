@@ -49,6 +49,7 @@ set_shader_for_images :: (texture: *Texture) {
     CheckInit();
     sprite := *shader_sprite_right_handed;
     if context.simp.coordinate_system == .LEFT_HANDED sprite = *shader_sprite_left_handed;
+
     // Both calls flush queued vertices themselves when the program or the image actually changes.
     bind_builtin_shader(sprite);
     immediate_set_texture(texture);

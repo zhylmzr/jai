@@ -174,8 +174,10 @@ init_input_system :: () {
     for *state: input_button_states state.* = .NONE;
     for *state: unscoped_button_states state.* = .NONE;
     for *record: window_input_states for *state : record.buttons state.* = .NONE;
+
     unscoped_input_focus = false;
     if window_input_states.count > 0 refresh_application_focus();
+
     install_native_input_adapter();
     if input_initialize_source != null input_initialize_source();
 }
@@ -214,6 +216,7 @@ update_window_events :: () {
 
     input_per_frame_event_and_flag_update();
     if input_event_source != null input_event_source();
+
     window_resizes_this_frame.count = 0;
     Swap(*pending_resizes, *window_resizes_this_frame);
     mouse_delta_x = pending_mouse_x;
@@ -223,6 +226,7 @@ update_window_events :: () {
     pending_mouse_y = 0;
     pending_mouse_z = 0;
     for pending: pending_events publish_pending_event(pending);
+
     pending_events.count = 0;
 }
 
@@ -352,6 +356,7 @@ get_input_pointer_position :: (window: Window_Type, client_area := false) -> flo
     }
 
     assert(input_pointer_source != null, "Input pointer adapter is not installed");
+
     return input_pointer_source(window, client_area);
 }
 
@@ -404,9 +409,11 @@ find_input_window :: (window: Window_Type) -> s64 {
 ensure_input_window :: (window: Window_Type) -> s64 {
     index := find_input_window(window);
     if index >= 0 return index;
+
     record: Window_Input_State;
     record.window = window;
     array_add(*window_input_states, record);
+
     return window_input_states.count - 1;
 }
 
@@ -456,6 +463,7 @@ release_focus_buttons :: (window: Window_Type, scoped: bool) {
     if scoped {
         for key: 0..NUM_BUTTON_STATES - 1 {
             if !queued_window_key_down(window, cast(u32) key) continue;
+
             event: Event;
             event.type = .KEYBOARD;
             event.key_code = cast(Key_Code) key;
@@ -479,6 +487,7 @@ release_focus_buttons :: (window: Window_Type, scoped: bool) {
         }
 
         if !down continue;
+
         event: Event;
         event.type = .KEYBOARD;
         event.key_code = cast(Key_Code) key;
@@ -507,6 +516,7 @@ publish_pending_event :: (pending: Pending_Input_Event) {
     }
 
     if event.type == .MOUSE_WHEEL mouse_delta_z += event.wheel_delta;
+
     array_add(*events_this_frame, event);
     if pending.associated array_add(*routed_events_this_frame, .{ pending.window, event });
     else array_add(*unrouted_events_this_frame, event);
@@ -540,6 +550,7 @@ queue_utf8_text :: (window: Window_Type, bytes: [] u8, repeat := false) {
         } else if first >= 0x80 continue;
 
         if offset + continuation > bytes.count return;
+
         valid := true;
 
         for i: 0..continuation - 1 {
@@ -553,8 +564,10 @@ queue_utf8_text :: (window: Window_Type, bytes: [] u8, repeat := false) {
         }
 
         if !valid continue;
+
         offset += continuation;
         if scalar < minimum || scalar > 0x10ffff || (scalar >= 0xd800 && scalar <= 0xdfff) continue;
+
         event: Event;
         event.type = .TEXT_INPUT;
         event.utf32 = scalar;

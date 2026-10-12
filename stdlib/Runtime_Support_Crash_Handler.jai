@@ -20,6 +20,7 @@ init :: () {
         write_string_unsynchronized("\n", true);
         write_frames();
         ExitProcess(code);
+
         return 1;
     }
 } else #if OS != .WASM {
@@ -32,6 +33,7 @@ init :: () {
 
 write_frames :: () #no_context {
     if __runtime_support_disable_stack_trace return;
+
     frames: [64] *void;
     found := host_backtrace(frames.data, frames.count);
 

@@ -17,6 +17,7 @@ bitmap_alloc :: (using bitmap: *Bitmap, w: s32, h: s32, _format: Texture_Format)
 
     assert(bytes >= 0 && stride <= 0x7fff_ffff && (bytes > 0 || w == 0 || h == 0), "Unsupported or overflowing bitmap dimensions");
     if bytes == 0 && w > 0 && h > 0 return;
+
     deinit(bitmap);
     data := NewArray(bytes, u8, true);
     if bytes > 0 && !data.data {
@@ -40,25 +41,32 @@ bitmap_load :: (bitmap: *Bitmap, filepath: string) -> bool {
     pixels := Image.stbi_load(temp_c_string(filepath), *w, *h, *channels, 0);
 
     if !pixels return false;
+
     defer Image.stbi_image_free(pixels);
+
     return bitmap_take_decoded(bitmap, pixels, w, h, channels);
 }
 
 bitmap_load_from_memory :: (bitmap: *Bitmap, memory: [] u8) -> bool {
     if memory.count <= 0 || memory.count > 0x7fff_ffff return false;
+
     w, h, channels: s32;
     pixels := Image.stbi_load_from_memory(memory.data, cast(s32) memory.count, *w, *h, *channels, 0);
 
     if !pixels return false;
+
     defer Image.stbi_image_free(pixels);
+
     return bitmap_take_decoded(bitmap, pixels, w, h, channels);
 }
 
 bitmap_save :: (bitmap: *Bitmap, filepath: string, save_alpha := false) -> bool {
     if !bitmap || bitmap.width <= 0 || bitmap.height <= 0 return false;
     if bitmap.format != .RGB8 && bitmap.format != .RGBA8 return false;
+
     channels: s32 = 3;
     if bitmap.format == .RGBA8 channels = 4;
+
     name := temp_c_string(filepath);
     extension := Strings.path_extension(filepath);
 
@@ -67,6 +75,7 @@ bitmap_save :: (bitmap: *Bitmap, filepath: string, save_alpha := false) -> bool 
     if extension == "bmp" return Image_Write.stbi_write_bmp(name, bitmap.width, bitmap.height, channels, bitmap.data.data) != 0;
     if extension == "tga" return Image_Write.stbi_write_tga(name, bitmap.width, bitmap.height, channels, bitmap.data.data) != 0;
     if extension == "jpg" return Image_Write.stbi_write_jpg(name, bitmap.width, bitmap.height, channels, bitmap.data.data, 80) != 0;
+
     return false;
 }
 
@@ -89,6 +98,7 @@ bitmap_build_mipmaps :: (bitmap: *Bitmap) {
 
     output := NewArray(bytes, u8, true);
     for y: 0..bitmap.height - 1 memcpy(output.data + y * bitmap.width * channels, bitmap.data.data + y * bitmap.stride, bitmap.width * channels);
+
     source := output.data;
     source_w := bitmap.width;
     source_h := bitmap.height;
@@ -108,12 +118,14 @@ bitmap_build_mipmaps :: (bitmap: *Bitmap) {
                 value := cast(float64) source[(sy * source_w + sx) * channels + c] / 255;
 
                 if bitmap.flags & .IS_SRGB && !(channels == 4 && c == 3) value = pow(value, 2.2);
+
                 sum += value;
                 samples += 1;
             }
 
             value := sum / cast(float64) samples;
             if bitmap.flags & .IS_SRGB && !(channels == 4 && c == 3) value = pow(value, 1 / 2.2);
+
             dest[(y * dest_w + x) * channels + c] = cast(u8) clamp(floor(value * 255 + 0.5), 0.0, 255.0);
         }
 
@@ -124,6 +136,7 @@ bitmap_build_mipmaps :: (bitmap: *Bitmap) {
     }
 
     if bitmap.flags & .FREE_DATA_ON_DEINIT array_free(bitmap.data);
+
     bitmap.data = output;
     bitmap.stride = cast(s32) (bitmap.width * channels);
     bitmap.mipmap_count = levels;
@@ -136,9 +149,11 @@ Image_Write :: #import "stb_image_write";
 
 bitmap_take_decoded :: (bitmap: *Bitmap, pixels: *u8, w: s32, h: s32, channels: s32) -> bool {
     if w <= 0 || h <= 0 || channels < 1 || channels > 4 return false;
+
     formats := Texture_Format.[.R8, .RG8, .RGB8, .RGBA8];
 
     bitmap_alloc(bitmap, w, h, formats[channels - 1]);
     memcpy(bitmap.data.data, pixels, bitmap.data.count);
+
     return true;
 }

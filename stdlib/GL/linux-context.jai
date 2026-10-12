@@ -8,6 +8,7 @@
     _glx_create_context_with_msaa :: (window: Window_Type, major_version: s32, minor_version: s32, compatibility: bool, debug: bool, wanted_msaa: s32) -> GLXContext, GLXFBConfig, chosen_msaa: s32 {
         if window == 0 || major_version < 0 || minor_version < 0 || wanted_msaa < 0 return null, null, 0;
         if major_version == 0 && minor_version != 0 return null, null, 0;
+
         NativeGLX.init_global_display();
         display := NativeGLX.x_global_display;
         if !display return null, null, 0;
@@ -15,6 +16,7 @@
         // Serialize this module's temporary process-wide Xlib error handler.
         // Applications must also serialize any independent XSetErrorHandler use.
         while GLXAtomics.atomic_swap(*_glx_error_guard, 1) != 0 sleep_milliseconds(1);
+
         defer GLXAtomics.atomic_write(*_glx_error_guard, 0);
         NativeGLX.XLockDisplay(display);
         defer NativeGLX.XUnlockDisplay(display);
@@ -31,12 +33,14 @@
 
         window_attributes: NativeGLX.XWindowAttributes;
         if NativeGLX.XGetWindowAttributes(display, window, *window_attributes) == 0 || _glx_error_observed return null, null, 0;
+
         screen := NativeGLX.XScreenNumberOfScreen(window_attributes.screen);
         visual_id := NativeGLX.XVisualIDFromVisual(window_attributes.visual);
         glx_major, glx_minor: s32;
 
         if _glx_context_query_version(display, *glx_major, *glx_minor) == 0 return null, null, 0;
         if glx_major < 1 || (glx_major == 1 && glx_minor < 3) return null, null, 0;
+
         extensions := _glx_context_extensions(display, screen);
         multisampling := glx_major > 1 || (glx_major == 1 && glx_minor >= 4) || _gl_context_extension(extensions, "GLX_ARB_multisample");
 
@@ -61,8 +65,10 @@
         configurations := NativeGLX.glXChooseFBConfig(display, screen, requirements.data, *count);
 
         if !configurations return null, null, 0;
+
         defer NativeGLX.XFree(configurations);
         if count <= 0 return null, null, 0;
+
         chosen: GLXFBConfig;
         chosen_samples: s32 = 0;
         chosen_distance: s64 = 0x7fff_ffff_ffff_ffff;
@@ -99,6 +105,7 @@
 
             NativeGLX.XFree(info);
             if !usable || _glx_error_observed continue;
+
             distance := cast(s64) samples - wanted_msaa;
             if distance < 0 distance = -distance;
 
@@ -152,6 +159,7 @@
 
         NativeGLX.XSync(display, NativeGLX.False);
         if !created return null, null, 0;
+
         complete := false;
         binding_attempted := false;
 
@@ -170,12 +178,15 @@
         }
 
         if _glx_error_observed return null, null, 0;
+
         binding_attempted = true;
         bound := NativeGLX.glXMakeCurrent(display, window, created);
 
         NativeGLX.XSync(display, NativeGLX.False);
         if bound == 0 || _glx_error_observed return null, null, 0;
+
         complete = true;
+
         return created, chosen, chosen_samples;
     }
 
@@ -196,6 +207,7 @@
         }
 
         if _glx_previous_handler return _glx_previous_handler(display, event);
+
         return 0;
     }
 

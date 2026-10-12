@@ -199,6 +199,7 @@ enum_values_as_enum :: ($T: Type) -> [] T {
 enum_range_given_info :: (info: *Type_Info_Enum) -> (low: s64, high: s64) {
     values := info.values;
     if values.count == 0 return 0, 0;
+
     smallest, largest := values[0], values[0];
 
     for index: 1..values.count - 1 {
@@ -229,6 +230,7 @@ resizable :: (a: [] $T, set_allocators := true) -> [..] T {
     result.data = a.data;
     result.allocated = a.count;
     if set_allocators result.allocator = context.allocator;
+
     return result;
 }
 
@@ -333,6 +335,7 @@ _remember_allocators_by_info :: (memory: *void, info: *Type_Info) {
         record := cast(*Type_Info_Struct) info;
         for member: record.members {
             if member.flags & (.CONSTANT | .IMPORTED) continue;
+
             address := cast(*u8) memory + member.offset_in_bytes;
 
             if member.type == type_info(Allocator) {

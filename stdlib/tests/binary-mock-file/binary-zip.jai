@@ -9,16 +9,20 @@ witness :: () -> bool {
     Files.archive = data;
     success, dir := load_zip_directory("mock.zip", false);
     if !success || dir.entries.count != 1 || dir.name != "mock.zip" return false;
+
     entry := dir.entries[0];
     if entry.filename != "f" || entry.chunk_offset != 37 || entry.position_in_file != 56 || entry.chunk_len != 3 || entry.compressed_len != 3 || entry.bit_flag != 8 return false;
     if !dir.file.handle || dir.file.handle.closed return false;
+
     deinit(*dir);
     if dir.entries.count != 0 || dir.memory_block.count != 0 || dir.name.count != 0 || dir.file.handle.closed return false;
+
     Files.file_close(*dir.file);
     // Invalid end-record disk number must fail with released empty storage.
     bytes[103 + 4] = 1;
     bad_success, bad := load_zip_directory("mock.zip");
     if bad_success || bad.entries.count != 0 || bad.memory_block.count != 0 || bad.file.handle return false;
+
     return true;
 }
 

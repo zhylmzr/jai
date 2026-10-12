@@ -40,6 +40,7 @@ pcm_wav :: (frames: s64, value: s16) -> string {
     append(*b, "data");
     put_u32(*b, frames * 2);
     for 0..frames - 1 put_u16(*b, cast(u16) value);
+
     return builder_to_string(*b);
 }
 

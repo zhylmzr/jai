@@ -61,6 +61,7 @@ build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [
 
     if output_name build_options.output_executable_name = output_name;
     if output_path build_options.output_path = output_path;
+
     Compiler.set_build_options(build_options, w);
     for plugins it.workspace = w;
 
@@ -71,8 +72,10 @@ build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [
 
     flags: Compiler.Intercept_Flags;
     for plugins if it.before_intercept it.before_intercept(it, *flags);
+
     Compiler.compiler_begin_intercept(w, flags);
     for plugins if it.add_source it.add_source(it);
+
     Compiler.add_build_file(file, w);
 
     failed := false;
@@ -93,6 +96,7 @@ build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [
     for plugins if it.finish it.finish(it);
     for plugins if it.shutdown it.shutdown(it);
     if failed Compiler.compiler_set_workspace_status(.FAILED, w);
+
     return !failed;
 }
 
@@ -112,6 +116,7 @@ deliver_plugin_options :: (plugins: [] *Metaprogram_Plugin, options: [] string) 
 
     // Only plugins without `init` need each option claimed by someone.
     if !stepwise.count return true;
+
     cursor := 0;
     while cursor < options.count {
         claimed := false;

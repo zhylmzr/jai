@@ -22,6 +22,7 @@ get_ndk_libc_paths :: (cpu: CPU_Tag) -> libc_path: string, libc_platform_path: s
 get_ndk_paths :: () -> NDK_Paths {
     root := environment_variable("NDK_HOME");
     if !root root = environment_variable("ANDROID_NDK_HOME");
+
     assert(root.count > 0, "Point NDK_HOME or ANDROID_NDK_HOME at an Android NDK");
 
     // The NDK ships x86_64 host binaries for every desktop OS (Apple silicon runs them translated).
@@ -34,6 +35,7 @@ get_ndk_paths :: () -> NDK_Paths {
     paths.toolchain = tprint("%/toolchains/llvm/prebuilt/%", root, HOST);
     assert(file_exists(paths.toolchain), "No NDK toolchain at '%'", paths.toolchain);
     paths.sysroot = tprint("%/sysroot", paths.toolchain);
+
     return paths;
 }
 
@@ -43,6 +45,7 @@ get_android_target_triple :: (cpu: CPU_Tag) -> triple: string, triple_with_sdk: 
     if cpu == .ARM64 triple = "aarch64-linux-android";
     else if cpu == .X64 triple = "x86_64-linux-android";
     else assert(false, "Android supports only x64 and arm64, not %", cpu);
+
     return triple, tprint("%0%", triple, SDK_LEVEL);
 }
 
@@ -59,6 +62,7 @@ environment_variable :: (name: string) -> string {
     }
 
     if !value return "";
+
     return copy_string(to_string(value));
 }
 

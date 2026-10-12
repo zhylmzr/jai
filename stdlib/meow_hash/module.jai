@@ -107,6 +107,7 @@
         last_part: [16] u8;
 
         for 0..cast(s64) (len & 15) - 1 last_part[it] = source[whole + cast(u64) it];
+
         before: [16] u8;
 
         if (len & 16) != 0 {
@@ -119,6 +120,7 @@
         for 0..14 extra[1 + it] = last_part[it];
         for 0..15 extra[16 + it] = last_part[it];
         for 0..14 extra[32 + it] = before[1 + it];
+
         extra[47] = last_part[0];
         for 0..15 extra[48 + it] = before[it];
 

@@ -70,24 +70,30 @@ Plm :: struct {
 create_with_filename :: (filename: string) -> *Plm {
     buffer := buffer_create_with_filename(filename);
     if !buffer return null;
+
     result := create_with_buffer(buffer, true);
     if !result buffer_destroy(buffer);
+
     return result;
 }
 
 create_with_file :: (fh: File, close_when_done: bool) -> *Plm {
     buffer := buffer_create_with_file(fh, close_when_done);
     if !buffer return null;
+
     result := create_with_buffer(buffer, true);
     if !result buffer_destroy(buffer);
+
     return result;
 }
 
 create_with_memory :: (memory: [] u8, free_when_done: bool) -> *Plm {
     buffer := buffer_create_with_memory(memory, free_when_done);
     if !buffer return null;
+
     result := create_with_buffer(buffer, true);
     if !result buffer_destroy(buffer);
+
     return result;
 }
 
@@ -112,6 +118,7 @@ plm_destroy :: (using self: *Plm) {
     raw_plm_destroy(entry.native);
     release_owned_shadows(entry.native);
     if entry.release_root buffer_destroy(entry.root_buffer);
+
     forget_plm(self);
 }
 
@@ -122,6 +129,7 @@ has_headers :: (using self: *Plm) -> bool {
     result := raw_plm_has_headers(entry.native);
 
     pull_plm(entry);
+
     return result != 0;
 }
 
@@ -153,6 +161,7 @@ get_num_video_streams :: (self: *Plm) -> s32 {
     result := raw_plm_get_num_video_streams(entry.native);
 
     pull_plm(entry);
+
     return result;
 }
 
@@ -164,6 +173,7 @@ get_size :: (self: *Plm) -> (width: s32, height: s32) {
     height := raw_plm_get_height(entry.native);
 
     pull_plm(entry);
+
     return width, height;
 }
 
@@ -174,6 +184,7 @@ get_framerate :: (self: *Plm) -> float64 {
     result := raw_plm_get_framerate(entry.native);
 
     pull_plm(entry);
+
     return result;
 }
 
@@ -223,6 +234,7 @@ decode_video :: (self: *Plm) -> *Frame {
     result := raw_plm_decode_video(entry.native);
 
     pull_plm(entry);
+
     return result;
 }
 
@@ -233,6 +245,7 @@ decode_audio :: (self: *Plm) -> *Samples {
     result := raw_plm_decode_audio(entry.native);
 
     pull_plm(entry);
+
     return result;
 }
 
@@ -271,6 +284,7 @@ seek_frame :: (self: *Plm, time: float64, seek_exact: bool) -> *Frame {
     result := raw_plm_seek_frame(entry.native, time, cast(s32) seek_exact);
 
     pull_plm(entry);
+
     return result;
 }
 
@@ -281,6 +295,7 @@ seek :: (self: *Plm, time: float64, seek_exact: bool) -> bool {
     result := raw_plm_seek(entry.native, time, cast(s32) seek_exact);
 
     pull_plm(entry);
+
     return result != 0;
 }
 
@@ -304,6 +319,7 @@ init_decoders :: (using plm: *Plm) -> bool {
     result := raw_plm_init_decoders(entry.native);
 
     pull_plm(entry);
+
     return result != 0;
 }
 

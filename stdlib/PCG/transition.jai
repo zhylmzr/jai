@@ -7,5 +7,6 @@ random_get :: (state: *u64) -> u32 #no_aoc {
     rotation := cast(u32) (previous >> 59);
 
     if rotation == 0 return shifted;
+
     return (shifted >> rotation) | (shifted << (32 - rotation));
 }

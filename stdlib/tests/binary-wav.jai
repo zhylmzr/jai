@@ -8,13 +8,16 @@ witness :: () -> bool {
     wav := load_wav_file(data);
     if !wav.success || wav.format.wFormatTag != 1 || wav.format.nChannels != 1 || wav.format.nSamplesPerSec != 8000 return false;
     if wav.samples.count != 2 || wav.samples.data[0] != 52 || wav.samples.data[1] != 18 return false;
+
     data.count = 11;
     bad := load_wav_file(data);
     if bad.success return false;
+
     data.count = bytes.count;
     bytes[4] = 0;
     short := load_wav_file(data);
     if short.success return false;
+
     return true;
 }
 

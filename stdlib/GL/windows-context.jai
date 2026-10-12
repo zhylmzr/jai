@@ -21,15 +21,18 @@
             NativeWGL.WS_CLIPSIBLINGS | NativeWGL.WS_CLIPCHILDREN,
             placement.left, placement.top, 1, 1, null, null, null, null);
         if !bootstrap_window return null, null, 0;
+
         defer NativeWGL.DestroyWindow(bootstrap_window);
         bootstrap_dc := NativeWGL.GetDC(bootstrap_window);
         if !bootstrap_dc return null, null, 0;
+
         defer NativeWGL.ReleaseDC(bootstrap_window, bootstrap_dc);
 
         descriptor := _gl_wgl_pixel_descriptor();
         bootstrap_format := NativeWGL.ChoosePixelFormat(bootstrap_dc, *descriptor);
 
         if bootstrap_format == 0 || NativeWGL.SetPixelFormat(bootstrap_dc, bootstrap_format, *descriptor) == 0 return null, null, 0;
+
         bootstrap_context := NativeWGL.wglCreateContext(bootstrap_dc);
         if !bootstrap_context return null, null, 0;
 
@@ -69,6 +72,7 @@
 
         if needs_attributes && !create_attribs return null, null, 0;
         if needs_profile && !_gl_context_extension(extension_string, "WGL_ARB_create_context_profile") return null, null, 0;
+
         multisampling := _gl_context_extension(extension_string, "WGL_ARB_multisample");
         if multisampling && !query_format return null, null, 0;
 
@@ -84,6 +88,7 @@
             if choose_format {
                 samples := wanted_msaa;
                 if !multisampling || samples <= 1 samples = 0;
+
                 attributes: [23] s32 = .[
                     WGL_DRAW_TO_WINDOW_ARB, 1, WGL_SUPPORT_OPENGL_ARB, 1,
                     WGL_DOUBLE_BUFFER_ARB, 1, WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
@@ -108,8 +113,10 @@
                     count: u32 = 0;
                     if choose_format(target_dc, attributes.data, null, 1, *pixel_format, *count) == 0 pixel_format = 0;
                     if pixel_format > 0 && count > 0 break;
+
                     pixel_format = 0;
                     if samples == 0 break;
+
                     samples /= 2;
                     if samples <= 1 samples = 0;
                 }
@@ -186,6 +193,7 @@
         }
 
         complete = true;
+
         return created, target_dc, actual_samples;
     }
 
@@ -203,6 +211,7 @@
         value.cDepthBits = 24;
         value.cStencilBits = 8;
         value.iLayerType = NativeWGL.PFD_MAIN_PLANE;
+
         return value;
     }
 

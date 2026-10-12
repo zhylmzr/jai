@@ -49,6 +49,7 @@ get_wav_header :: (file_data: string) -> Wav_Format, string, bool, Wav_Extra {
     extra: Wav_Extra;
     extra.wSamplesPerBlock = original_extra.wSamplesPerBlock;
     extra.wSamplesAccordingToFactChunk = original_extra.wSamplesAccordingToFactChunk;
+
     return format, samples, success, extra;
 }
 
@@ -68,9 +69,11 @@ get_waveformatex_header :: (file_data: string) -> (format: Waveformatex, samples
 
     declared := cast(s64) wav_u32(file_data.data + 4) + 8;
     if declared < 12 return format, samples, false, extra;
+
     limit := file_data.count;
     // Accommodate a RIFF length which includes a missing final file tail.
     if declared < limit limit = declared;
+
     pos: s64 = 12;
     have_format := false;
     have_data := false;
@@ -83,6 +86,7 @@ get_waveformatex_header :: (file_data: string) -> (format: Waveformatex, samples
 
         if wav_id(file_data, pos, "fmt ") {
             if length < 16 return format, samples, false, extra;
+
             p := file_data.data + body;
 
             format.wFormatTag = cast,no_check(s16) wav_u16(p);

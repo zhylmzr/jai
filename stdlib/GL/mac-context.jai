@@ -2,8 +2,10 @@
 #if OS == .MACOS {
     nsgl_create_context :: (win: *NSWindow, major_version: s32 = 0, minor_version: s32 = 0, compatibility := false, debug := false) -> *NSOpenGLContext {
         if win == null return null;
+
         glc, _ := nsgl_create_context(major_version, minor_version, compatibility, debug, wanted_msaa = DEFAULT_MSAA);
         if glc == null return null;
+
         view := NativeGLAppKit.NSWindow.contentView(win);
         if view == null {
             NativeGLObjC.release(glc);
@@ -19,11 +21,13 @@
         }
 
         NativeGLAppKit.NSOpenGLContext.update(glc);
+
         return glc;
     }
 
     nsgl_create_context :: (major_version: s32 = 0, minor_version: s32 = 0, compatibility := false, debug := false, wanted_msaa: s32 = DEFAULT_MSAA) -> *NSOpenGLContext, chosen_msaa: s32 {
         if major_version < 0 || minor_version < 0 || wanted_msaa < 0 return null, 0;
+
         profile := NativeGLAppKit.NSOpenGLProfileVersion4_1Core;
 
         if compatibility {
@@ -56,6 +60,7 @@
             }
 
             if accelerated add(NativeGLAppKit.NSOpenGLPFAAccelerated);
+
             add(NativeGLAppKit.NSOpenGLPFADoubleBuffer);
             add(NativeGLAppKit.NSOpenGLPFAOpenGLProfile);
             add(profile);
@@ -88,9 +93,11 @@
                 NativeGLAppKit.NSOpenGLPixelFormat.getValues(format, *actual, NativeGLAppKit.NSOpenGLPFASamples, 0);
                 NativeGLObjC.release(format);
                 if glc == null return null, 0;
+
                 NativeGLAppKit.NSOpenGLContext.makeCurrentContext(glc);
                 gl_load(*gl);
                 if debug gl_enable_debug_output();
+
                 return glc, actual;
             }
 
@@ -101,6 +108,7 @@
             }
 
             if !accelerated return null, 0;
+
             accelerated = false;
             samples = wanted_msaa;
         }

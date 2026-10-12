@@ -66,13 +66,17 @@
 
     telemetry_init :: (program_name: string, build_info: string, output_file := "") -> int {
         if g_tm_api0 return cast(int) tm_error.TMERR_ALREADY_INITIALIZED;
+
         api := native_get_api(null);
         if !api return cast(int) tm_error.TMERR_NULL_API;
+
         result := api.tmCheckVersion(TM_API_MAJOR_VERSION, TM_API_MINOR_VERSION,
                                      TM_API_REVISION_NUMBER, TM_API_BUILD_NUMBER);
         if result != .TM_OK return cast(int) result;
+
         tm_arena_allocation = cast(*u8) alloc(TM_ARENA_BYTES + 4095);
         if !tm_arena_allocation return cast(int) tm_error.TMERR_OUT_OF_RESOURCES;
+
         aligned := cast(*u8) ((cast(u64) tm_arena_allocation + 4095) & ~cast(u64) 4095);
 
         result = api.tmInitialize(TM_ARENA_BYTES, aligned);
@@ -86,11 +90,13 @@
         tm_build_info = copy_string(build_info);
         g_tm_api0 = api;
         g_tm_api = api;
+
         return telemetry_start(0, output_file);
     }
 
     telemetry_start :: (frames := 0, output_file := "") -> int {
         if !g_tm_api0 return cast(int) tm_error.TMERR_UNINITIALIZED;
+
         assert(frames >= 0);
         destination := output_file;
         connection: tm_connection_type = .TMCT_FILE;

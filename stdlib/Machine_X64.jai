@@ -334,6 +334,7 @@ get_cpu_info :: () -> Cpu_X86 {
     cpuid_query(0, 0, *max_basic_info, *name_b, *name_c, *name_d);
     if vendor_name_is(name_b, name_d, name_c, "GenuineIntel") cpu.vendor = .INTEL;
     else if vendor_name_is(name_b, name_d, name_c, "AuthenticAMD") cpu.vendor = .AMD;
+
     max_extended_info, ignored_b, ignored_c, ignored_d: u32;
 
     cpuid_query(0x80000000, 0, *max_extended_info, *ignored_b, *ignored_c, *ignored_d);

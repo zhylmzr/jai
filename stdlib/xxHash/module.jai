@@ -117,6 +117,7 @@ XXH32_update :: (state: *XXH32_state_t, input: *void, len: u32) #no_aoc {
 XXH32_digest :: (state: *XXH32_state_t) -> u32 #no_aoc {
     hash := state.v3 + XXH_PRIME32_5;
     if state.large_len hash = xxh32_rotl(state.v1, 1) + xxh32_rotl(state.v2, 7) + xxh32_rotl(state.v3, 12) + xxh32_rotl(state.v4, 18);
+
     hash += state.total_len_32;
     bytes := cast(*u8) state.mem32.data;
     offset: u32 = 0;
@@ -135,6 +136,7 @@ XXH32_digest :: (state: *XXH32_state_t) -> u32 #no_aoc {
     hash *= XXH_PRIME32_2;
     hash ^= hash >> 13;
     hash *= XXH_PRIME32_3;
+
     return hash ^ (hash >> 16);
 }
 
@@ -201,6 +203,7 @@ XXH64_digest :: (state: *XXH64_state_t) -> u64 #no_aoc {
     hash *= XXH_PRIME64_2;
     hash ^= hash >> 29;
     hash *= XXH_PRIME64_3;
+
     return hash ^ (hash >> 32);
 }
 

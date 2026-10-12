@@ -15,6 +15,7 @@ vkGetPhysicalDeviceQueueFamilyProperties2KHR :: (physicalDevice: VkPhysicalDevic
 
     native(physicalDevice, *count, null);
     if count == 0 return data;
+
     capacity := count;
 
     data.data = cast(*VkQueueFamilyProperties2) Vk_Extension_Memory.alloc(cast(s64) capacity * size_of(VkQueueFamilyProperties2));
@@ -22,9 +23,11 @@ vkGetPhysicalDeviceQueueFamilyProperties2KHR :: (physicalDevice: VkPhysicalDevic
     data.count = cast(s64) capacity;
     memset(data.data, 0, data.count * size_of(VkQueueFamilyProperties2));
     for *data it.sType = VkStructureType.QUEUE_FAMILY_PROPERTIES_2;
+
     native(physicalDevice, *count, data.data);
     assert(count <= capacity, "Vulkan query returned more entries than the supplied capacity");
     data.count = cast(s64) count;
+
     return data;
 }
 
@@ -40,6 +43,7 @@ vkGetPhysicalDeviceSparseImageFormatProperties2KHR :: (physicalDevice: VkPhysica
 
     native(physicalDevice, pFormatInfo, *count, null);
     if count == 0 return data;
+
     capacity := count;
 
     data.data = cast(*VkSparseImageFormatProperties2) Vk_Extension_Memory.alloc(cast(s64) capacity * size_of(VkSparseImageFormatProperties2));
@@ -47,28 +51,35 @@ vkGetPhysicalDeviceSparseImageFormatProperties2KHR :: (physicalDevice: VkPhysica
     data.count = cast(s64) capacity;
     memset(data.data, 0, data.count * size_of(VkSparseImageFormatProperties2));
     for *data it.sType = VkStructureType.SPARSE_IMAGE_FORMAT_PROPERTIES_2;
+
     native(physicalDevice, pFormatInfo, *count, data.data);
     assert(count <= capacity, "Vulkan query returned more entries than the supplied capacity");
     data.count = cast(s64) count;
+
     return data;
 }
 
 vkEnumeratePhysicalDeviceGroupsKHR :: (instance: VkInstance) -> [] VkPhysicalDeviceGroupProperties, VkResult {
     data: [] VkPhysicalDeviceGroupProperties;
     if !(_vk_registered_instance(instance)) return data, VkResult.ERROR_INITIALIZATION_FAILED;
+
     native := cast(PFN_vkEnumeratePhysicalDeviceGroupsKHR) vkGetInstanceProcAddr(instance, Vk_Extension_Memory.temp_c_string("vkEnumeratePhysicalDeviceGroupsKHR"));
     if native == null return data, VkResult.ERROR_EXTENSION_NOT_PRESENT;
+
     count: u32 = 0;
     status := native(instance, *count, null);
 
     if cast(s32) status < 0 || count == 0 return data, status;
+
     capacity := count;
 
     data.data = cast(*VkPhysicalDeviceGroupProperties) Vk_Extension_Memory.alloc(cast(s64) capacity * size_of(VkPhysicalDeviceGroupProperties));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
+
     data.count = cast(s64) capacity;
     memset(data.data, 0, data.count * size_of(VkPhysicalDeviceGroupProperties));
     for *data it.sType = VkStructureType.PHYSICAL_DEVICE_GROUP_PROPERTIES;
+
     status = native(instance, *count, data.data);
     if cast(s32) status < 0 {
         Vk_Extension_Memory.free(data.data);
@@ -100,6 +111,7 @@ vkGetImageSparseMemoryRequirements2KHR :: (device: VkDevice, pInfo: *VkImageSpar
 
     native(device, pInfo, *count, null);
     if count == 0 return data;
+
     capacity := count;
 
     data.data = cast(*VkSparseImageMemoryRequirements2) Vk_Extension_Memory.alloc(cast(s64) capacity * size_of(VkSparseImageMemoryRequirements2));
@@ -107,25 +119,31 @@ vkGetImageSparseMemoryRequirements2KHR :: (device: VkDevice, pInfo: *VkImageSpar
     data.count = cast(s64) capacity;
     memset(data.data, 0, data.count * size_of(VkSparseImageMemoryRequirements2));
     for *data it.sType = VkStructureType.SPARSE_IMAGE_MEMORY_REQUIREMENTS_2;
+
     native(device, pInfo, *count, data.data);
     assert(count <= capacity, "Vulkan query returned more entries than the supplied capacity");
     data.count = cast(s64) count;
+
     return data;
 }
 
 vkGetPastPresentationTimingGOOGLE :: (device: VkDevice, swapchain: VkSwapchainKHR) -> [] VkPastPresentationTimingGOOGLE, VkResult {
     data: [] VkPastPresentationTimingGOOGLE;
     if !(_vk_registered_device(device)) return data, VkResult.ERROR_INITIALIZATION_FAILED;
+
     native := cast(PFN_vkGetPastPresentationTimingGOOGLE) vkGetDeviceProcAddr(device, Vk_Extension_Memory.temp_c_string("vkGetPastPresentationTimingGOOGLE"));
     if native == null return data, VkResult.ERROR_EXTENSION_NOT_PRESENT;
+
     count: u32 = 0;
     status := native(device, swapchain, *count, null);
 
     if cast(s32) status < 0 || count == 0 return data, status;
+
     capacity := count;
 
     data.data = cast(*VkPastPresentationTimingGOOGLE) Vk_Extension_Memory.alloc(cast(s64) capacity * size_of(VkPastPresentationTimingGOOGLE));
     if data.data == null return data, VkResult.ERROR_OUT_OF_HOST_MEMORY;
+
     data.count = cast(s64) capacity;
     status = native(device, swapchain, *count, data.data);
     if cast(s32) status < 0 {
@@ -137,6 +155,7 @@ vkGetPastPresentationTimingGOOGLE :: (device: VkDevice, swapchain: VkSwapchainKH
 
     assert(count <= capacity, "Vulkan query returned more entries than the supplied capacity");
     data.count = cast(s64) count;
+
     return data, status;
 }
 
@@ -152,6 +171,7 @@ vkGetQueueCheckpointDataNV :: (queue: VkQueue) -> [] VkCheckpointDataNV {
 
     native(queue, *count, null);
     if count == 0 return data;
+
     capacity := count;
 
     data.data = cast(*VkCheckpointDataNV) Vk_Extension_Memory.alloc(cast(s64) capacity * size_of(VkCheckpointDataNV));
@@ -159,8 +179,10 @@ vkGetQueueCheckpointDataNV :: (queue: VkQueue) -> [] VkCheckpointDataNV {
     data.count = cast(s64) capacity;
     memset(data.data, 0, data.count * size_of(VkCheckpointDataNV));
     for *data it.sType = VkStructureType.CHECKPOINT_DATA_NV;
+
     native(queue, *count, data.data);
     assert(count <= capacity, "Vulkan query returned more entries than the supplied capacity");
     data.count = cast(s64) count;
+
     return data;
 }

@@ -37,8 +37,10 @@ windows_key_code :: (virtual_key: u32) -> Key_Code {
     if virtual_key == 0x91 return .SCROLL_LOCK;
     if virtual_key == 0x2c return .PRINT_SCREEN;
     if virtual_key == 8 || virtual_key == 9 || virtual_key == 13 || virtual_key == 32 return cast(Key_Code) virtual_key;
+
     mapped := Input_MapVirtualKeyW(virtual_key, 2) & 0x7fffffff;
     if mapped > 0 && mapped < 128 return cast(Key_Code) mapped;
+
     return .UNKNOWN;
 }
 
@@ -100,10 +102,12 @@ input_window_procedure :: (hwnd: Win.HWND, kind: u32, wparam: Win.WPARAM, lparam
 
     // Closing is the program's decision: report QUIT and keep the window.
     if kind == Win.WM_CLOSE return 0;
+
     // In the client area the default resets the cursor to the class arrow on every move;
     // a program that handles the cursor keeps its own.
     HTCLIENT :: 1;
     if kind == WM_SETCURSOR && custom_cursor_handling && (lparam & 0xffff) == HTCLIENT return 1;
+
     return Win.DefWindowProcW(hwnd, kind, wparam, lparam);
 }
 
@@ -128,6 +132,7 @@ windows_poll_input :: () {
         }
 
         if !windows_windowproc_handles_input windows_process_input_message(message.hwnd, message.message, message.wParam, message.lParam);
+
         Win.TranslateMessage(*message);
         Win.DispatchMessageW(*message);
         process_noted_messages();
@@ -220,6 +225,7 @@ windows_process_input_message :: (hwnd: Win.HWND, kind: u32, wparam: Win.WPARAM,
         event.key_code = .MOUSE_BUTTON_LEFT;
         if message.message == Win.WM_RBUTTONDOWN || message.message == Win.WM_RBUTTONUP event.key_code = .MOUSE_BUTTON_RIGHT;
         if message.message == Win.WM_MBUTTONDOWN || message.message == Win.WM_MBUTTONUP event.key_code = .MOUSE_BUTTON_MIDDLE;
+
         windows_modifiers(*event);
         queue_input_event(window, event);
     } else if message.message == Win.WM_MOUSEWHEEL {
@@ -236,6 +242,7 @@ windows_process_input_message :: (hwnd: Win.HWND, kind: u32, wparam: Win.WPARAM,
         for *position: windows_mouse_positions {
             if position.window != message.hwnd continue;
             if position.valid queue_mouse_delta(x - position.x, y - position.y);
+
             position.x = x;
             position.y = y;
             position.valid = true;

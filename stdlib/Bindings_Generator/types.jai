@@ -672,6 +672,7 @@ is_same_type :: (a: CType, b: CType) -> bool {
     }
 
     if x.type_of_function return same_signature(x.type_of_function, y.type_of_function);
+
     return x.number_flags == y.number_flags;
 }
 
@@ -698,6 +699,7 @@ is_struct_field :: (decl: *Declaration) -> is_field: bool, is_anon: bool {
     }
 
     if decl.kind != .DECLARATION return false, false;
+
     // `static const int N = 4;` is a constant, not storage.
     is_constant := (decl.decl_flags & .IS_CONST) != 0 && decl.expression != null;
 
@@ -706,6 +708,7 @@ is_struct_field :: (decl: *Declaration) -> is_field: bool, is_anon: bool {
 
 visit_declarations :: (visitor: Declaration_Visitor, decl: *Declaration, parent: *Declaration = null, depth := 0) {
     if !decl return;
+
     result := visitor(decl, parent);
     if result != .RECURSE return;
 

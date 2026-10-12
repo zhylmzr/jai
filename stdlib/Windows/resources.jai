@@ -6,36 +6,44 @@ MAKEINTRESOURCE :: (x: s32) -> *u16 {
 find_windows_kit_root :: (version: string) -> string {
     name, name_ok := Utf8.utf8_to_wide(version);
     if !name_ok return "";
+
     defer Basic.free(name);
     key: HKEY;
     status := RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots", 0, KEY_QUERY_VALUE | KEY_WOW64_32KEY, *key);
 
     if status != 0 return "";
+
     defer RegCloseKey(key);
     size: DWORD = 0;
     kind: DWORD = 0;
 
     status = RegQueryValueExW(key, name, null, *kind, null, *size);
     if status != 0 || kind != REG_SZ || size < 2 || size > 0x7ffffffe return "";
+
     bytes := cast(*u8) Basic.alloc(cast(s64) size + 2);
     if bytes == null return "";
+
     defer Basic.free(bytes);
     available := size;
 
     status = RegQueryValueExW(key, name, null, *kind, bytes, *available);
     if status != 0 || kind != REG_SZ || available > size || available % 2 != 0 return "";
+
     bytes[available] = 0;
     bytes[available + 1] = 0;
     text, converted := Utf8.wide_to_utf8(cast(*u16) bytes);
     if !converted return "";
+
     return text;
 }
 
 find_windows_kit_root :: () -> (root: string, windows_version: s32) {
     current := find_windows_kit_root("KitsRoot10");
     if current.count > 0 return current, 10;
+
     earlier := find_windows_kit_root("KitsRoot81");
     if earlier.count > 0 return earlier, 8;
+
     return "", 0;
 }
 
@@ -49,8 +57,10 @@ set_icon_by_filename :: (exe_filename: string, icon_filename: string, resource_i
 set_icon_by_data :: (exe_filename: string, icon_data: string, resource_id: s32 = 2, delete_existing_resources := false) -> bool {
     if exe_filename.count <= 0 || icon_data.count < 6 || icon_data.data == null || resource_id < 1 || resource_id > 65535 return false;
     if read_le16(icon_data.data) != 0 || read_le16(icon_data.data + 2) != 1 return false;
+
     count := cast(s64) read_le16(icon_data.data + 4);
     if count == 0 || count > 65536 - resource_id return false;
+
     directory_size := 6 + 16 * count;
     if directory_size > icon_data.count return false;
 
@@ -66,6 +76,7 @@ set_icon_by_data :: (exe_filename: string, icon_data: string, resource_id: s32 =
     group := cast(*u8) Basic.alloc(group_size);
 
     if group == null return false;
+
     defer Basic.free(group);
     memcpy(group, icon_data.data, 6);
 
@@ -78,9 +89,11 @@ set_icon_by_data :: (exe_filename: string, icon_data: string, resource_id: s32 =
 
     filename, converted := Utf8.utf8_to_wide(exe_filename);
     if !converted return false;
+
     defer Basic.free(filename);
     update := sdk_begin_update(filename, cast(BOOL) delete_existing_resources);
     if update == null return false;
+
     finished := false;
 
     defer if !finished sdk_end_update(update, .TRUE);
@@ -93,9 +106,11 @@ set_icon_by_data :: (exe_filename: string, icon_data: string, resource_id: s32 =
     }
 
     if sdk_update(update, MAKEINTRESOURCE(14), MAKEINTRESOURCE(resource_id), 0, group, cast(DWORD) group_size) == .FALSE return false;
+
     committed := sdk_end_update(update, .FALSE) != .FALSE;
 
     finished = true;
+
     return committed;
 }
 
@@ -107,6 +122,7 @@ generate_manifest :: (options: Manifest_Options) -> string {
     Basic.append(*builder, "<trustInfo xmlns=\"urn:schemas-microsoft-com:asm.v2\"><security><requestedPrivileges xmlns=\"urn:schemas-microsoft-com:asm.v3\"><requestedExecutionLevel level=\"");
     if options.require_administrator Basic.append(*builder, "requireAdministrator");
     else Basic.append(*builder, "asInvoker");
+
     Basic.append(*builder, "\" uiAccess=\"false\"/></requestedPrivileges></security></trustInfo>\n");
 
     if options.dpi_aware || options.use_segment_heap {
@@ -118,16 +134,20 @@ generate_manifest :: (options: Manifest_Options) -> string {
 
     Basic.append(*builder, "</assembly>\n");
     if builder.failed return "";
+
     return Basic.builder_to_string(*builder);
 }
 
 add_manifest_to_executable :: (exe_filename: string, options: Manifest_Options, resource_id: s32 = 1) -> bool {
     if exe_filename.count <= 0 || resource_id < 1 || resource_id > 65535 return false;
+
     manifest := generate_manifest(options);
     if manifest.count == 0 return false;
+
     defer Basic.free(manifest.data);
     filename, converted := Utf8.utf8_to_wide(exe_filename);
     if !converted return false;
+
     defer Basic.free(filename);
     update := sdk_begin_update(filename, .FALSE);
     if update == null return false;

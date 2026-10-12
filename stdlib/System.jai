@@ -24,6 +24,7 @@ Processor_Query_Type :: enum u8 {
 
             if length == 0 return "";
             if length < capacity return os_wide_to_utf8(buffer, length);
+
             capacity *= 2;
         }
 
@@ -69,8 +70,10 @@ Processor_Query_Type :: enum u8 {
 
             system_executable_path(null, *count);
             if count == 0 return "";
+
             buffer := cast(*u8) alloc(count, temp);
             if system_executable_path(buffer, *count) != 0 return "";
+
             return to_string(buffer);
         } else {
             capacity: s64 = 256;
@@ -80,6 +83,7 @@ Processor_Query_Type :: enum u8 {
 
                 if length < 0 return "";
                 if length < capacity return .{ length, buffer };
+
                 capacity *= 2;
             }
 
@@ -111,6 +115,7 @@ Processor_Query_Type :: enum u8 {
                 }
 
                 if !result_pwd return false, pwd;
+
                 return true, pwd;
             }
 
@@ -129,6 +134,7 @@ Processor_Query_Type :: enum u8 {
         if username entry = P.getpwnam(temp_c_string(username));
         else entry = P.getpwuid(P.getuid());
         if !entry || !entry.pw_dir return "", false;
+
         return copy_string(to_string(entry.pw_dir)), true;
     }
 
@@ -175,15 +181,19 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
 
         Windows.GetLogicalProcessorInformationEx(.RelationProcessorCore, null, *length);
         if length == 0 return 0;
+
         buffer := cast(*u8) alloc(length, temp);
         if !Windows.GetLogicalProcessorInformationEx(.RelationProcessorCore, cast(*Windows.SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) buffer, *length) return 0;
+
         largest_class: u8;
         offset: u32;
 
         while offset < length {
             if length - offset < 32 return 0;
+
             record := cast(*Windows.SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) (buffer + offset);
             if record.Size < 32 || record.Size > length - offset return 0;
+
             largest_class = max(largest_class, record.Processor.EfficiencyClass);
             offset += record.Size;
         }
@@ -200,6 +210,7 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
                 else {
                     groups := record.Processor.GroupCount;
                     if 32 + cast(u32) groups * size_of(Windows.GROUP_AFFINITY) > record.Size return 0;
+
                     masks := cast(*Windows.GROUP_AFFINITY) (buffer + offset + 32);
 
                     for i: 0..groups - 1 {
@@ -229,6 +240,7 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
 
         if query == .PERFORMANCE_PHYSICAL name = "hw.perflevel0.physicalcpu";
         if query == .PERFORMANCE_LOGICAL name = "hw.perflevel0.logicalcpu";
+
         value: s32;
         bytes: u64 = size_of(s32);
 
@@ -238,16 +250,19 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
         }
 
         if bytes != size_of(s32) || value < 0 return 0;
+
         return value;
     }
 } else {
     system_processor_count :: (query: Processor_Query_Type) -> s64 {
         logical := max(P.sysconf(._SC_NPROCESSORS_ONLN), 0);
         if query == .ALL_LOGICAL || query == .PERFORMANCE_LOGICAL return logical;
+
         // Without a readable CPU topology (no /sys in a container or sandbox), count each
         // logical processor as a core rather than report none.
         directory := P.opendir(temp_c_string("/sys/devices/system/cpu"));
         if !directory return logical;
+
         defer P.closedir(directory);
         cores: [..] string;
         cores.allocator = temp;
@@ -255,17 +270,22 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
         while true {
             entry := P.readdir(directory);
             if !entry break;
+
             name := to_string(entry.d_name.data);
             if name.count < 4 || String.slice(name, 0, 3) != "cpu" continue;
+
             valid := true;
             for i: 3..name.count - 1 if name[i] < #char "0" || name[i] > #char "9" valid = false;
             if !valid continue;
+
             base := String.join("/sys/devices/system/cpu/", name);
             online := topology_text(String.join(base, "/online"));
 
             if online == "0" continue;
+
             siblings := topology_text(String.join(base, "/topology/thread_siblings_list"));
             if !siblings continue;
+
             duplicate := false;
 
             for core: cores if core == siblings {
@@ -280,17 +300,20 @@ get_number_of_processors_for_type :: (type: Processor_Query_Type = .PERFORMANCE_
         // The topology can list more cores than are usable (a sandbox that reports one
         // processor reads the host's /sys); a core has at least one logical processor.
         if logical > 0 && cores.count > logical return logical;
+
         return cores.count;
     }
 
     topology_text :: (path: string) -> string {
         descriptor := P.open(temp_c_string(path), P.O_RDONLY);
         if descriptor < 0 return "";
+
         defer P.close(descriptor);
         bytes: [1024] u8;
         count := P.read(descriptor, bytes.data, bytes.count);
 
         if count <= 0 || count == bytes.count return "";
+
         return copy_temporary_string(String.trim(string.{ count, bytes.data }));
     }
 }

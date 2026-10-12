@@ -26,6 +26,7 @@ create_app_bundle :: (app_name: string, app_exe_path: string, icon_file_path: st
     if icon_file_path && convert_image_to_icns(icon_file_path, tprint("%/%", resources, BUNDLE_ICON_NAME)) icon = BUNDLE_ICON_NAME;
 
     if write_plist write_info_plist(tprint("%/Contents/Info.plist", bundle), icon);
+
     return bundle, resources;
 }
 
@@ -42,6 +43,7 @@ make_app_bundle_subdirectories :: (app_bundle_name: string) -> macos_folder_path
     // Recursive creation makes the bundle root and Contents on the way down.
     make_directory_if_it_does_not_exist(binaries, recursive = true);
     make_directory_if_it_does_not_exist(resources, recursive = true);
+
     return binaries, resources;
 }
 
@@ -66,9 +68,11 @@ plist_write_bool :: (builder: *String_Builder, value: bool) {
 plist_write_key_value :: (builder: *String_Builder, key: string, value: Any) -> success: bool {
     kind := value.type.type;
     if kind != .BOOL && kind != .STRING return false;
+
     plist_write_key(builder, key);
     if kind == .STRING plist_write_string(builder, (cast(*string) value.value_pointer).*);
     else plist_write_bool(builder, (cast(*bool) value.value_pointer).*);
+
     return true;
 }
 
@@ -102,6 +106,7 @@ write_info_plist :: (path: string, icon: string) {
 
     plist_start(*plist);
     if icon plist_write_key_value(*plist, "CFBundleIconFile", icon);
+
     plist_end(*plist);
     text := builder_to_string(*plist);
 

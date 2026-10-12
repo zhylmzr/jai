@@ -73,6 +73,7 @@ find_parent_enum :: (decl: *Declaration, enum_name: string) -> *Enum {
         }
 
         if !scope break;
+
         scope = scope.parent;
     }
 
@@ -95,6 +96,7 @@ get_type_name :: (type: *CType, output_name := true, strip_pointers := false) ->
     named := naming_declaration(t);
     if !named return "";
     if output_name return named.output_name;
+
     return named.name;
 }
 
@@ -139,6 +141,7 @@ is_operator_name :: (name: string) -> bool {
 // Compound and plain assignment (`operator-=`, `operator=`); comparisons ending in `=` are not.
 is_assignment_operator :: (name: string) -> bool {
     if !is_operator_name(name) return false;
+
     symbol := replace_all(advance(name, "operator".count), " ", "");
     if !ends_with(symbol, "=") return false;
 

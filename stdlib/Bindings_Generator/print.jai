@@ -27,8 +27,10 @@ maybe_add_spacing :: (builder: *String_Builder, last_location: *Location, locati
 
     last_location.* = location;
     if !mimic || !previous.file || (decl_flags & .NO_SPACING) != 0 return;
+
     same_file := location.file == previous.file;
     if same_file && (location.line == previous.line || location.line == previous.line + 1) return;
+
     append(builder, "\n");
 }
 
@@ -52,6 +54,7 @@ number_type_name :: (t: *CType) -> string {
     if flags & ._8BIT return ifx signed then "s8" else "u8";
     if flags & ._16BIT return ifx signed then "s16" else "u16";
     if flags & ._32BIT return ifx signed then "s32" else "u32";
+
     return ifx signed then "s64" else "u64";
 }
 
@@ -66,6 +69,7 @@ parent_path :: (decl: *Declaration) -> string {
         }
 
         if p.output_name path = join(p.output_name, ".", path);
+
         p = p.parent;
     }
 
@@ -143,6 +147,7 @@ print_struct_type_name :: (builder: *String_Builder, t: *CType, current_scope: *
         ids: [..] string;
         ids.allocator = temp;
         for s.template_type_params array_add(*ids, "id");
+
         print_to_builder(builder, "(%)", join(..ids, separator = ", "));
     }
 
@@ -152,13 +157,16 @@ print_struct_type_name :: (builder: *String_Builder, t: *CType, current_scope: *
 print_function_type_to_builder :: (builder: *String_Builder, type: *Function_Type, current_scope: *Declaration, func: *Function, add_directives := false) {
     args: [] *Declaration = type.arguments;
     if func args = context.generator_options.get_func_args_for_printing(func, type, .FOREIGN_FUNC_DECLARATION);
+
     append(builder, "(");
 
     for args {
         if it_index > 0 append(builder, ", ");
+
         arg_flags := Print_Decl_Flags.NO_SEMICOLON | .NO_INDENT | .IN_FUNCTION_ARGS | .KEEP_POINTER_TO_VALUE;
         if !func arg_flags |= .NO_ARGUMENT_DEFAULTS;
         if type.flags & .ADD_C_TYPE_DETAILS arg_flags |= .C_TYPE_DETAILS;
+
         print_declaration_to_builder(builder, it, current_scope, arg_flags);
     }
 
@@ -211,6 +219,7 @@ escape_string_literal :: (s: string) -> string {
     }
 
     append(*builder, "\"");
+
     return builder_to_string(*builder);
 }
 
@@ -224,6 +233,7 @@ float_to_text :: (value: float64) -> string {
     }
 
     if !has_marker text = join(text, ".0");
+
     return text;
 }
 
@@ -235,12 +245,14 @@ can_print_expression :: (e: *Expression) -> bool {
         case .LITERAL;
             lit := cast(*Literal) e;
             if lit.literal_kind == .RAW_CPP_TOKENS return raw_expression_text(lit.raw_value) != "";
+
             return true;
         case .PAREN_EXPRESSION;
             return can_print_expression((cast(*Paren_Expression) e).child);
         case .STRUCT_LITERAL;
             s := cast(*Struct_Literal) e;
             for s.values if !can_print_expression(it) return false;
+
             return true;
         case .UNARY_OPERATOR;
             return can_print_expression((cast(*Unary_Operator) e).child);
@@ -258,6 +270,7 @@ raw_expression_text :: (raw: string) -> string {
     if raw == "true" || raw == "false" return raw;
     if begins_with(raw, ".") return raw; // An enum value the generator wrote itself (`.NONE`).
     if raw == "nullptr" || raw == "NULL" || raw == "0" return ifx raw == "0" then "0" else "null";
+
     body := raw;
     negative := false;
 
@@ -269,6 +282,7 @@ raw_expression_text :: (raw: string) -> string {
     converted, ok := convert_number_literal(body);
     if ok return ifx negative then join("-", converted) else converted;
     if table_contains(*context.generator.known_constants, raw) return raw;
+
     return "";
 }
 
@@ -356,8 +370,10 @@ get_name_alignment :: (declarations: [] *Declaration) -> int {
 
     for declarations {
         if it.decl_flags & .OMIT_FROM_OUTPUT continue;
+
         is_field, is_anon := is_struct_field(it);
         if !is_field || is_anon continue;
+
         name := unwrap_single_bitfield(it).output_name;
         if name.count > longest longest = name.count;
     }
@@ -446,6 +462,7 @@ print_struct_and_followers :: (builder: *String_Builder, s: *Struct, current_sco
     if s.flags & .OBJC_BLOCK print_block_literal_helper(builder, s);
 
     if current_scope && current_scope.kind != .NAMESPACE return; // In a struct: its checks cover this one.
+
     flattened := !current_scope || (cast(*Namespace) current_scope).should_flatten;
     if flattened print_struct_checks(builder, s);
     else array_add(*context.generator.deferred_struct_checks, s);
@@ -536,14 +553,18 @@ declaration_text :: (decl: *Declaration, current_scope: *Declaration, flags: Pri
 // overloads whose Jai signatures would otherwise be indistinguishable.
 print_c_type_details :: (builder: *String_Builder, decl: *Declaration, type: *CType) {
     if !type return;
+
     is_const := (decl.decl_flags & .IS_CONST) != 0 || (type.flags & .CONST) != 0;
     if type.pointer_to && (type.flags & .REFERENCE) && (type.pointer_to.flags & .CONST) is_const = true;
+
     is_reference := (type.flags & .REFERENCE) != 0;
     if !is_const && !is_reference return;
+
     append(builder, "/*");
     if is_const append(builder, "const");
     if is_const && is_reference append(builder, " ");
     if is_reference append(builder, "reference");
+
     append(builder, "*/ ");
 }
 
@@ -554,6 +575,7 @@ print_block_literal_helper :: (builder: *String_Builder, s: *Struct) {
     invoke: *Declaration;
     for s.declarations if it.name == "invoke" invoke = it;
     if !invoke return;
+
     append(builder, "\n");
     append_indentation(builder);
     print_to_builder(builder, "%_literal :: (invoke: ", s.output_name);
@@ -571,8 +593,10 @@ print_block_literal_helper :: (builder: *String_Builder, s: *Struct) {
 append_elsewhere :: (builder: *String_Builder, decl: *Declaration, foreign_name: string, declared_name := "") {
     directive := "#elsewhere";
     if decl.kind == .FUNCTION directive = "#foreign";
+
     print_to_builder(builder, " %", directive);
     if decl.library print_to_builder(builder, " %", library_identifier(decl.library));
+
     printed_as := ifx declared_name then declared_name else decl.output_name;
     renamed := foreign_name.count > 0 && foreign_name != printed_as;
 
@@ -624,6 +648,7 @@ print_objc_method :: (builder: *String_Builder, func: *Function, current_scope: 
 
     append(builder, ")");
     if returns_value print_to_builder(builder, " -> %", return_text);
+
     append(builder, " {\n");
 
     context.generator.tab_depth += 1;
@@ -642,6 +667,7 @@ print_objc_method :: (builder: *String_Builder, func: *Function, current_scope: 
     print_to_builder(builder, "_func = xx %;\n", ifx objc_returns_in_memory(type.return_type) then "objc_msgSend_stret" else "objc_msgSend");
     append_indentation(builder);
     if returns_value append(builder, "return ");
+
     print_to_builder(builder, "_func(%, __selectors.%", type.arguments[0].output_name, objc_selector_field(func.foreign_name));
 
     for type.arguments {
@@ -680,12 +706,15 @@ objc_selector_field :: (selector: string) -> string {
 // The selectors of all message sends, registered with the runtime on first use.
 print_objc_selector_table :: (builder: *String_Builder, g: *Generator_State) {
     if !g.unique_objc_selectors.count return;
+
     append(builder, "\n\n#scope_file\n\n#import \"Objective_C\"; // For objc_msgSend and sel_registerName\n\n");
     append(builder, "_Generated_Selectors :: struct {\n    initialized: bool;\n");
     for g.unique_objc_selectors print_to_builder(builder, "    %: Selector;\n", objc_selector_field(it));
+
     append(builder, "}\n__selectors: _Generated_Selectors;\n\n");
     append(builder, "__selectors_init :: () {\n    if __selectors.initialized return;\n    __selectors.initialized = true;\n");
     for g.unique_objc_selectors print_to_builder(builder, "    __selectors.% = sel_registerName(\"%\");\n", objc_selector_field(it), it);
+
     append(builder, "}\n");
 }
 
@@ -784,6 +813,7 @@ print_function_wrapper :: (builder: *String_Builder, func: *Function, bound_name
     context.generator.tab_depth += 1;
     append_indentation(builder);
     if returns_value append(builder, "return ");
+
     print_to_builder(builder, "%(%);\n", bound_name, join(..passed, separator = ", "));
     context.generator.tab_depth -= 1;
     append_indentation(builder);
@@ -818,11 +848,13 @@ print_enum_body :: (builder: *String_Builder, e: *Enum) {
     }
 
     if e.decl_flags & .TYPE_INFO_NONE append(builder, " #type_info_none");
+
     append(builder, " {\n");
 
     context.generator.tab_depth += 1;
     printed_values, last_value := print_enum_values(builder, e);
     if e.flags & .ALIAS_ORIGINAL_NAMES print_enum_aliases(builder, e, printed_values, last_value);
+
     context.generator.tab_depth -= 1;
 
     append_indentation(builder);
@@ -985,6 +1017,7 @@ print_struct :: (builder: *String_Builder, s: *Struct) {
     for s.declarations {
         if it.decl_flags & .OMIT_FROM_OUTPUT continue;
         if !is_operator(it) continue;
+
         append(builder, "\n");
         maybe_add_spacing(builder, *last_location, it.location, it.decl_flags, .STRUCT);
         print_declaration_to_builder(builder, it, null, 0);
@@ -1021,6 +1054,7 @@ print_struct_body :: (builder: *String_Builder, s: *Struct, as_type: bool, part 
 
     if s.decl_flags & .TYPE_INFO_NONE append(builder, " #type_info_none");
     else if s.decl_flags & .TYPE_INFO_PROCEDURES_ARE_VOID_POINTERS append(builder, " #type_info_procedures_are_void_pointers");
+
     append(builder, " {");
 
     context.generator.tab_depth += 1;
@@ -1070,6 +1104,7 @@ print_struct_body :: (builder: *String_Builder, s: *Struct, as_type: bool, part 
         append_indentation(builder);
         append(builder, "__vptr: *void; // C++ virtual bases make the class dynamic");
         if part == .RAW_DATA raw_next = context.generator.pointer_size;
+
         printed = true;
         has_fields = true;
     }
@@ -1079,6 +1114,7 @@ print_struct_body :: (builder: *String_Builder, s: *Struct, as_type: bool, part 
 
     for parent: s.parents {
         if part == .WRAPPER continue;
+
         parent_info, parent_struct := find_or_create_extra_info(parent.type, s);
         // Only one base with a vtable pointer can be `using`-ed: the pointers' names collide.
         dynamic_base := parent_info != null && (parent_info.vtable.count > 0 || parent_info.vtable_parent != null);
@@ -1174,9 +1210,11 @@ print_struct_body :: (builder: *String_Builder, s: *Struct, as_type: bool, part 
     for s.declarations {
         if it.decl_flags & .OMIT_FROM_OUTPUT continue;
         if is_operator(it) continue;
+
         is_data := is_struct_field(it);
         if part == .WRAPPER && is_data continue;
         if part == .RAW_DATA && !is_data continue;
+
         explicit_alignment := 0;
 
         if check_alignment && is_data {
@@ -1254,6 +1292,7 @@ print_struct_body :: (builder: *String_Builder, s: *Struct, as_type: bool, part 
             append(builder, " // C++ virtual base");
             // libclang before 20 cannot report the offset: no placement and no struct check.
             if vbase.bit_offset_in_parent < 0 append(builder, " (offset unknown to this libclang)");
+
             printed = true;
             if vbase.type.size > 0 has_fields = true;
         }
@@ -1388,6 +1427,7 @@ get_type_alignment :: (type: *CType) -> s64 {
     }
 
     if type.type_of_enum && type.type_of_enum.type return type.type_of_enum.type.size;
+
     return max(type.size, 1);
 }
 
@@ -1403,6 +1443,7 @@ get_struct_alignment :: (s: *Struct, include_bitfield_alignment: bool) -> s64 {
 
     for s.declarations {
         if it.decl_flags & .OMIT_FROM_OUTPUT continue;
+
         a := 1;
 
         if it.kind == .BITFIELD {
@@ -1432,6 +1473,7 @@ get_struct_alignment :: (s: *Struct, include_bitfield_alignment: bool) -> s64 {
 // member is narrower. A `#place` member of that type recreates the alignment.
 print_bitfield_alignment_helper :: (builder: *String_Builder, s: *Struct) {
     if s.decl_flags & .TEMPLATE return;
+
     needed: *Bitfield;
 
     for s.declarations {
@@ -1441,6 +1483,7 @@ print_bitfield_alignment_helper :: (builder: *String_Builder, s: *Struct) {
     }
 
     if !needed return;
+
     natural := get_struct_alignment(s, false);
     if natural == 0 || natural >= needed.alignment_type.size return;
 
@@ -1448,6 +1491,7 @@ print_bitfield_alignment_helper :: (builder: *String_Builder, s: *Struct) {
 
     for s.declarations {
         if it.decl_flags & .OMIT_FROM_OUTPUT continue;
+
         is_field, is_anon := is_struct_field(it);
         if is_field && !is_anon {
             anchor = unwrap_single_bitfield(it);
@@ -1511,10 +1555,13 @@ nonvirtual_data_end :: (s: *Struct, own_vptr: bool) -> s64 {
 
     for s.declarations {
         if it.decl_flags & .OMIT_FROM_OUTPUT continue;
+
         is_data := is_struct_field(it);
         if !is_data || it.storage_class == .Static continue;
+
         offset, size := get_field_layout(it);
         if offset < 0 || size < 0 return -1;
+
         end = max(end, offset + size);
     }
 
@@ -1559,6 +1606,7 @@ get_field_layout :: (decl: *Declaration) -> offset: s64, size: s64, alignment: s
     offset := -1;
     if decl.bit_offset_in_parent >= 0 offset = decl.bit_offset_in_parent / 8;
     if !decl.type return offset, -1, 0;
+
     return offset, decl.type.size, get_type_alignment(decl.type);
 }
 
@@ -1597,6 +1645,7 @@ get_base_layout :: (s: *Struct, reuse: [] bool) -> offsets: [] s64, end: s64 {
         base := get_base_struct(parent);
 
         if reuse[it_index] && base size = get_data_size(base);
+
         end += size;
     }
 
@@ -1616,8 +1665,10 @@ get_data_size :: (s: *Struct) -> s64 {
 
     for s.declarations {
         if it.decl_flags & .OMIT_FROM_OUTPUT continue;
+
         is_data := is_struct_field(it);
         if !is_data continue;
+
         offset, size, alignment := get_field_layout(it);
         if offset < 0 {
             offset = ifx alignment > 0 then (end + alignment - 1) / alignment * alignment else end;
@@ -1635,8 +1686,10 @@ get_first_own_offset :: (s: *Struct) -> s64 {
 
     for s.declarations {
         if it.decl_flags & .OMIT_FROM_OUTPUT continue;
+
         is_data := is_struct_field(it);
         if !is_data continue;
+
         offset := get_field_layout(it);
         if offset >= 0 && (first_own < 0 || offset < first_own) first_own = offset;
     }
@@ -1649,6 +1702,7 @@ base_layout_matches :: (s: *Struct, end: s64) -> bool {
     first_own := get_first_own_offset(s);
     if first_own >= 0 return first_own >= end;
     if s.type.size < 0 return true;
+
     alignment := max(get_struct_alignment(s, true), 1);
 
     return (end + alignment - 1) / alignment * alignment == s.type.size;
@@ -1658,6 +1712,7 @@ base_layout_matches :: (s: *Struct, end: s64) -> bool {
 // (a user-declared constructor or destructor, virtual functions, or such a base)?
 is_probably_non_pod :: (s: *Struct) -> bool {
     if s.flags & (Struct.Flags.HAS_CONSTRUCTOR | .HAS_COPY_CONSTRUCTOR | .HAS_MOVE_CONSTRUCTOR | .HAS_DESTRUCTOR) return true;
+
     info := find_or_create_extra_info(s.type, s);
     if info && (info.vtable.count > 0 || info.vtable_parent) return true;
 
@@ -1682,6 +1737,7 @@ mark_tail_padding_bases :: (g: *Generator_State) {
 
 mark_tail_padding_struct :: (s: *Struct, done: *Table(*Struct, bool)) {
     if table_contains(done, s) return;
+
     table_add(done, s, true);
     if (s.decl_flags & (Declaration_Flags.OMIT_FROM_OUTPUT | .TEMPLATE)) || (s.flags & .IS_UNION) || !s.type return;
     if s.parents.count == 0 || s.parents.count > 6 return;
@@ -1713,6 +1769,7 @@ mark_tail_padding_struct :: (s: *Struct, done: *Table(*Struct, bool)) {
 
     reuse: [..] bool;
     for 0..s.parents.count - 1 array_add(*reuse, false);
+
     found := false;
 
     for attempt: 0..(1 << s.parents.count) {
@@ -1725,6 +1782,7 @@ mark_tail_padding_struct :: (s: *Struct, done: *Table(*Struct, bool)) {
         }
 
         if !valid continue;
+
         _, end := get_base_layout(s, reuse);
         if base_layout_matches(s, end) {
             found = true;
@@ -1736,6 +1794,7 @@ mark_tail_padding_struct :: (s: *Struct, done: *Table(*Struct, bool)) {
 
     for parent: s.parents {
         if !reuse[it_index] continue;
+
         base := get_base_struct(parent);
         base.flags |= .NEEDS_RAW;
 
@@ -1756,29 +1815,36 @@ print_bitfield_accessors :: (builder: *String_Builder, s: *Struct) {
     if s.decl_flags & .TEMPLATE return;
     if !s.name || (s.flags & .IS_ANON) || !s.output_name return;
     if s.parent && s.parent.kind == .STRUCT return;
+
     printed := false;
 
     for s.declarations {
         if it.kind != .BITFIELD || (it.decl_flags & .OMIT_FROM_OUTPUT) continue;
+
         bf := cast(*Bitfield) it;
         for m: bf.members {
             if m.decl_flags & .OMIT_FROM_OUTPUT continue;
             if begins_with(m.name, "_anon") || !m.type continue;
+
             width := m.bitfield_width;
             offset := m.bit_offset_in_parent;
 
             if width <= 0 || width > 64 || offset < 0 continue;
+
             first_byte := offset / 8;
             shift := offset % 8;
             nbytes := (shift + width + 7) / 8;
 
             if nbytes > 8 continue;
+
             real := m.type;
             while real.type_of_typedef real = real.type_of_typedef.type;
+
             is_bool := real.hardcoded_jai_string == "bool";
             is_signed := (real.number_flags & .SIGNED) != 0;
 
             if real.type_of_enum && real.type_of_enum.type is_signed = (real.type_of_enum.type.number_flags & .SIGNED) != 0;
+
             mask: u64 = 0xffff_ffff_ffff_ffff;
             if width < 64 mask = ((cast(u64) 1) << width) - 1;
 
@@ -1830,12 +1896,14 @@ print_bitfield_accessors :: (builder: *String_Builder, s: *Struct) {
 find_or_create_extra_info :: (type: *CType, base_struct: *Struct) -> *Struct_Extra_Info, *Struct {
     stripped := strip_type(type, typedefs = true);
     if !stripped || !stripped.type_of_struct return null, null;
+
     s := stripped.type_of_struct;
 
     g := context.generator;
     known, cached := table_find(*g.extra_infos, s);
 
     if known return cached, s;
+
     info := New(Struct_Extra_Info);
 
     table_add(*g.extra_infos, s, info); // Before visiting the bases, so a cycle ends here.
@@ -1848,6 +1916,7 @@ find_or_create_extra_info :: (type: *CType, base_struct: *Struct) -> *Struct_Ext
 
     // The base's table pointer is `vtable`; a derived class's own pointer needs its own name.
     info.vtable_name = ifx info.vtable_parent then to_lower_copy(tprint("%_vtable", s.output_name)) else "vtable";
+
     return info, s;
 }
 
@@ -1857,6 +1926,7 @@ link_vtable_base :: (s: *Struct, info: *Struct_Extra_Info, base_struct: *Struct)
     for parent: s.parents {
         parent_info, parent_struct := find_or_create_extra_info(parent.type, base_struct);
         if !parent_info continue;
+
         has_entries := parent_info.vtable.count > 0;
         if !has_entries && !parent_info.vtable_parent continue;
 
@@ -1969,6 +2039,7 @@ print_vtable_table :: (builder: *String_Builder, s: *Struct, info: *Struct_Extra
 // argument; variadic entries get none (the arguments could not be passed on).
 print_vtable_call :: (builder: *String_Builder, s: *Struct, info: *Struct_Extra_Info, entry: *Function, previous: *Location) {
     if entry.decl_flags & .OMIT_FROM_OUTPUT return;
+
     type := entry.type.type_of_function;
     if type.flags & .VARIADIC {
         log("Bindings_Generator: %.% is variadic, so it gets no procedure calling it through the vtable.\n", s.name, entry.name);
@@ -1988,6 +2059,7 @@ print_vtable_call :: (builder: *String_Builder, s: *Struct, info: *Struct_Extra_
         // Arguments are passed on exactly as the entry takes them: a `const T&` stays a pointer.
         param_flags := Print_Decl_Flags.NO_SEMICOLON | .NO_INDENT | .IN_FUNCTION_ARGS;
         if it.decl_flags & .POINTER_TO_VALUE param_flags |= .NO_ARGUMENT_DEFAULTS | .KEEP_POINTER_TO_VALUE;
+
         array_add(*declared, declaration_text(it, s.parent, param_flags));
         array_add(*passed, it.output_name);
     }

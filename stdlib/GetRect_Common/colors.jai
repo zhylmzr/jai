@@ -22,6 +22,7 @@ set_current_color_hsv :: (state: *Color_Picker_State, hsv: Vector3, update_zoom_
 
     state.current_rgb_color = .{ r, g, b };
     if update_zoom_hue state.zoom_hue_center = state.current_hsv_color.x;
+
     state.disc_point = backsolve_disc_point_from_hsv(state, state.current_hsv_color.x, state.current_hsv_color.y, state.current_hsv_color.z);
     angle := state.current_hsv_color.x * PI / 180;
 
@@ -65,8 +66,10 @@ toggle_circle_picker_mode :: (state: *Color_Picker_State) {
 
 color_picker :: (r: Rect, input_and_output_color_rgb: *Vector3, theme: *Color_Picker_Theme = null, identifier: s64 = 0, loc := #caller_location) -> (applied: bool, still_dragging: bool, state: *Color_Picker_State) {
     if !theme theme = *default_overall_theme.color_picker_theme;
+
     assert(input_and_output_color_rgb != null);
     if !input_and_output_color_rgb return false, false, null;
+
     state, created := find_or_create_state(Color_Picker_State, get_hash(loc, identifier));
 
     defer stop_using_state(state);
@@ -85,6 +88,7 @@ color_picker :: (r: Rect, input_and_output_color_rgb: *Vector3, theme: *Color_Pi
     color_area := content;
 
     if GETRECT_Y_UP color_area.y += controls_height * 2;
+
     color_area.h = max(content.h - controls_height * 2, 0.0);
     color_area.w *= 1 - theme.stashed_color_width - theme.margin_between_color_input_and_stashed_colors;
     mode_row := Rect.{ content.x, ifx GETRECT_Y_UP then color_area.y - controls_height else color_area.y + color_area.h, color_area.w, controls_height };
@@ -102,11 +106,13 @@ color_picker :: (r: Rect, input_and_output_color_rgb: *Vector3, theme: *Color_Pi
     else if state.color_pick_mode == .HSV_SLIDERS draw_hsv_sliders(color_area, theme, state);
     else if state.color_pick_mode == .RGB_SLIDERS draw_rgb_sliders(color_area, theme, state);
     else draw_type_ins(color_area, theme, state);
+
     stash_area := content;
     stash_area.x = color_area.x + color_area.w + content.w * theme.margin_between_color_input_and_stashed_colors;
     stash_area.w = max(content.x + content.w - stash_area.x, 0.0);
     stash_area.h = color_area.h;
     if GETRECT_Y_UP stash_area.y = color_area.y;
+
     count := max(state.stashed_colors.count, 1);
     height := stash_area.h / count;
 
@@ -129,9 +135,11 @@ color_picker :: (r: Rect, input_and_output_color_rgb: *Vector3, theme: *Color_Pi
     actions.x += actions.w;
     pressed, button_state, released = button(actions, theme.revert_string, *theme.apply_and_revert_button_theme, identifier * 37 + 202, loc);
     if pressed set_current_color_rgb(state, theme, state.original_rgb_color);
+
     actions.x += actions.w;
     pressed, button_state, released = button(actions, "Stash", *theme.stash_button_theme, identifier * 37 + 203, loc);
     if pressed stash_color(state, state.current_rgb_color);
+
     dragging := state.dragging_in_ring || state.dragging_in_disc || state.dragging_in_h || state.dragging_in_s || state.dragging_in_l || state.dragging_in_r || state.dragging_in_g || state.dragging_in_b || state.dragging_in_hsv_rectangle;
 
     return applied, dragging, state;
@@ -141,10 +149,12 @@ draw_hsv_sliders :: (area: Rect, theme: *Color_Picker_Theme, state: *Color_Picke
     row := area;
     row.h /= 4;
     if GETRECT_Y_UP row.y = area.y + area.h - row.h;
+
     hsv := state.current_hsv_color;
     changed := slider(row, *hsv.x, theme.slider_hue_min, theme.slider_hue_max, 1.0, *default_overall_theme.slider_theme, "H ", "", 1);
 
     if changed set_current_color_hsv(state, hsv);
+
     advance_row(*row);
     zoom := state.current_hsv_color.x;
     half := max(theme.hue_range_in_zoomed_slider / 2, EPSILON);
@@ -161,6 +171,7 @@ draw_hsv_sliders :: (area: Rect, theme: *Color_Picker_Theme, state: *Color_Picke
     if state.hsv_picker_in_rectangle_mode {
         plane := row;
         if GETRECT_Y_UP plane.y = area.y;
+
         plane.h *= 2;
         status := get_status_flags(plane, state);
         if status & .PRESSED {
@@ -191,6 +202,7 @@ draw_rgb_sliders :: (area: Rect, theme: *Color_Picker_Theme, state: *Color_Picke
     row := area;
     row.h /= 3;
     if GETRECT_Y_UP row.y = area.y + area.h - row.h;
+
     rgb := state.current_rgb_color;
     changed := slider(row, *rgb.x, 0.0, 1.0, 0.01, *default_overall_theme.slider_theme, "R ", "", 1);
 
@@ -205,6 +217,7 @@ draw_type_ins :: (area: Rect, theme: *Color_Picker_Theme, state: *Color_Picker_S
     row := area;
     row.h /= 3;
     if GETRECT_Y_UP row.y = area.y + area.h - row.h;
+
     rgb := state.current_rgb_color;
     changed := number_input(row, tprint("%", rgb.x), *rgb.x, 0.0, 1.0, *theme.type_ins_input_theme, 1);
 
@@ -321,6 +334,7 @@ generate_color_samples :: (sorted: [] *$T/interface Color_Keyframe, interp: Inte
         end := sorted[right].t;
 
         if right == 0 end += 1;
+
         u := clamp((position - start) / max(end - start, 0.000001), 0.0, 1.0);
         previous := max(left - 1, 0);
         next := min(right + 1, sorted.count - 1);
@@ -368,6 +382,7 @@ generate_color_samples :: (sorted: [] *$T/interface Color_Keyframe, interp: Inte
 
 color_animation_editor :: (r: Rect, theme: *Color_Animation_Editor_Theme = null, identifier: s64 = 0, loc := #caller_location) -> (state: *Color_Animation_Editor_State) {
     if !theme theme = *default_overall_theme.color_animation_editor_theme;
+
     state, created := find_or_create_state(Color_Animation_Editor_State, get_hash(loc, identifier));
 
     defer stop_using_state(state);
@@ -383,6 +398,7 @@ color_animation_editor :: (r: Rect, theme: *Color_Animation_Editor_Theme = null,
     rounded_rectangle(r, theme.background.shape, theme.background.color, theme.background.frame_color);
     bar := shrink_xy(r, r.w * theme.horizontal_padding, r.h * theme.vertical_padding);
     if GETRECT_Y_UP bar.y += bar.h * 0.50;
+
     bar.h *= 0.50;
     my_color_slider(bar, 1.0, theme, state);
     row := r;
@@ -411,6 +427,7 @@ color_animation_editor :: (r: Rect, theme: *Color_Animation_Editor_Theme = null,
     row.x = r.x;
     advance_row(*row);
     if theme.draw_subwidgets_flags & .SAMPLING_CONTROLS number_input(row, tprint("%", state.num_clipboard_samples), *state.num_clipboard_samples, 1, 4096, *theme.number_input_theme, identifier * 41 + 4, loc);
+
     row.x += row.w;
 
     if theme.draw_subwidgets_flags & .TIME_VIEW {
@@ -427,11 +444,13 @@ color_animation_editor :: (r: Rect, theme: *Color_Animation_Editor_Theme = null,
 
     draw_color_picker(theme, state);
     draw_time_view(theme, state);
+
     return state;
 }
 
 open_color_picker :: (theme: *Color_Animation_Editor_Theme, state: *Color_Animation_Editor_State, keyframe_index: int, bar_rect: Rect) {
     if keyframe_index < 0 || keyframe_index >= state.color_keyframes.count return;
+
     state.color_picker_keyframe_index = keyframe_index;
     color := state.color_keyframes[keyframe_index].color_rgb;
 
@@ -505,6 +524,7 @@ draw_time_view :: (theme: *Color_Animation_Editor_Theme, state: *Color_Animation
 time_view_callback_body :: (r: Rect, data: *void) {
     editor := cast(*Color_Animation_Editor_State) data;
     if editor.time_view_playing editor.time_view_current_time += current_dt;
+
     samples: [1] Vector4;
     frame := Color_Keyframe.{ t = cast(float) frac(editor.time_view_current_time / max(editor.time_view_period, 0.001)) };
     sorted := get_sorted_keyframes(editor);
@@ -583,6 +603,7 @@ left_color_disc :: (r: Rect, theme: *Color_Picker_Theme, state: *Color_Picker_St
     }
 
     if mouse_button_right_state & .START && has_focus(r) toggle_circle_picker_mode(state);
+
     draw_procs.set_shader_for_color(true);
 
     for i: 0..47 {
@@ -611,6 +632,7 @@ left_color_space :: (rgba: Vector4, interp: Interpolation) -> Vector3 {
     }
 
     if interp.color_space == .OKLAB return linear_srgb_to_oklab(.{ left_decode_channel(rgb.x), left_decode_channel(rgb.y), left_decode_channel(rgb.z) });
+
     return rgb;
 }
 

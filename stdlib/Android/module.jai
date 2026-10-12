@@ -12,12 +12,14 @@ Input :: #import "Input";
     #program_export
     android_main :: (app: *Android_App) #c_call {
         if app == null || app.activity == null || _sdk_android_app != null return;
+
         // NativeActivity glue invokes this entry on its own thread. Establish a full
         // Jai context before invoking allocators, loggers or application callbacks.
         initializer_of(#Context)(*_sdk_android_context);
 
         push_context _sdk_android_context {
             if !Android_Basic.init_temporary_storage(*_sdk_android_storage, 65536) return;
+
             defer Android_Basic.deinit_temporary_storage(*_sdk_android_storage, free_original = true);
             context.temporary_storage = *_sdk_android_storage;
             context.android_app = app;
@@ -85,10 +87,12 @@ Input :: #import "Input";
             if event_type == 1 {
                 action := AKeyEvent_getAction(event);
                 if action != 0 && action != 1 return 0;
+
                 native_code := AKeyEvent_getKeyCode(event);
                 key := _sdk_android_key(native_code);
 
                 if key == .UNKNOWN return 0;
+
                 meta := AKeyEvent_getMetaState(event);
                 translated: Input.Event;
                 translated.type = .KEYBOARD;
@@ -118,16 +122,19 @@ Input :: #import "Input";
             }
 
             if event_type != 2 return 0;
+
             buttons := cast(u32) AMotionEvent_getButtonState(event);
 
             for index: 0..2 {
                 mask := (cast(u32) 1) << index;
                 if (buttons & mask) == (_sdk_android_mouse_buttons & mask) continue;
+
                 button: Input.Event;
                 button.type = .KEYBOARD;
                 if index == 0 button.key_code = .MOUSE_BUTTON_LEFT;
                 else if index == 1 button.key_code = .MOUSE_BUTTON_RIGHT;
                 else button.key_code = .MOUSE_BUTTON_MIDDLE;
+
                 button.key_pressed = xx ((buttons & mask) != 0);
                 Input.queue_input_event(window, button);
             }
@@ -146,11 +153,13 @@ Input :: #import "Input";
                 wheel.typical_wheel_delta = 120;
                 wheel.wheel_delta = cast(s32) (scroll * 120);
                 Input.queue_input_event(window, wheel);
+
                 return 1;
             }
 
             selected := cast(u64) ((action >> 8) & 255);
             if (kind == 5 || kind == 6) && selected >= pointers return 0;
+
             index: u64 = 0;
             while index < pointers {
                 if kind == 0 || kind == 1 || kind == 5 || kind == 6 {
@@ -171,6 +180,7 @@ Input :: #import "Input";
                 if kind == 0 || kind == 5 touch.touch_type = .PRESSED;
                 else if kind == 1 || kind == 6 || kind == 3 touch.touch_type = .RELEASED;
                 else touch.touch_type = .MOVED;
+
                 Input.queue_input_event(window, touch);
 
                 if index == 0 {
@@ -178,6 +188,7 @@ Input :: #import "Input";
                     y := AMotionEvent_getY(event, index);
 
                     if _sdk_android_pointer_valid Input.queue_mouse_delta(cast(int) (x - _sdk_android_x), cast(int) (y - _sdk_android_y));
+
                     _sdk_android_x = x;
                     _sdk_android_y = y;
                     _sdk_android_pointer_valid = true;
@@ -226,6 +237,7 @@ Android_Runtime :: #import "Runtime_Support"(DEFINE_SYSTEM_ENTRY_POINT = false, 
 
         for iteration: 0..255 {
             if app.destroyRequested != 0 break;
+
             data: *void;
             ident := ALooper_pollOnce(0, null, null, *data);
 
@@ -278,12 +290,14 @@ Android_Runtime :: #import "Runtime_Support"(DEFINE_SYSTEM_ENTRY_POINT = false, 
         if key == 74 return cast(Input.Key_Code) 59;
         if key == 75 return cast(Input.Key_Code) 39;
         if key == 76 return cast(Input.Key_Code) 47;
+
         return .UNKNOWN;
     }
 
     _sdk_android_unicode :: (app: *Android_App, event: *AInputEvent, meta: s32) -> u32 {
         vm := app.activity.vm;
         if vm == null return 0;
+
         env: *JNIEnv;
         attached := false;
         status := vm.*.GetEnv(vm, cast(**void) *env, JNI_VERSION_1_6);
@@ -295,11 +309,14 @@ Android_Runtime :: #import "Runtime_Support"(DEFINE_SYSTEM_ENTRY_POINT = false, 
 
         defer if attached vm.*.DetachCurrentThread(vm);
         if env == null || env.*.ExceptionCheck(env) != 0 return 0;
+
         key_class := env.*.FindClass(env, cast(*u8) "android/view/KeyEvent\0");
         if _sdk_android_jni_failed(env) || key_class == null return 0;
+
         defer env.*.DeleteLocalRef(env, key_class);
         constructor := env.*.GetMethodID(env, key_class, cast(*u8) "<init>\0", cast(*u8) "(JJIIIIIIII)V\0");
         if _sdk_android_jni_failed(env) || constructor == null return 0;
+
         args: [10] jvalue;
         args[0].j = AKeyEvent_getDownTime(event) / 1000000;
         args[1].j = AKeyEvent_getEventTime(event) / 1000000;
@@ -313,14 +330,17 @@ Android_Runtime :: #import "Runtime_Support"(DEFINE_SYSTEM_ENTRY_POINT = false, 
         args[9].i = AInputEvent_getSource(event);
         java_key := env.*.NewObjectA(env, key_class, constructor, *args[0]);
         if _sdk_android_jni_failed(env) || java_key == null return 0;
+
         defer env.*.DeleteLocalRef(env, java_key);
         unicode_method := env.*.GetMethodID(env, key_class, cast(*u8) "getUnicodeChar\0", cast(*u8) "(I)I\0");
         if _sdk_android_jni_failed(env) || unicode_method == null return 0;
+
         unicode_args: [1] jvalue;
         unicode_args[0].i = meta;
         scalar := env.*.CallIntMethodA(env, java_key, unicode_method, *unicode_args[0]);
 
         if _sdk_android_jni_failed(env) return 0;
+
         return cast(u32) scalar;
     }
 

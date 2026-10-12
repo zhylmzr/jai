@@ -25,6 +25,7 @@ file_open :: (name: string, for_writing := false, keep_existing_content := false
     }
 
     if for_writing && keep_existing_content creation = 4;
+
     wide := os_utf8_to_wide(name);
     handle := Windows.CreateFileW(wide, access, 3, null, creation, 0x80, null);
     result: File = .{ handle };
@@ -36,6 +37,7 @@ file_open :: (name: string, for_writing := false, keep_existing_content := false
     }
 
     if !success && log_errors log_error("Unable to open '%'", name);
+
     return result, success;
 }
 
@@ -48,6 +50,7 @@ file_close :: (file: *File) -> bool {
 
 file_read_checked :: (f: File, vdata: *void, bytes_to_read: s64) -> (success: bool, total_read: s64) {
     if !is_valid(f) || bytes_to_read < 0 || (!vdata && bytes_to_read > 0) return false, 0;
+
     done: s64;
     while done < bytes_to_read {
         remaining := bytes_to_read - done;
@@ -56,6 +59,7 @@ file_read_checked :: (f: File, vdata: *void, bytes_to_read: s64) -> (success: bo
 
         if !Windows.ReadFile(native_handle(f), cast(*u8) vdata + done, request, *received, null) return false, done;
         if received == 0 return true, done;
+
         done += received;
     }
 
@@ -64,6 +68,7 @@ file_read_checked :: (f: File, vdata: *void, bytes_to_read: s64) -> (success: bo
 
 file_write :: (file: *File, data: *void, length: s64) -> bool {
     if !is_valid(file.*) || length < 0 || (!data && length > 0) return false;
+
     done: s64;
     while done < length {
         request: u32 = xx min(length - done, 0x7fff_ffff);
@@ -129,6 +134,7 @@ delete_directory :: (dirname: string) -> bool {
     search := Windows.FindFirstFileW(os_utf8_to_wide(Strings.join(dirname, "/*")), *entry);
 
     if search == cast(HANDLE) -1 return Windows.RemoveDirectoryW(os_utf8_to_wide(dirname)) != 0;
+
     success := true;
 
     while true {
@@ -151,6 +157,7 @@ delete_directory :: (dirname: string) -> bool {
     }
 
     Windows.FindClose(search);
+
     return success && Windows.RemoveDirectoryW(os_utf8_to_wide(dirname)) != 0;
 }
 
@@ -170,13 +177,16 @@ get_absolute_path_windows :: (relative_path: string) -> string, success: bool {
     length := Windows.GetFullPathNameW(name, 0, null, null);
 
     if length == 0 return "", false;
+
     buffer := cast(*u16) alloc((length + 1) * 2, temp);
     actual := Windows.GetFullPathNameW(name, length + 1, buffer, null);
 
     if actual == 0 || actual > length return "", false;
+
     // Paths are spelled with `/` everywhere, so they can go into a string literal or a `#load`.
     result := os_wide_to_utf8(buffer, xx actual);
     for 0..result.count - 1 if result[it] == #char "\\" result[it] = #char "/";
+
     return result, true;
 }
 
@@ -191,6 +201,7 @@ map_file :: (name: string, log_errors := true) -> File_Map_Info, bool {
     stream, opened := file_open(name, log_errors = log_errors);
 
     if !opened return result, false;
+
     size, measured := file_length_checked(stream);
     if !measured || size < 0 {
         file_close(*stream);
@@ -218,6 +229,7 @@ map_file :: (name: string, log_errors := true) -> File_Map_Info, bool {
     result.file = stream;
     result.mapping = mapping;
     result.data = .{ size, bytes };
+
     return result, true;
 }
 
@@ -225,8 +237,10 @@ munmap_file :: (file_map: *File_Map_Info) -> bool {
     success := true;
     if file_map.data.data success = Windows.UnmapViewOfFile(file_map.data.data) != 0;
     if file_map.mapping success = Windows.CloseHandle(file_map.mapping) != 0 && success;
+
     file_close(*file_map.file);
     file_map.* = .{};
+
     return success;
 }
 

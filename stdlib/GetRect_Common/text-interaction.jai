@@ -75,6 +75,7 @@ copy_selection_to_clipboard :: (using state: *Text_Input_State, cut := false) {
 
 reset_auto_complete :: (using state: *Text_Input_State) {
     for text: state.match_array free(text.data, GETRECT_HEAP);
+
     free(state.match_array.data, GETRECT_HEAP);
     state.match_array = .[];
     state.match_selection = 0;
@@ -85,11 +86,13 @@ reset_auto_complete :: (using state: *Text_Input_State) {
 update_auto_complete :: (using state: *Text_Input_State) {
     reset_auto_complete(state);
     if !state.auto_complete.proc return;
+
     prefix := string.{ state.insert_point, state.text.data };
     matches, longest := state.auto_complete.proc(prefix, state.auto_complete.data);
 
     state.match_array = NewArray(matches.count, string,, GETRECT_HEAP);
     for text, index: matches state.match_array[index] = copy_string(text,, GETRECT_HEAP);
+
     state.match_length = prefix.count;
     state.longest_match = longest;
     state.completion_change_time = current_time;
@@ -104,6 +107,7 @@ advance_auto_complete :: (using state: *Text_Input_State, reverse: bool) {
 
 accept_auto_complete :: (using state: *Text_Input_State) -> bool {
     if state.match_array.count == 0 || state.match_selection < 0 || state.match_selection >= state.match_array.count return false;
+
     replacement := copy_string(state.match_array[state.match_selection]);
 
     defer free(replacement.data);
@@ -111,6 +115,7 @@ accept_auto_complete :: (using state: *Text_Input_State) -> bool {
     success := insert_text(state, replacement);
 
     reset_auto_complete(state);
+
     return success;
 }
 
@@ -125,8 +130,10 @@ update_multiclick_selection :: (using state: *Text_Input_State, point: int) {
     else if state.num_consecutive_clicks == 2 {
         start := point;
         while start > 0 && !left_word_space(state.text[seek_left_one_utf8_character(state.text, start)]) start = seek_left_one_utf8_character(state.text, start);
+
         end := point;
         while end < state.text.count && !left_word_space(state.text[end]) end = seek_right_one_utf8_character(state.text, end);
+
         state.selection = .{ start_line = 0, end_line = 0, start_character = start, end_character = end, active = end > start };
         state.insert_point = end;
     }
@@ -141,6 +148,7 @@ left_word_space :: (byte: u8) -> bool {
 
 left_input_byte_at :: (state: *Text_Input_State, font: *Font, theme: *Text_Input_Theme, x: float) -> int {
     if !font return state.insert_point;
+
     whole := cast(float) draw_procs.prepare_text(font, state.text, theme.effects);
     origin, baseline := text_origin(*theme.label_theme, font, state.rect, whole);
     origin -= state.camera_x;
@@ -153,6 +161,7 @@ left_input_byte_at :: (state: *Text_Input_State, font: *Font, theme: *Text_Input
         width := cast(float) draw_procs.prepare_text(font, string.{ next, state.text.data }, theme.effects);
 
         if x - origin < (previous_width + width) / 2 return at;
+
         at = next;
         previous_width = width;
     }
@@ -167,6 +176,7 @@ left_text_pointer :: (state: *Text_Input_State, theme: *Text_Input_Theme, font: 
 
         if current_time - state.last_click_time <= theme.multiclick_delay_max && nearby state.num_consecutive_clicks += 1;
         else state.num_consecutive_clicks = 1;
+
         state.last_click_time = current_time;
         state.last_click_position = .{ mouse_x_float, mouse_y_float };
         move_cursor_to(state, point, (shift_key_state & .DOWN) != 0);
@@ -193,8 +203,10 @@ left_text_pointer :: (state: *Text_Input_State, theme: *Text_Input_Theme, font: 
 left_draw_input_contents :: (r: Rect, theme: *Text_Input_Theme, state: *Text_Input_State) {
     label_theme := theme.label_theme;
     if !label_theme.font label_theme.font = get_default_font_at_size(r.h * 0.65);
+
     font := label_theme.font;
     if !font || !draw_procs.prepare_text return;
+
     whole := cast(float) draw_procs.prepare_text(font, state.text, label_theme.effects);
     origin, baseline := text_origin(*label_theme, font, r, whole);
     prefix_width := cast(float) draw_procs.prepare_text(font, string.{ state.insert_point, state.text.data }, label_theme.effects);
@@ -258,5 +270,6 @@ left_paste_clipboard :: (state: *Text_Input_State) {
 
     defer free_buffers(*builder);
     for byte: pasted append(*builder, ifx byte == 10 || byte == 13 || byte == 9 then cast(u8) 32 else byte);
+
     insert_text(state, builder_to_string(*builder));
 }

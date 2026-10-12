@@ -15,6 +15,7 @@ print_to_builder :: (builder: *String_Builder, set: *Keymap_Set) {
     for bucket: set.keymaps.all_buckets {
         for occupied, i: bucket.occupied {
             if !occupied continue;
+
             keymap := *bucket.data[i];
 
             append(builder, "[");
@@ -48,6 +49,7 @@ print_keymap_mappings_to_builder :: (builder: *String_Builder, keymap: *Keymap) 
         if mapping.modifier_flags.ctrl_pressed append(builder, "C-");
         if mapping.modifier_flags.alt_pressed append(builder, "A-");
         if mapping.modifier_flags.cmd_meta_pressed append(builder, "M-");
+
         append(builder, map_key_to_string(cast(Key_Code) mapping.utf32));
         append(builder, " ");
 

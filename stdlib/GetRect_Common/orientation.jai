@@ -71,6 +71,7 @@ right_resize_edges :: (r: Rect, delta: Vector2, west: bool, east: bool, north: b
     if east right = right_float_max(right + delta.x, left + min_width);
     if south bottom = right_float_min(bottom + delta.y, top - min_height);
     if north top = right_float_max(top + delta.y, bottom + min_height);
+
     return .{ left, bottom, right_float_max(right - left, 0.0), right_float_max(top - bottom, 0.0) };
 }
 

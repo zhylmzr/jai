@@ -5,10 +5,13 @@ cfstring_from_string :: (str: string) -> CFStringRef {
 
 to_string :: (cfstring: CFStringRef) -> string {
     if cfstring == null return "";
+
     character_count := CFStringGetLength(cfstring);
     if character_count == 0 return "";
+
     capacity := CFStringGetMaximumSizeForEncoding(character_count, .UTF8);
     if capacity < 0 || capacity == 0x7fffffffffffffff return "";
+
     bytes := cast(*u8) Basic.alloc(capacity + 1);
     if bytes == null return "";
 
@@ -19,9 +22,11 @@ to_string :: (cfstring: CFStringRef) -> string {
 
     length: s64 = 0;
     while length < capacity && bytes[length] != 0 length += 1;
+
     result: string;
     result.data = bytes;
     result.count = length;
+
     return result;
 }
 

@@ -105,8 +105,10 @@ pp_node_precedence :: (node: *Code_Node) -> s32 {
         op := cast(s32) bin.operator_type;
 
         if op == #char "." || op == xx Operator_Type.ARRAY_SUBSCRIPT return 100;
+
         p := pp_precedence(op);
         if p return p;
+
         return 0; // assignments
     }
 
@@ -159,6 +161,7 @@ pp_literal :: (builder: *String_Builder, lit: *Code_Literal, depth: s64) -> bool
         case .STRUCT;
             info := lit.struct_literal_info;
             if info.type_expression ok = pp_type(builder, info.type_expression, depth);
+
             append(builder, ".{");
 
             for arg, i: info.arguments {
@@ -170,6 +173,7 @@ pp_literal :: (builder: *String_Builder, lit: *Code_Literal, depth: s64) -> bool
         case .ARRAY;
             info := lit.array_literal_info;
             if info.element_type ok = pp_type(builder, info.element_type, depth);
+
             append(builder, ".[");
 
             for member, i: info.array_members {
@@ -203,6 +207,7 @@ pp_type :: (builder: *String_Builder, inst: *Code_Type_Instantiation, depth: s64
     }
 
     append(builder, "<type>");
+
     return false;
 }
 
@@ -231,6 +236,7 @@ pp_arguments :: (builder: *String_Builder, args: [] Code_Argument, depth: s64) -
 // when the list mixes both.
 pp_compound_names :: (builder: *String_Builder, names: *Code_Comma_Separated_Arguments, depth: s64) -> bool {
     if !names return false;
+
     declares := false;
     for names.arguments if it.modifier != .ASSIGN declares = true;
 
@@ -249,6 +255,7 @@ pp_declaration :: (builder: *String_Builder, decl: *Code_Declaration, depth: s64
     ok := true;
 
     if decl.flags & .HAS_SCOPE_MODIFIER append(builder, "`");
+
     append(builder, decl.name); // Empty for the properties of a compound declaration.
     constant := (decl.flags & .IS_CONSTANT) != 0;
     has_type := print_type && decl.type_inst != null;
@@ -256,6 +263,7 @@ pp_declaration :: (builder: *String_Builder, decl: *Code_Declaration, depth: s64
     if has_type {
         if parameter append(builder, ": ");
         else append(builder, " : ");
+
         ok = pp_type(builder, decl.type_inst, depth);
 
         if decl.expression {
@@ -297,6 +305,7 @@ pp_block :: (builder: *String_Builder, block: *Code_Block, depth: s64) -> bool {
 
     pp_indent(builder, depth);
     append(builder, "}");
+
     return ok;
 }
 
@@ -317,12 +326,14 @@ pp_ends_with_brace :: (node: *Code_Node) -> bool {
         case .STRUCT; #through;
         case .ENUM;
             if node.kind == .PROCEDURE_HEADER return (cast(*Code_Procedure_Header) node).body_or_null != null && print_procedure_bodies;
+
             return true;
         case .IF;
             return (cast(*Code_If) node).if_flags & .IS_IFX == 0;
         case .DECLARATION;
             decl := cast(*Code_Declaration) node;
             if decl.expression == null return false;
+
             return pp_ends_with_brace(decl.expression);
         case .COMPOUND_DECLARATION;
             return pp_ends_with_brace((cast(*Code_Compound_Declaration) node).declaration_properties);
@@ -339,12 +350,15 @@ pp_statement :: (builder: *String_Builder, node: *Code_Node, depth: s64) -> bool
     ok := pp_expression(builder, node, depth, 0);
 
     if !pp_ends_with_brace(node) append(builder, ";");
+
     append(builder, "\n");
+
     return ok;
 }
 
 pp_case :: (builder: *String_Builder, node: *Code_Node, depth: s64) -> bool {
     if node.kind != .CASE return pp_statement(builder, node, depth);
+
     c := cast(*Code_Case) node;
     ok := true;
 
@@ -378,6 +392,7 @@ pp_if :: (builder: *String_Builder, node: *Code_If, depth: s64) -> bool {
     if node.if_flags & .IS_IFX {
         append(builder, "ifx ");
         if !pp_expression(builder, node.condition, depth, 0) ok = false;
+
         append(builder, " then ");
 
         if node.then_block && node.then_block.statements.count {
@@ -396,6 +411,7 @@ pp_if :: (builder: *String_Builder, node: *Code_If, depth: s64) -> bool {
         if node.if_flags & .IS_STATIC append(builder, "#if ");
         else append(builder, "if ");
         if !pp_expression(builder, node.condition, depth, 0) ok = false;
+
         append(builder, " == {\n");
 
         if node.then_block {
@@ -406,12 +422,14 @@ pp_if :: (builder: *String_Builder, node: *Code_If, depth: s64) -> bool {
 
         pp_indent(builder, depth);
         append(builder, "}");
+
         return ok;
     }
 
     if node.if_flags & .IS_STATIC append(builder, "#if ");
     else append(builder, "if ");
     if !pp_expression(builder, node.condition, depth, 0) ok = false;
+
     append(builder, " ");
     if !pp_body(builder, node.then_block, depth) ok = false;
 
@@ -457,6 +475,7 @@ pp_for :: (builder: *String_Builder, node: *Code_For, depth: s64) -> bool {
 
     append(builder, " ");
     if !pp_body(builder, node.block, depth) ok = false;
+
     return ok;
 }
 
@@ -511,6 +530,7 @@ pp_procedure :: (builder: *String_Builder, header: *Code_Procedure_Header, depth
 pp_struct :: (builder: *String_Builder, node: *Code_Struct, depth: s64) -> bool {
     if node.textual_flags & 0x2 append(builder, "union");
     else append(builder, "struct");
+
     append(builder, " ");
 
     if node.block == null || node.block.statements.count == 0 {
@@ -586,6 +606,7 @@ pp_expression :: (builder: *String_Builder, node: *Code_Node, depth: s64, parent
             ok = pp_expression(builder, call.procedure_expression, depth, 100);
             append(builder, "(");
             if !pp_arguments(builder, call.arguments_unsorted, depth) ok = false;
+
             append(builder, ")");
         case .CAST;
             cast_node := cast(*Code_Cast) node;
@@ -599,6 +620,7 @@ pp_expression :: (builder: *String_Builder, node: *Code_Node, depth: s64, parent
                 if cast_node.cast_flags & .TRUNCATE append(builder, ",trunc");
                 if cast_node.cast_flags & .NO_BOUNDS_CHECK append(builder, ",no_check");
                 if cast_node.cast_flags & .FORCE append(builder, ",force");
+
                 append(builder, "(");
                 ok = pp_type(builder, cast_node.target_type, depth);
                 append(builder, ") ");
@@ -681,6 +703,7 @@ pp_expression :: (builder: *String_Builder, node: *Code_Node, depth: s64, parent
             e := cast(*Code_Enum) node;
             if e.is_flags append(builder, "enum_flags {}");
             else append(builder, "enum {}");
+
             ok = false;
         case .DIRECTIVE_CODE;
             append(builder, "#code ");
@@ -711,6 +734,7 @@ pp_expression :: (builder: *String_Builder, node: *Code_Node, depth: s64, parent
         case .DIRECTIVE_EXISTS;
             append(builder, "#exists(");
             if !pp_expression(builder, (cast(*Code_Directive_Exists) node).query_expression, depth, 0) ok = false;
+
             append(builder, ")");
         case .DIRECTIVE_LOCATION;
             loc := cast(*Code_Directive_Location) node;
@@ -738,11 +762,13 @@ pp_expression :: (builder: *String_Builder, node: *Code_Node, depth: s64, parent
             append(builder, "#procedure_name(");
             arg := (cast(*Code_Directive_Procedure_Name) node).argument;
             if arg ok = pp_expression(builder, arg, depth, 0);
+
             append(builder, ")");
         case .DIRECTIVE_BAKE;
             bake := cast(*Code_Directive_Bake) node;
             if bake.bake_type == .CONSTANTS_BAKE append(builder, "#bake_constants ");
             else append(builder, "#bake_arguments ");
+
             ok = pp_expression(builder, bake.procedure_call, depth, 0);
         case .DIRECTIVE_LOAD;
             print_to_builder(builder, "#load \"%\"", (cast(*Code_Directive_Load) node).short_name);
@@ -764,6 +790,7 @@ pp_expression :: (builder: *String_Builder, node: *Code_Node, depth: s64, parent
 
             for header: (*Code_Procedure_Header).[params.module_parameters, params.program_parameters] {
                 if !header continue;
+
                 append(builder, "(");
 
                 for arg, i: header.arguments {
@@ -787,6 +814,7 @@ pp_expression :: (builder: *String_Builder, node: *Code_Node, depth: s64, parent
     }
 
     if parens append(builder, ")");
+
     return ok;
 }
 
@@ -801,32 +829,40 @@ pp_binary :: (builder: *String_Builder, bin: *Code_Binary_Operator, depth: s64) 
 
         append(builder, ".");
         if !pp_expression(builder, bin.right, depth, 100) ok = false;
+
         return ok;
     }
 
     if op == xx Operator_Type.ARRAY_SUBSCRIPT {
         if !pp_expression(builder, bin.left, depth, 100) ok = false;
+
         append(builder, "[");
         if !pp_expression(builder, bin.right, depth, 0) ok = false;
+
         append(builder, "]");
+
         return ok;
     }
 
     prec := pp_precedence(op);
     if prec {
         if !pp_expression(builder, bin.left, depth, prec, 0) ok = false;
+
         append(builder, " ");
         append(builder, pp_operator_text(op));
         append(builder, " ");
         if !pp_expression(builder, bin.right, depth, prec, 1) ok = false;
+
         return ok;
     }
 
     // Assignment forms.
     if !pp_expression(builder, bin.left, depth, 0) ok = false;
+
     append(builder, " ");
     append(builder, pp_operator_text(op));
     append(builder, " ");
     if !pp_expression(builder, bin.right, depth, 0) ok = false;
+
     return ok;
 }

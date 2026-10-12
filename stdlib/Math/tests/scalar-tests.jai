@@ -45,6 +45,7 @@ numeric_half_cases :: () -> bool {
     if float16_to_float32(cast(Float16) 1) != 0.000000059604644775390625 return false;
     if cast(u16) float32_to_float16(1.00048828125) != 0x3c00 return false;
     if cast(u16) float32_to_float16(1.00146484375) != 0x3c02 return false;
+
     return true;
 }
 

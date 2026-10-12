@@ -17,13 +17,16 @@ init_objective_c :: () {
 init_objective_c_selector_struct :: (selectors: *$T) {
     info := type_info(T);
     if info.type != .STRUCT || selectors == null return;
+
     record := cast(*Type_Info_Struct) info;
     for member: record.members {
         if ((cast(u32) member.flags) & 3) != 0 || member.type != type_info(Selector) continue;
         if member.offset_in_bytes < 0 || member.offset_in_bytes > info.runtime_size - size_of(Selector) continue;
+
         bytes := Basic.to_c_string(member.name);
         if bytes == null continue;
         for index: 0..member.name.count - 1 if bytes[index] == #char "_" bytes[index] = #char ":";
+
         slot := cast(*Selector) (cast(*u8) selectors + member.offset_in_bytes);
         slot.* = cast(Selector) sel_registerName(bytes);
         Basic.free(bytes);
@@ -47,12 +50,16 @@ dispatch_data_t :: *NSObject;
 
 to_string :: (str: *NSString) -> string {
     if str == null return "";
+
     encoded := NSString.dataUsingEncoding(str, NSUTF8StringEncoding, NO);
     if encoded == null return "";
+
     length := NSData.length(encoded);
     if length > 0x7fff_ffff_ffff_ffff return "";
+
     bytes := cast(*u8) NSData.bytes(encoded);
     if length > 0 && bytes == null return "";
+
     return Basic.copy_string(string.{ cast(s64) length, bytes });
 }
 
@@ -126,11 +133,13 @@ objc_new :: ($type: Type) -> *type #no_context {
 class :: ($type: Type) -> Class #no_context {
     info := type_info(type);
     if info.type != .STRUCT return null;
+
     name := (cast(*Type_Info_Struct) info).name;
     // Compatibility views use SDK classes rather than a shipped custom binary.
     if name == "LightweightOpenGLView" return objc_getClass(cast(*u8) "NSOpenGLView\0");
     if name == "LightweightRenderingView" return objc_getClass(cast(*u8) "NSView\0");
     if name == "LightweightMetalView" return objc_getClass(cast(*u8) "NSView\0");
+
     buffer: [1024] u8;
     length: s64 = 0;
 
@@ -141,6 +150,7 @@ class :: ($type: Type) -> Class #no_context {
     }
 
     buffer[length] = 0;
+
     return objc_getClass(*buffer[0]);
 }
 
@@ -208,6 +218,7 @@ create_objc_class_member_stub :: (class_name: string, framework_name: string) ->
     for class_methods: 0..1 {
         owner := native_class;
         if class_methods == 1 owner = object_getClass(cast(id) native_class);
+
         count: u32;
         methods := class_copyMethodList(owner, *count);
 
@@ -225,6 +236,7 @@ create_objc_class_member_stub :: (class_name: string, framework_name: string) ->
             }
 
             if !safe_selector continue;
+
             result_type: [4096] u8;
 
             method_getReturnType(method, *result_type[0], 4096);
@@ -239,6 +251,7 @@ create_objc_class_member_stub :: (class_name: string, framework_name: string) ->
             defer Basic.free_buffers(*args);
             argument_count := method_getNumberOfArguments(method);
             if argument_count < 2 continue;
+
             supported_arguments := true;
             argument_index: u32 = 2;
 
@@ -273,12 +286,14 @@ create_objc_class_member_stub :: (class_name: string, framework_name: string) ->
             }
 
             if class_methods == 1 Basic.append(*builder, "_class");
+
             Basic.print_to_builder(*builder, " :: (self: *void%) -> % #no_context {\n", arg_text, result);
             Basic.print_to_builder(*builder, "    invoke: (sdk_receiver: *void, sdk_selector: SEL%) -> % #c_call;\n", arg_text, result);
             Basic.append(*builder, "    invoke = cast(type_of(invoke)) objc_msgSend;\n    ");
             if result != "void" Basic.append(*builder, "return ");
             if class_methods == 1 Basic.print_to_builder(*builder, "invoke(cast(*void) objc_getClass(cast(*u8) \"%\\0\"), sel_registerName(cast(*u8) \"%\\0\")", class_name, selector_name);
             else Basic.print_to_builder(*builder, "invoke(self, sel_registerName(cast(*u8) \"%\\0\")", selector_name);
+
             argument_index = 2;
             while argument_index < argument_count {
                 Basic.print_to_builder(*builder, ", arg%", argument_index - 2);
@@ -318,6 +333,7 @@ objc_create_class :: ($type: Type, $parent: Type) -> Class {
 
         if (flags & 1) != 0 {
             if member.type.type != .PROCEDURE continue;
+
             offset := member.offset_into_constant_storage;
 
             Basic.assert(offset >= 0 && offset <= record.constant_storage.count - size_of(IMP), "Procedure constant storage is unavailable");
@@ -348,6 +364,7 @@ objc_create_class :: ($type: Type, $parent: Type) -> Class {
             for note: member.notes if note == "objc_class_method" class_method = true;
             if class_method objc_add_class_method(native_class, function, selector_name);
             else objc_add_instance_method(native_class, function, selector_name);
+
             continue;
         }
 
@@ -363,6 +380,7 @@ objc_create_class :: ($type: Type, $parent: Type) -> Class {
         alignment_log2: u8 = 0;
 
         while ((cast(s64) 1) << alignment_log2) < alignment alignment_log2 += 1;
+
         encoded := objc_type_encode(member.type);
 
         defer Basic.free(encoded);
@@ -406,6 +424,7 @@ objc_create_class :: ($type: Type, $parent: Type) -> Class {
 
     Basic.assert(class_getInstanceSize(native_class) == cast(u64) info.runtime_size, "Jai and native class sizes disagree");
     complete = true;
+
     // The caller completes any additional methods before objc_finalize_class.
     return native_class;
 }
@@ -536,6 +555,7 @@ objc_func_encode :: (ty: *Type_Info_Procedure) -> string {
     defer Basic.free_buffers(*builder);
     if ty.return_types.count == 0 Basic.append(*builder, "v");
     else objc_type_encode(*builder, ty.return_types[0]);
+
     // Runtime method encodings accept the compact form without stack offsets.
     Basic.append(*builder, "@:");
     index: s64 = 2;
@@ -624,6 +644,7 @@ objc_make_block :: (invoke: *void, user_data: *void = null) -> *Objective_C_Bloc
     block.invoke = cast(type_of(block.invoke)) native_invoke;
     block.descriptor = *objc_block_literal_descriptor;
     block.user_data = user_data;
+
     return block;
 }
 
@@ -727,9 +748,11 @@ _sdk_objc_alignment :: (info: *Type_Info) -> s64 {
     if info.type == .ENUM return _sdk_objc_alignment(cast(*Type_Info) (cast(*Type_Info_Enum) info).internal_type);
     if info.type == .VARIANT return _sdk_objc_alignment((cast(*Type_Info_Variant) info).variant_of);
     if info.type == .ARRAY return _sdk_objc_alignment((cast(*Type_Info_Array) info).element_type);
+
     Basic.assert(info.type == .STRUCT, "Unreviewed native layout alignment");
     record := cast(*Type_Info_Struct) info;
     if ((cast(u32) record.textual_flags) & 4) != 0 return 1;
+
     maximum: s64 = 1;
 
     for member: record.members {
@@ -743,6 +766,7 @@ _sdk_objc_alignment :: (info: *Type_Info) -> s64 {
 
 _sdk_objc_jai_type :: (encoding: string) -> string, bool #no_context {
     if encoding.count == 0 return "", false;
+
     index: s64 = 0;
     while index < encoding.count {
         byte := encoding[index];
@@ -751,6 +775,7 @@ _sdk_objc_jai_type :: (encoding: string) -> string, bool #no_context {
     }
 
     if index == encoding.count return "", false;
+
     code := encoding[index];
     if code == 99 return "s8", true;
     if code == 67 return "u8", true;
@@ -766,5 +791,6 @@ _sdk_objc_jai_type :: (encoding: string) -> string, bool #no_context {
     if code == 118 return "void", true;
     if code == 42 return "*u8", true;
     if code == 64 || code == 35 || code == 58 || code == 94 return "*void", true;
+
     return "", false;
 }

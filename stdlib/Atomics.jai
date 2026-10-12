@@ -88,8 +88,10 @@ atomic_bit_test_and_set :: (dest: *$T, $$i: s64) -> bool {
 IsAtomicScalar :: (T: Type) -> bool #compile_time {
     bytes := type_info(T).runtime_size;
     if bytes != 1 && bytes != 2 && bytes != 4 && bytes != 8 return false;
+
     info := type_info(T);
     while info.type == .VARIANT info = (cast(*Type_Info_Variant) info).variant_of;
+
     return info.type == .INTEGER || info.type == .ENUM || info.type == .BOOL ||
            info.type == .FLOAT || info.type == .POINTER || info.type == .PROCEDURE;
 }
@@ -107,6 +109,7 @@ compare_and_swap2 :: (dest: *void, old_value_1: $T1_64, old_value_2: $T2_64,
         memcpy(*pair[1], *old_value_2, 8);
         memcpy(*replacement, *new_value_1, 8);
         memcpy(*replacement[1], *new_value_2, 8);
+
         return native_compare_exchange(16, dest, *pair, *replacement, 5, 5);
     } else {
         assert(false, "compare_and_swap2 requires the Linux system libatomic provider");
@@ -146,5 +149,6 @@ IsSigned :: (type: Type) -> bool #compile_time {
     while info.type == .VARIANT info = (cast(*Type_Info_Variant) info).variant_of;
     if info.type == .ENUM info = (cast(*Type_Info_Enum) info).internal_type;
     if info.type != .INTEGER return false;
+
     return (cast(*Type_Info_Integer) info).signed;
 }

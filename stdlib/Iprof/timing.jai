@@ -109,6 +109,7 @@ init_runtime :: () {
 
     root_zone := *zones[0];
     if !root_zone.name root_zone.name = "(root)";
+
     mark_entered(root_zone);
 
     root = .{};
@@ -139,6 +140,7 @@ node_allocator: Allocator;
     claim_zone :: (index: s64, name: string, full_path: string, line: s64) -> bool {
         if !live || busy || context.thread_index != owner_thread || index <= 0 || index >= MAX_AUTOMATIC_ZONES return false;
         if index >= zones.count zones.count = index + 1; // The block is preallocated and zeroed.
+
         z := *zones[index];
         if !z.name {
             z.name = name;
@@ -175,6 +177,7 @@ push_zone :: (zone_index: s64) {
 
     node := zone.last_node;
     if !node || node.parent != current node = child_for(current, zone);
+
     zone.last_node = node;
 
     node.frame_calls += 1;
@@ -230,7 +233,9 @@ child_for :: (parent: *Call_Node, zone: *Zone) -> *Call_Node {
     }
 
     if !zone.entered mark_entered(zone);
+
     array_add(*every_node, child);
+
     return child;
 }
 
@@ -265,9 +270,11 @@ fnv1a :: (s: string, h: u64) -> u64 {
 last_path_component :: (path: string) -> string {
     start := 0;
     for 0..path.count - 1 if path[it] == #char "/" || path[it] == #char "\\" start = it + 1;
+
     result := path;
     result.data += start;
     result.count -= start;
+
     return result;
 }
 

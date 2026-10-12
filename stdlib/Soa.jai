@@ -16,6 +16,7 @@ operator [] :: (soa: $S/Soa, i: int) -> S.T {
 
     for column: columns.members {
         if !soa_storage_member(*column) continue;
+
         member := get_field(row, column.name);
 
         assert(member != null);
@@ -40,6 +41,7 @@ operator []= :: (array: *$S/Soa, index: int, value: S.T) {
 
     for column: columns.members {
         if !soa_storage_member(*column) continue;
+
         member := get_field(row, column.name);
 
         assert(member != null);
@@ -98,6 +100,7 @@ soa_columns :: (T: Type, N: s64) -> string {
 
     for *member: record.members {
         if !soa_storage_member(member) continue;
+
         assert(member.offset_in_bytes >= 0 && member.offset_in_bytes + member.type.runtime_size <= info.runtime_size);
         intersects := false;
 
@@ -112,6 +115,7 @@ soa_columns :: (T: Type, N: s64) -> string {
         }
 
         if intersects continue;
+
         array_add(*selected, member);
         append(*builder, member.name);
         append(*builder, ": [N] type_of(T.");

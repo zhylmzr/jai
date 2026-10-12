@@ -329,6 +329,7 @@ optimization_levels_for :: (type: Optimization_Type) -> Llvm_Bitcode_Optimizatio
     if type == .VERY_OPTIMIZED return .O3, .AGGRESSIVE;
     if type == .OPTIMIZED_SMALL return .OS, .DEFAULT;
     if type == .OPTIMIZED_VERY_SMALL return .OZ, .AGGRESSIVE;
+
     return .O0, .NONE;
 }
 
@@ -345,6 +346,7 @@ ensure_option_slot :: (id: s64) {
     }
 
     if option_store_ready[id] return;
+
     option_store_ready[id] = true;
 
     // Like jai: the oldest macOS release the target CPU runs (metaprograms build target triples from it).
@@ -369,14 +371,17 @@ ensure_option_slot :: (id: s64) {
 derive_main_outputs :: (options: *Build_Options) {
     file := __jaic_main_file();
     if file.count == 0 return;
+
     directory := directory_of(file);
     if directory.count == 0 return;
+
     name := file;
     name.data += directory.count + 1;
     name.count -= directory.count + 1;
     dot := name.count;
     while dot > 0 && name[dot - 1] != #char "." dot -= 1;
     if dot > 1 name.count = dot - 1;
+
     options.output_executable_name = copy_text(name);
     options.output_path = copy_text(tprint("%/", directory));
     options.intermediate_path = copy_text(tprint("%/.build", directory));
@@ -412,6 +417,7 @@ anchor_paths :: (paths: [] string, anchor_file: string) -> [] string {
 forward_options :: (id: s64, previous: Build_Options, options: Build_Options) {
     if options.output_executable_name.count > 0 __jaic_workspace_set_option(id, "output_executable_name", options.output_executable_name);
     if options.output_path.count > 0 __jaic_workspace_set_option(id, "output_path", options.output_path);
+
     __jaic_workspace_set_option(id, "output_type", enum_member_name(options.output_type));
 
     if !string_slices_equal(options.import_path, previous.import_path) {
@@ -438,6 +444,7 @@ forward_options :: (id: s64, previous: Build_Options, options: Build_Options) {
     __jaic_workspace_set_option(id, "temporary_storage_size", decimal(options.temporary_storage_size));
     // The default folder is only a report; leaving it unsent keeps intermediates beside the output.
     if options.intermediate_path != main_intermediate_default __jaic_workspace_set_option(id, "intermediate_path", options.intermediate_path);
+
     __jaic_workspace_set_option(id, "append_executable_filename_extension", flag_text(options.append_executable_filename_extension));
     __jaic_workspace_set_option(id, "use_custom_link_command", flag_text(options.use_custom_link_command));
     __jaic_workspace_set_option(id, "disable_redzone", flag_text(options.disable_redzone));
@@ -454,6 +461,7 @@ forward_options :: (id: s64, previous: Build_Options, options: Build_Options) {
     __jaic_workspace_set_option(id, "minimum_os_version", tprint("%.%", version.major, version.minor));
     machine := llvm.machine_code_optimization_setting;
     if machine != .UNSET __jaic_workspace_set_option(id, "machine_code_optimization", enum_member_name(machine));
+
     __jaic_workspace_set_option(id, "llvm_enable_loop_unrolling", flag_text(llvm.enable_loop_unrolling));
     __jaic_workspace_set_option(id, "llvm_enable_loop_vectorization", flag_text(llvm.enable_loop_vectorization));
     __jaic_workspace_set_option(id, "llvm_enable_slp_vectorization", flag_text(llvm.enable_slp_vectorization));

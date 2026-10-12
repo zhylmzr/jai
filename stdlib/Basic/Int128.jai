@@ -131,10 +131,12 @@ operator - :: inline (a: S128) -> S128 {
 operator << :: inline (a: U128, $$x: u8) -> U128 {
     if x == 0 return a;
     if x >= 128 return U128.{};
+
     shift := x & 63;
     reverse_shift := (64 - shift) & 63;
 
     if x >= 64 return U128.{ 0, a.low << shift };
+
     return U128.{ a.low << shift, (a.high << shift) | (a.low >> reverse_shift) };
 }
 
@@ -147,22 +149,27 @@ operator << :: (a: S128, $$x: u8) -> S128 {
 operator >> :: (a: U128, $$x: u8) -> U128 {
     if x == 0 return a;
     if x >= 128 return U128.{};
+
     shift := x & 63;
     reverse_shift := (64 - shift) & 63;
 
     if x >= 64 return U128.{ a.high >> shift, 0 };
+
     return U128.{ (a.low >> shift) | (a.high << reverse_shift), a.high >> shift };
 }
 
 operator >> :: (a: S128, $$x: u8) -> S128 {
     if x == 0 return a;
+
     sign: s64 = 0;
     if a.high < 0 sign = -1;
     if x >= 128 return S128.{ cast,no_check(u64) sign, sign };
+
     shift := x & 63;
     reverse_shift := (64 - shift) & 63;
 
     if x >= 64 return S128.{ cast,no_check(u64) (a.high >> shift), sign };
+
     return S128.{ (a.low >> shift) | ((cast,no_check(u64) a.high) << reverse_shift), a.high >> shift };
 }
 
@@ -230,6 +237,7 @@ unsigned_divide_with_remainder :: (u: U128, v: U128) -> quotient: U128, remainde
         incoming: u64 = 0;
         if bit >= 64 incoming = (u.high >> cast(u8) (bit - 64)) & 1;
         else incoming = (u.low >> cast(u8) bit) & 1;
+
         remainder.low |= incoming;
         if carry || remainder >= v {
             remainder = remainder - v;
@@ -247,6 +255,7 @@ unsigned_divide_with_remainder :: (u: U128, v: U128) -> quotient: U128, remainde
 // then 64 shift-subtract steps in plain u64 arithmetic instead of 128 steps of U128 operators.
 __u128_divide_by_u64 :: (u: U128, d: u64) -> quotient: U128, remainder: U128 #no_aoc {
     if !u.high return U128.{ low = u.low / d }, U128.{ low = u.low % d };
+
     quotient: U128;
     quotient.high = u.high / d;
     r := u.high % d;
@@ -272,15 +281,18 @@ signed_divide_with_remainder :: inline (dividend: S128, divisor: S128) -> quotie
     minus_one :: S128.{ 0xffff_ffff_ffff_ffff, -1 };
 
     if !divisor || (dividend == minimum && divisor == minus_one) return S128_ERROR, S128_ERROR, true;
+
     dividend_magnitude := to_u128(dividend);
     divisor_magnitude := to_u128(divisor);
 
     if dividend.high < 0 dividend_magnitude = U128.{} - dividend_magnitude;
     if divisor.high < 0 divisor_magnitude = U128.{} - divisor_magnitude;
+
     q, r, error := unsigned_divide_with_remainder(dividend_magnitude, divisor_magnitude);
     if error return S128_ERROR, S128_ERROR, true;
     if (dividend.high < 0) != (divisor.high < 0) q = U128.{} - q;
     if dividend.high < 0 r = U128.{} - r;
+
     return to_s128(q), to_s128(r), false;
 }
 

@@ -31,6 +31,7 @@ get_enum_value :: (data: *void, info: *Type_Info_Enum) -> s64 {
     }
 
     assert(false);
+
     return 0;
 }
 
@@ -66,11 +67,13 @@ set_value_from_string :: (any: Any, text: string) -> bool {
 // Cursor updates commit only after a successful conversion and store.
 set_value_from_string :: (any: Any, text: *string) -> bool {
     if !any.type || !any.value_pointer || !text return false;
+
     cursor := text.*;
 
     if any.type.type == .INTEGER {
         valid, magnitude, negative, remaining := read_integer(cursor);
         if !valid return false;
+
         descriptor := cast(*Type_Info_Integer) any.type;
         if descriptor.signed {
             if (!negative && magnitude > 0x7fff_ffff_ffff_ffff) || (negative && magnitude > 0x8000_0000_0000_0000) return false;
@@ -84,6 +87,7 @@ set_value_from_string :: (any: Any, text: *string) -> bool {
         }
 
         text.* = remaining;
+
         return true;
     }
 
@@ -98,6 +102,7 @@ set_value_from_string :: (any: Any, text: *string) -> bool {
 
         end: s64;
         while end < cursor.count && identifier_byte(cursor[end]) end += 1;
+
         name := string.{ end, cursor.data };
 
         for entry, index: enumeration.names {
@@ -124,18 +129,23 @@ set_value_from_string :: (any: Any, text: *string) -> bool {
 
         if consumed < cursor.count && identifier_byte(cursor[consumed]) return false;
         if any.type.runtime_size != 1 return false;
+
         (cast(*bool) any.value_pointer).* = value;
         text.* = string.{ cursor.count - consumed, cursor.data + consumed };
+
         return true;
     }
 
     if any.type.type == .STRING {
         if cursor.count < 2 || cursor[0] != #char "\"" return false;
+
         end: s64 = 1;
         while end < cursor.count && cursor[end] != #char "\"" end += 1;
         if end == cursor.count return false;
+
         (cast(*string) any.value_pointer).* = .{ end - 1, cursor.data + 1 };
         text.* = string.{ cursor.count - end - 1, cursor.data + end + 1 };
+
         return true;
     }
 
@@ -143,16 +153,20 @@ set_value_from_string :: (any: Any, text: *string) -> bool {
         if any.type.runtime_size == 4 {
             value, success, remaining := string_to_float(cursor);
             if !success return false;
+
             (cast(*float) any.value_pointer).* = value;
             text.* = remaining;
+
             return true;
         }
 
         if any.type.runtime_size == 8 {
             value, success, remaining := string_to_float64(cursor);
             if !success return false;
+
             (cast(*float64) any.value_pointer).* = value;
             text.* = remaining;
+
             return true;
         }
     }
@@ -190,7 +204,9 @@ signed_integer_range_from_size :: (size_in_bytes: int) -> (low: s64, high: s64) 
     if size_in_bytes == 1 return -128, 127;
     if size_in_bytes == 2 return -32768, 32767;
     if size_in_bytes == 4 return -2147483648, 2147483647;
+
     assert(size_in_bytes == 8);
+
     return cast,no_check(s64) 0x8000_0000_0000_0000, 0x7fff_ffff_ffff_ffff;
 }
 
@@ -198,7 +214,9 @@ unsigned_integer_range_from_size :: (size_in_bytes: int) -> (low: u64, high: u64
     if size_in_bytes == 1 return 0, 255;
     if size_in_bytes == 2 return 0, 65535;
     if size_in_bytes == 4 return 0, 0xffff_ffff;
+
     assert(size_in_bytes == 8);
+
     return 0, 0xffff_ffff_ffff_ffff;
 }
 
@@ -256,11 +274,13 @@ read_integer :: (text: string) -> (ok: bool, magnitude: u64, negative: bool, rem
         else if byte >= #char "A" && byte <= #char "F" value = byte - #char "A" + 10;
         if value >= base break;
         if magnitude > (0xffff_ffff_ffff_ffff - value) / base return false, 0, false, text;
+
         magnitude = magnitude * base + value;
         digits += 1;
         cursor += 1;
     }
 
     if digits == 0 return false, 0, false, text;
+
     return true, magnitude, negative, string.{ text.count - cursor, text.data + cursor };
 }

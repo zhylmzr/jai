@@ -87,8 +87,10 @@ init_bit_array :: (array: *Bit_Array, count: int) {
     assert(count >= 0);
     array.count = count;
     if array.allocator.proc == null array.allocator = context.allocator;
+
     words_needed := count / 64;
     if count % 64 words_needed += 1;
+
     array.slots = Basic.NewArray(words_needed, s64,, array.allocator);
 }
 

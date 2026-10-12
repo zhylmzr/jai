@@ -36,6 +36,7 @@ get_plugin :: () -> *Metaprogram_Plugin {
     p.shutdown = plugin_shutdown;
     p.handle_one_option = handle_one_option;
     p.log_help = log_help;
+
     return p;
 }
 
@@ -56,6 +57,7 @@ handle_one_option :: (p: *Metaprogram_Plugin, options: [] string, cursor: int) -
         }
 
         me.csv_filename = options[cursor + 1];
+
         return cursor + 2;
     }
 
@@ -136,6 +138,7 @@ maybe_instrument :: (me: *Iprof_Plugin, body: *Code_Procedure_Body, size: s64) {
 
     file := body.enclosing_load;
     if !file || !file.enclosing_import return;
+
     owner := file.enclosing_import;
     in_main := owner.module_type == .MAIN_PROGRAM;
 
@@ -162,10 +165,12 @@ maybe_instrument :: (me: *Iprof_Plugin, body: *Code_Procedure_Body, size: s64) {
     statements: [..] *Code_Node;
 
     if is_entry array_add(*statements, with_literals(me.entry_template, .[me.csv_filename]));
+
     line := cast(s64) body.l0;
 
     array_add(*statements, with_literals(me.zone_template, .[index, header.name, file.fully_pathed_filename, line]));
     for body.block.statements array_add(*statements, it);
+
     body.block.statements = statements;
     compiler_modify_procedure(me.workspace, body);
 
@@ -194,12 +199,14 @@ with_literals :: (template: *Code_Procedure_Call, values: [] Any) -> *Code_Node 
         value := values[i];
         if value.type.type == .STRING literal._string = (cast(*string) value.value_pointer).*;
         else literal._s64 = (cast(*s64) value.value_pointer).*;
+
         unsorted[i].expression = literal;
         sorted[i] = literal;
     }
 
     call.arguments_unsorted = unsorted;
     call.arguments_sorted = sorted;
+
     return call;
 }
 

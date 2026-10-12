@@ -89,6 +89,7 @@ find_index_from_right :: (s: string, byte: u8) -> s64 {
 
 find_index_from_left :: (s: string, substring: string, start_index := 0) -> s64 {
     if substring.count == 0 return -1;
+
     i := start_index;
     if i < 0 i = 0;
 
@@ -102,6 +103,7 @@ find_index_from_left :: (s: string, substring: string, start_index := 0) -> s64 
 
 find_index_from_right :: (s: string, substring: string) -> s64 {
     if substring.count == 0 return -1;
+
     i := s.count - substring.count;
     while i >= 0 {
         if slice(s, i, substring.count) == substring return i;
@@ -235,6 +237,7 @@ split :: (s: string, separator: $T) -> [] string {
     }
 
     if remainder.count == 0 array_add(*results, "");
+
     return results;
 }
 
@@ -310,13 +313,16 @@ to_upper_copy_new :: (s: string) -> string #deprecated "Just call to_upper_copy(
 // Joins into one context.allocator block the caller owns. An empty total yields "".
 join :: (inputs: ..string, separator := "", before_first := false, after_last := false) -> string {
     if inputs.count == 0 return "";
+
     total := separator.count * (inputs.count - 1);
     for part: inputs total += part.count;
     if before_first total += separator.count;
     if after_last total += separator.count;
     if total == 0 return "";
+
     data := cast(*u8) alloc(total);
     if !data return "";
+
     at := 0;
 
     if before_first {
@@ -340,6 +346,7 @@ join :: (inputs: ..string, separator := "", before_first := false, after_last :=
 // The result is allocated by the caller's allocator; the second value is the match count.
 replace :: (s: string, old: string, new: string) -> string, ocurrences: int {
     if old.count == 0 return copy_string(s), 0;
+
     builder: String_Builder;
     cursor := 0;
     count := 0;
@@ -347,6 +354,7 @@ replace :: (s: string, old: string, new: string) -> string, ocurrences: int {
     while true {
         i := find_index_from_left(s, old, cursor);
         if i == -1 break;
+
         append(*builder, slice(s, cursor, i - cursor));
         append(*builder, new);
         cursor = i + old.count;
@@ -354,6 +362,7 @@ replace :: (s: string, old: string, new: string) -> string, ocurrences: int {
     }
 
     append(*builder, slice(s, cursor, s.count - cursor));
+
     return builder_to_string(*builder), count;
 }
 
@@ -389,6 +398,7 @@ path_decomp :: (name: string) -> path: string, basename: string, extension: stri
 
     // Only a real extension (possibly empty, as in "file.") takes its dot along; ".." keeps both.
     if has_extension base.count -= extension.count + 1;
+
     return path, base, extension, full;
 }
 
@@ -401,6 +411,7 @@ path_filename :: (path: string) -> string {
 path_extension :: (path: string) -> extension: string, found_extension: bool {
     i := find_index_of_any_from_right(path, ".\\/");
     if i <= 0 || path.data[i] != #char "." return "", false;
+
     before := path.data[i - 1];
     if before == #char "\\" || before == #char "/" return "", false;
 
@@ -457,10 +468,12 @@ wildcard_match :: (s: string, pat: string) -> bool {
 
     while true {
         if pi >= pat.count return si >= s.count;
+
         c := pat.data[pi];
         if c == #char "*" {
             pi += 1;
             if pi >= pat.count return true;
+
             rest := slice(pat, pi, pat.count - pi);
 
             while true {
@@ -496,12 +509,14 @@ wildcard_match :: (s: string, pat: string) -> bool {
             }
 
             if !matched return false;
+
             pi += 1;
             si += 1;
             continue;
         }
 
         if c != s.data[si] return false;
+
         pi += 1;
         si += 1;
     }
@@ -532,6 +547,7 @@ parse_token :: (line: *string, delimiters := DEFAULT_DELIMITERS, spaces := DEFAU
     token := slice(line.*, 0, n);
 
     line.* = slice(line.*, n, line.count - n);
+
     return token, true;
 }
 
@@ -576,6 +592,7 @@ parse_float :: (line: *string, delimiters := DEFAULT_DELIMITERS, spaces := DEFAU
 parse_int :: (line: *string, $T: Type = int, spaces := " \t", delimiters := DEFAULT_DELIMITERS) -> value: T, success: bool {
     word, have_word := parse_token(line, delimiters, spaces);
     if !have_word return 0, false;
+
     // Parse straight into T so a value outside its range fails instead of wrapping.
     number, parsed := string_to_int(word, T = T);
 
@@ -600,6 +617,7 @@ three_way :: (a: string, b: string, fold_case: bool) -> int {
     }
 
     if a.count == b.count return 0;
+
     return ifx a.count < b.count then -1 else 1;
 }
 
@@ -615,10 +633,12 @@ next_token_is :: (line: *string, expected: string, delimiters: string, spaces: s
     // WASI builds link no C library, so wasm parses here: a decimal prefix of the text, else 0.
     atof :: (s: *u8) -> float64 {
         if !s return 0;
+
         text := string.{ c_style_strlen(s), s };
         value, parsed := string_to_float64(text);
 
         if !parsed return 0;
+
         return value;
     }
 } else {
@@ -640,6 +660,7 @@ scan :: (format: string, text: string) -> bool, [] Any {
     while true {
         if format_cursor[0] == #char "%" {
             if format_cursor.count == 1 return false, result;
+
             success := false;
             value: Any;
             kind := format_cursor[1];
@@ -683,6 +704,7 @@ scan :: (format: string, text: string) -> bool, [] Any {
 
             if !success return false, result;
             if kind != #char "%" Basic.array_add(*result, value);
+
             format_cursor = slice(format_cursor, 2, format_cursor.count - 2);
         } else {
             if text_cursor[0] != format_cursor[0] return false, result;
@@ -713,6 +735,7 @@ scan2 :: (text: string, format: string, args: ..Any) -> bool {
         is_slot := expected == #char "%" && !(f < format.count && format[f] == #char "%");
         if is_slot {
             if used_args == args.count return false;
+
             target := args[used_args];
 
             used_args += 1;
@@ -722,11 +745,13 @@ scan2 :: (text: string, format: string, args: ..Any) -> bool {
             pointee.type = (cast(*Type_Info_Pointer) target.type).pointer_to;
             pointee.value_pointer = (cast(**void) target.value_pointer).*;
             if !Reflection.set_value_from_string(pointee, *pending) return false;
+
             continue;
         }
 
         if expected == #char "%" f += 1; // skip the second half of "%%"
         if pending.count == 0 || pending[0] != expected return false;
+
         pending = advance(pending, 1);
     }
 
@@ -741,6 +766,7 @@ scan_copy_any :: (value: $T) -> Any {
     any: Any;
     any.type = type_info(T);
     any.value_pointer = holder;
+
     return any;
 }
 #scope_export
