@@ -57,14 +57,16 @@ Results are views into `text`; arrays and replaced strings are allocated with `c
 **Search** (`search.jai`) picks matchers:
 
 1. A lazy DFA (`dfa.jai`) runs forward to find where the leftmost-first match ends. A reverse DFA then runs back from there to find where it starts. States are built on demand and cached. Looks (`^`, `$`, `\b`) are settled when a transition is computed, since both neighbouring bytes are known then.
-2. Captures come from a bounded backtracker (`nfa.jai`) on the span the DFAs found, or from the Pike VM when the span is too long for the backtracker's visited bitset (2M bits).
+2. Captures come from the span the DFAs found, by the first of three matchers that applies. A pattern that is one-pass (`onepass.jai`) uses its table. Otherwise a bounded backtracker (`nfa.jai`) runs, or the Pike VM when the span is too long for the backtracker's visited bitset (2M bits).
 3. The Pike VM also takes over when a DFA passes `DEFAULT_STATE_LIMIT` (10,000 states; from then on, that engine uses the Pike VM). It also takes over when a Unicode `\b` meets a non-ASCII byte, which the DFA can't classify: those transitions are a `QUIT` state.
+
+**One-pass captures** (`onepass.jai`): a pattern is one-pass when, matching anchored at a known start, each byte leaves at most one way forward. `onepass_build` finds out when the program is compiled: each state is the entry of a stretch of the program that waits for a byte, its epsilon closure is walked in priority order (once per instruction, like the Pike VM), and two byte-consuming instructions that accept the same byte class make the pattern not one-pass. A MATCH cuts off everything of lower priority, which keeps leftmost-first. Each table edge stores the next state and the capture slots to set. `onepass_search` walks the known span once and fails if it does not end exactly at `e`. Looks are conditions on the edge (`^ $ \b`, multi-line, CRLF, Unicode `\b` included) and are checked against the text when the edge is taken. A pattern is refused when a look could change which instruction wins: a look-guarded MATCH followed by anything, or a look-guarded instruction reached twice. It is also refused over `ONEPASS_STATE_LIMIT` (1,000) states. Unicode classes often are not one-pass: `(\w+)\s(\w+)` has `\w` and `\s` characters that share a UTF-8 lead byte, so the byte automaton cannot tell them apart; `(?-u)` classes and ASCII-only classes are fine. `Regex.is_one_pass` reports it.
 
 Every matcher is O(pattern × text). There is no exponential backtracking.
 
 **Matching rules**: leftmost-first, like Rust and Perl. `find_all` skips an empty match that starts where the previous match ended, and never splits a UTF-8 sequence with an empty match. A group inside a repetition keeps its last iteration. Every one of these rules is checked against the crate in the differential test.
 
-**Static** (`generate.jai`): `Regex.Static(pattern)` is a polymorphic struct type. The procedures that take one (`$R: Type`) reject any other type in their `#modify` (`is_static`), so passing a runtime `*Regex` picks the runtime overload and anything else is a compile error. They build its engine in a `#run` constant: parse, compile, then `dfa_build_all` and `dfa_freeze` both DFAs. The frozen DFAs then live in the program's data and search with no setup. If either DFA needs more than `STATIC_STATE_LIMIT` (256) states, typically for big Unicode classes like `\w` or `\pL`, freezing is skipped and the engine is built lazily on first use (`cached_engine`). Freezing those would cost about a second of compile time per pattern.
+**Static** (`generate.jai`): `Regex.Static(pattern)` is a polymorphic struct type. The procedures that take one (`$R: Type`) reject any other type in their `#modify` (`is_static`), so passing a runtime `*Regex` picks the runtime overload and anything else is a compile error. They build its engine in a `#run` constant: parse, compile, then `dfa_build_all` and `dfa_freeze` both DFAs, and the one-pass table (up to `ONEPASS_STATIC_STATE_LIMIT`, 256 states; a bigger one is left out and captures take the backtracker). The frozen tables then live in the program's data and search with no setup. If either DFA needs more than `STATIC_STATE_LIMIT` (256) states, typically for big Unicode classes like `\w` or `\pL`, freezing is skipped and the engine is built lazily on first use (`cached_engine`). Freezing those would cost about a second of compile time per pattern.
 
 `parse` uses a second engine for `\A(?:pattern)\z`. `R.Groups` is generated from the parse tree:
 
@@ -82,6 +84,7 @@ A number that does not fit its type makes the call return `false`. Groups that m
 - **Syntax**: `parse_*` in `syntax.jai`. Add cases to `tests/matching.jai` and to the corpus generator's atoms.
 - **A new look**: add it to `Look`, then `look_holds` (`nfa.jai`), `look_holds_between` (`dfa.jai`), and the byte-class boundaries in `compute_byte_classes`.
 - **Type inference**: `infer_kind` and `number_shape` in `generate.jai`. The emitted code is in `groups_members`, `groups_fill` and `into_fill`. That code is plain Jai text, so print it while debugging.
+- **One-pass**: the rules for refusing a pattern are in `explore` and `fill_state` (`onepass.jai`). A new `Look` needs no change there (the edge keeps a bit per `Look`, and `looks_hold` calls `look_holds`). To allow more patterns, make a state's closure smarter about when two leaves cannot both apply. Never accept a pattern that has a conflict: the result would depend on which path was tried first. A wrong table shows up as a mismatch in the differential test or the `fill_slots` assert.
 - **Engines**: any change must keep `tests/differential.jai` passing. For a deeper check, generate a larger corpus with a new seed and compare. To exercise the fallbacks, temporarily set `DEFAULT_STATE_LIMIT` to 3, which forces the Pike VM path.
 - **Unicode version**: see [Regex Unicode tables](../tools/regex-unicode-tables.md).
 
@@ -93,7 +96,7 @@ Gotchas:
 ## Configuration
 
 - `Options` (run time): `case_insensitive`, `multi_line`, `dot_all`, `swap_greed`, `ignore_space`, `crlf`, `unicode` (default on). The same flags work inline: `(?imsxRU-u)`.
-- `DEFAULT_STATE_LIMIT` (`dfa.jai`) and `STATIC_STATE_LIMIT` (`generate.jai`): DFA size limits.
+- `DEFAULT_STATE_LIMIT` (`dfa.jai`) and `STATIC_STATE_LIMIT` (`generate.jai`): DFA size limits. `ONEPASS_STATE_LIMIT` and `ONEPASS_STATIC_STATE_LIMIT` (`onepass.jai`): the same for the one-pass table.
 - `MAX_NESTING` (250) in `syntax.jai`. Repetition counts go up to `u32`, as in Rust. A program that grows too big is an error.
 
 ## Tests
@@ -117,7 +120,7 @@ Rough native throughput (`-O2`, Apple M-series, 16 MB of mixed ASCII and Unicode
 | --- | --- |
 | DFA-only patterns such as `\w+@\w+\.com` or `\p{Greek}+` | 400–600 MB/s |
 | A literal with no match | about 1 GB/s |
-| Typed `captures_all` | about 170 MB/s |
+| Typed `captures_all` of a one-pass pattern (dates) | about 200 MB/s (150 with the backtracker) |
 | `\b\w+\b` (Pike VM at non-ASCII bytes) | about 20 MB/s |
 
 ## Dependencies
