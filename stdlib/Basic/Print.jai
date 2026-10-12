@@ -1160,14 +1160,23 @@ __format_to_builder :: (builder: *String_Builder, format: string, args: [] Any) 
     position: s64 = 0;
     implicit: s64 = 0;
     while position < format.count {
+        // Plain text up to the next `%` (or escaped percent, byte 31) goes in as one piece.
+        run_end := position;
+        while run_end < format.count && format[run_end] != #char "%" && format[run_end] != 31 {
+            run_end += 1;
+        }
+        if run_end > position {
+            run: string = ---;
+            run.data = format.data + position;
+            run.count = run_end - position;
+            append(builder, run);
+            position = run_end;
+            continue;
+        }
         byte := format[position];
         position += 1;
         if byte == 31 {
             append(builder, cast(u8) #char "%");
-            continue;
-        }
-        if byte != #char "%" {
-            append(builder, byte);
             continue;
         }
         index := implicit;
