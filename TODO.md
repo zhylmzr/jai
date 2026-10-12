@@ -7,8 +7,7 @@ Work we know about but haven't done yet. Remove an item when it lands (or move i
 - **Sign and notarize macOS binaries.** Developer ID Application certificate, hardened runtime and `notarytool` in `release.yml`.
   - `jaic` probably needs `com.apple.security.cs.disable-library-validation` (it loads user dylibs in `jaic run`/`#run`) and `allow-unsigned-executable-memory` or `allow-jit` (libffi closures). Verify with the native-library and WebGPU tests.
   - Only browser-downloaded archives are affected today (Homebrew, `install.sh` and the VS Code download aren't quarantined).
-- **Sign Windows binaries** (e.g. Azure Trusted Signing). Unsigned exes that are new every release fail winget's Defender reputation check (`Validation-Defender-Error`).
-- **winget:** [microsoft/winget-pkgs#448536](https://github.com/microsoft/winget-pkgs/pull/448536) (0.4.2) is blocked by Defender. The zips go to Microsoft's WDSI file submission; once they're cleared, close #448536 and open one PR for the latest version.
+- **Sign Windows binaries** (e.g. Azure Trusted Signing). Unsigned exes that are new every release fail Microsoft Defender's reputation checks.
 
 ## Language and compiler
 
