@@ -24,11 +24,13 @@ base64_encode_with_alphabet :: (input: string, alphabet: string, padding: bool) 
     for i: 0..63 for j : 0..i - 1 if alphabet[i] == alphabet[j] return "";
     builder: Basic.String_Builder;
     i := 0;
+
     while i < input.count {
         a := input[i];
         b: u8 = 0;
         c: u8 = 0;
         left := input.count - i;
+
         if left > 1 b = input[i + 1];
         if left > 2 c = input[i + 2];
         Basic.append(*builder, alphabet[a >> 2]);
@@ -39,10 +41,12 @@ base64_encode_with_alphabet :: (input: string, alphabet: string, padding: bool) 
         else if padding Basic.append(*builder, cast(u8) 61);
         i += 3;
     }
+
     if builder.failed {
         Basic.reset(*builder);
         return "";
     }
+
     return Basic.builder_to_string(*builder);
 }
 
@@ -55,10 +59,12 @@ base64_decode_with_alphabet :: (text: string, alphabet: string) -> string, bool 
     if alphabet.count != 64 return "", false;
     table: [256] u8;
     for *item: table item.* = INVALID;
+
     for i: 0..63 {
         if table[alphabet[i]] != INVALID return "", false;
         table[alphabet[i]] = cast(u8) i;
     }
+
     table[9] = WHITESPACE;
     table[10] = WHITESPACE;
     table[13] = WHITESPACE;
@@ -74,9 +80,11 @@ base64_decode :: (input: string, table: [256] u8 = BASE64_DECODER_TABLE) -> stri
     symbols := 0;
     padding := 0;
     ended := false;
+
     for c: input {
         value := table[c];
         if value == WHITESPACE continue;
+
         if value == EQUALS {
             ended = true;
             padding += 1;
@@ -84,31 +92,38 @@ base64_decode :: (input: string, table: [256] u8 = BASE64_DECODER_TABLE) -> stri
                 Basic.reset(*builder);
                 return "", false;
             }
+
             continue;
         }
+
         if value >= 64 || ended {
             Basic.reset(*builder);
             return "", false;
         }
+
         bits = (bits << 6) | value;
         bit_count += 6;
         symbols += 1;
+
         if bit_count >= 8 {
             bit_count -= 8;
             Basic.append(*builder, cast(u8) ((bits >> bit_count) & 255));
             bits &= (1 << bit_count) - 1;
         }
     }
+
     remainder := symbols % 4;
     if remainder == 1 || bits != 0 || (padding > 0 && (symbols + padding) % 4 != 0)
         || (padding == 1 && remainder != 3) || (padding == 2 && remainder != 2) {
         Basic.reset(*builder);
         return "", false;
     }
+
     if builder.failed {
         Basic.reset(*builder);
         return "", false;
     }
+
     return Basic.builder_to_string(*builder), true;
 }
 
@@ -118,8 +133,10 @@ base64url_decode :: (input: string) -> string, success: bool {
 
 test_base64_module :: () {
     encoded := base64_encode("foobar");
+
     Basic.assert(encoded == "Zm9vYmFy");
     decoded, ok := base64_decode(encoded);
+
     Basic.assert(ok && decoded == "foobar");
     Basic.free(encoded);
     Basic.free(decoded);

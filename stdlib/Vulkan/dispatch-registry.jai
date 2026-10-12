@@ -58,6 +58,7 @@ _vk_registry_instance :: (instance: VkInstance) -> *_Vk_Handle_Record {
         if node.family == .INSTANCE && node.instance == instance return node;
         node = node.next;
     }
+
     return null;
 }
 
@@ -67,6 +68,7 @@ _vk_registry_physical :: (physical: VkPhysicalDevice) -> *_Vk_Handle_Record {
         if node.family == .PHYSICAL_DEVICE && node.physical == physical return node;
         node = node.next;
     }
+
     return null;
 }
 
@@ -76,6 +78,7 @@ _vk_registry_device :: (device: VkDevice) -> *_Vk_Handle_Record {
         if node.family == .DEVICE && node.device == device return node;
         node = node.next;
     }
+
     return null;
 }
 
@@ -85,6 +88,7 @@ _vk_registry_queue :: (queue: VkQueue) -> *_Vk_Handle_Record {
         if node.family == .QUEUE && node.queue == queue return node;
         node = node.next;
     }
+
     return null;
 }
 
@@ -115,6 +119,7 @@ _vk_registered_instance :: (instance: VkInstance) -> bool {
 
 _vk_physical_instance :: (physical: VkPhysicalDevice) -> VkInstance {
     result: VkInstance;
+
     _vk_registry_lock();
     node := _vk_registry_physical(physical);
     if _vk_registry_valid_instance(node) result = node.instance;
@@ -131,6 +136,7 @@ _vk_registered_device :: (device: VkDevice) -> bool {
 
 _vk_queue_device :: (queue: VkQueue) -> VkDevice {
     result: VkDevice;
+
     _vk_registry_lock();
     node := _vk_registry_queue(queue);
     if _vk_registry_valid_device(node) result = node.device;
@@ -149,10 +155,12 @@ vk_register_instance :: (instance: VkInstance) -> bool {
     _vk_registry_lock();
     existing := _vk_registry_instance(instance);
     inserted := false;
+
     if existing == null {
         inserted = _vk_registry_stamp(fresh);
         if inserted fresh.instance_generation = fresh.generation;
     }
+
     _vk_registry_unlock();
     if !inserted _vk_registry_free(fresh);
     return inserted || existing != null;
@@ -167,9 +175,11 @@ vk_register_physical_device :: (instance: VkInstance, physical: VkPhysicalDevice
     fresh.physical = physical;
     inserted := false;
     valid := false;
+
     _vk_registry_lock();
     parent := _vk_registry_instance(instance);
     existing := _vk_registry_physical(physical);
+
     if parent != null {
         if existing != null {
             valid = existing.instance == instance && existing.instance_generation == parent.generation;
@@ -180,6 +190,7 @@ vk_register_physical_device :: (instance: VkInstance, physical: VkPhysicalDevice
             valid = inserted;
         }
     }
+
     _vk_registry_unlock();
     if !inserted _vk_registry_free(fresh);
     return valid;
@@ -194,9 +205,11 @@ vk_register_device :: (physical: VkPhysicalDevice, device: VkDevice) -> bool {
     fresh.device = device;
     inserted := false;
     valid := false;
+
     _vk_registry_lock();
     parent := _vk_registry_physical(physical);
     existing := _vk_registry_device(device);
+
     if _vk_registry_valid_instance(parent) {
         if existing != null {
             valid = existing.physical == physical && existing.physical_generation == parent.generation;
@@ -209,6 +222,7 @@ vk_register_device :: (physical: VkPhysicalDevice, device: VkDevice) -> bool {
             valid = inserted;
         }
     }
+
     _vk_registry_unlock();
     if !inserted _vk_registry_free(fresh);
     return valid;
@@ -223,9 +237,11 @@ vk_register_queue :: (device: VkDevice, queue: VkQueue) -> bool {
     fresh.queue = queue;
     inserted := false;
     valid := false;
+
     _vk_registry_lock();
     parent := _vk_registry_device(device);
     existing := _vk_registry_queue(queue);
+
     if _vk_registry_valid_physical(parent) {
         if existing != null {
             valid = existing.device == device && existing.device_generation == parent.generation;
@@ -239,6 +255,7 @@ vk_register_queue :: (device: VkDevice, queue: VkQueue) -> bool {
             valid = inserted;
         }
     }
+
     _vk_registry_unlock();
     if !inserted _vk_registry_free(fresh);
     return valid;
@@ -249,21 +266,26 @@ _vk_registry_remove :: (family: _Vk_Handle_Family, instance: VkInstance = null,
                         physical: VkPhysicalDevice = null, device: VkDevice = null,
                         queue: VkQueue = null) {
     detached: *_Vk_Handle_Record;
+
     _vk_registry_lock();
     origin: *_Vk_Handle_Record;
     if family == .INSTANCE origin = _vk_registry_instance(instance);
     else if family == .PHYSICAL_DEVICE origin = _vk_registry_physical(physical);
     else if family == .DEVICE origin = _vk_registry_device(device);
     else origin = _vk_registry_queue(queue);
+
     if origin != null {
         generation := origin.generation;
         link := *_vk_registry_head;
+
         while link.* != null {
             node := link.*;
             should_remove := node == origin;
+
             if family == .INSTANCE should_remove = node.instance == instance && node.instance_generation == generation;
             else if family == .PHYSICAL_DEVICE should_remove = node.physical == physical && node.physical_generation == generation;
             else if family == .DEVICE should_remove = node.device == device && node.device_generation == generation;
+
             if should_remove {
                 link.* = node.next;
                 node.next = detached;
@@ -271,7 +293,9 @@ _vk_registry_remove :: (family: _Vk_Handle_Family, instance: VkInstance = null,
             } else link = *node.next;
         }
     }
+
     _vk_registry_unlock();
+
     while detached != null {
         node := detached;
         detached = node.next;
@@ -300,12 +324,14 @@ vkCreateInstance :: (pCreateInfo: *VkInstanceCreateInfo, pAllocator: *VkAllocati
     status := _vk_sdk_vkCreateInstance(pCreateInfo, pAllocator, pInstance);
     if status == .SUCCESS {
         vk_unregister_instance(pInstance.*); // A newly created native handle starts a new lifetime.
+
         if !vk_register_instance(pInstance.*) {
             _vk_sdk_vkDestroyInstance(pInstance.*, pAllocator);
             pInstance.* = null;
             return .ERROR_OUT_OF_HOST_MEMORY;
         }
     }
+
     return status;
 }
 
@@ -322,6 +348,7 @@ vkEnumeratePhysicalDevices :: (instance: VkInstance, pPhysicalDeviceCount: *u32,
             if !vk_register_physical_device(instance, pPhysicalDevices[i]) return .ERROR_OUT_OF_HOST_MEMORY;
         }
     }
+
     return status;
 }
 
@@ -330,12 +357,14 @@ vkCreateDevice :: (physicalDevice: VkPhysicalDevice, pCreateInfo: *VkDeviceCreat
     status := _vk_sdk_vkCreateDevice(physicalDevice, pCreateInfo, pAllocator, pDevice);
     if status == .SUCCESS {
         vk_unregister_device(pDevice.*);
+
         if !vk_register_device(physicalDevice, pDevice.*) {
             _vk_sdk_vkDestroyDevice(pDevice.*, pAllocator);
             pDevice.* = null;
             return .ERROR_OUT_OF_HOST_MEMORY;
         }
     }
+
     return status;
 }
 
@@ -360,10 +389,12 @@ vkGetDeviceQueue2 :: (device: VkDevice, pQueueInfo: *VkDeviceQueueInfo2, pQueue:
 _vk_register_groups :: (instance: VkInstance, count: u32, groups: *VkPhysicalDeviceGroupProperties) -> bool {
     for g: 0..cast(s64) count - 1 {
         assert(groups[g].physicalDeviceCount <= VK_MAX_DEVICE_GROUP_SIZE, "Invalid Vulkan group count");
+
         for d: 0..cast(s64) groups[g].physicalDeviceCount - 1 {
             if !vk_register_physical_device(instance, groups[g].physicalDevices[d]) return false;
         }
     }
+
     return true;
 }
 
@@ -374,5 +405,6 @@ vkEnumeratePhysicalDeviceGroups :: (instance: VkInstance, pPhysicalDeviceGroupCo
     if pPhysicalDeviceGroupProperties != null && (status == .SUCCESS || status == .INCOMPLETE) {
         if !_vk_register_groups(instance, pPhysicalDeviceGroupCount.*, pPhysicalDeviceGroupProperties) return .ERROR_OUT_OF_HOST_MEMORY;
     }
+
     return status;
 }

@@ -53,7 +53,9 @@ set_all_bits :: (array: *Bit_Array) {
 for_expansion :: (array: *Bit_Array, body: Code, flags: For_Flags) #expand {
     #assert !(flags & .POINTER) "Bit_Array does not support iteration by pointer";
     cursor := 0;
+
     #if flags & .REVERSE cursor = array.count - 1;
+
     while cursor >= 0 && cursor < array.count {
         `it_index := cursor;
         `it := (array.*)[cursor];
@@ -115,7 +117,9 @@ mask_tail :: (array: *Bit_Array) {
 only_set_or_unset :: (array: *Bit_Array, body: Code, flags: For_Flags, target_value: bool) #expand {
     #assert !(flags & .POINTER) "Bit_Array does not support iteration by pointer";
     cursor := 0;
+
     #if flags & .REVERSE cursor = array.count - 1;
+
     while cursor >= 0 && cursor < array.count {
         if (array.*)[cursor] == target_value {
             `it := target_value;
@@ -124,6 +128,7 @@ only_set_or_unset :: (array: *Bit_Array, body: Code, flags: For_Flags, target_va
                 set_bit_to(array, cursor, !target_value);
             }) body;
         }
+
         #if flags & .REVERSE cursor -= 1;
         else cursor += 1;
     }

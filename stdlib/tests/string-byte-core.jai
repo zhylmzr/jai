@@ -24,6 +24,7 @@ string_byte_vectors :: () -> bool {
     if !decimal_valid || decimal != -125 return false;
     remaining := " \ttrue;rest";
     boolean, boolean_valid := parse_bool(*remaining);
+
     if !boolean_valid || !boolean || remaining != ";rest" return false;
     return true;
 }

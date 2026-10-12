@@ -687,7 +687,6 @@ histogram :: (img: Surface, minRange: float, maxRange: float, width: s32, height
 
 nvtt :: #system_library "nvtt";
 
-
 #scope_file
 // Reviewed legacy C++ ABI: explicit return storage precedes this on Itanium; follows this on MSVC.
 native_object_return_1 :: (this: *Surface, result: *Surface, power: float) #foreign nvtt "?createToksvigMap@Surface@nvtt@@QEBA?AU12@M@Z";

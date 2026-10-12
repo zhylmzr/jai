@@ -2783,7 +2783,6 @@ ModFlags :: enum_flags u32 {
 #if OS == .MACOS imgui :: #system_library "imgui";
 #if OS == .LINUX imgui :: #system_library "imgui";
 
-
 #scope_file
 ImGui_String_Memory :: #import "Basic";
 

@@ -11,16 +11,19 @@ copy :: (destination: *void, source: *void, count: s64) {
     overlaps_after := false;
     overlaps_before := false;
     probe: s64 = 1;
+
     while probe < count {
         if dst == src + probe overlaps_after = true;
         if src == dst + probe overlaps_before = true;
         if overlaps_after || overlaps_before break;
         probe += 1;
     }
+
     if !overlaps_after && !overlaps_before {
         memcpy(destination, source, count);
         return;
     }
+
     if overlaps_after {
         offset := count;
         while offset > 0 {

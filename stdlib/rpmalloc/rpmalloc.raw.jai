@@ -540,7 +540,6 @@ dump_statistics :: rpmalloc_dump_statistics;
     heap_thread_set_current :: rpmalloc_heap_thread_set_current;
 }
 
-
 // Main-thread designation uses the genuine first-class heap API.
 rpmalloc_set_main_thread :: () {
     rp_set_main_thread();

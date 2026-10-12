@@ -38,6 +38,7 @@ make_app_bundle_subdirectories :: (app_bundle_name: string) -> macos_folder_path
     contents := tprint("%/Contents", app_bundle_name);
     binaries := tprint("%/MacOS", contents);
     resources := tprint("%/Resources", contents);
+
     // Recursive creation makes the bundle root and Contents on the way down.
     make_directory_if_it_does_not_exist(binaries, recursive = true);
     make_directory_if_it_does_not_exist(resources, recursive = true);
@@ -98,10 +99,12 @@ install_executable :: (source: string, destination: string) {
 
 write_info_plist :: (path: string, icon: string) {
     plist: String_Builder;
+
     plist_start(*plist);
     if icon plist_write_key_value(*plist, "CFBundleIconFile", icon);
     plist_end(*plist);
     text := builder_to_string(*plist);
+
     defer free(text);
     write_entire_file(path, text);
 }
@@ -116,6 +119,7 @@ last_path_component :: (path: string) -> string {
 // <tag>text</tag> on its own line, with the text escaped.
 xml_element :: (builder: *String_Builder, tag: string, text: string) {
     print_to_builder(builder, "<%>", tag);
+
     for byte: text {
         if byte == {
             case #char "&"; append(builder, "&amp;");
@@ -124,5 +128,6 @@ xml_element :: (builder: *String_Builder, tag: string, text: string) {
             case; append(builder, *byte, 1);
         }
     }
+
     print_to_builder(builder, "</%>\n", tag);
 }

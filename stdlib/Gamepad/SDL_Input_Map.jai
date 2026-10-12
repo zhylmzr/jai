@@ -57,27 +57,33 @@ parse_gamepad_mapping_string :: (input: string) -> map: SDL_Gamepad_Mapping, suc
     cursor: s64 = 0;
     guid := mapping_token(input, *cursor, 44);
     name := mapping_token(input, *cursor, 44);
+
     if guid.count != 32 && guid != "xinput" return map, false;
     if guid.count == 32 for byte: guid if !((byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 70) || (byte >= 97 && byte <= 102)) return map, false;
     if name.count == 0 return map, false;
     map.guid = copy_string(guid);
     map.name = copy_string(name);
+
     while cursor < input.count {
         field := mapping_token(input, *cursor, 44);
         if field.count == 0 continue;
         split: s64 = 0;
         while split < field.count && field[split] != 58 split += 1;
+
         if split == 0 || split >= field.count {
             deinit(map);
             return .{}, false;
         }
+
         target_name: string = .{ field.data, split };
         value: string = .{ field.data + split + 1, field.count - split - 1 };
+
         if target_name == "platform" {
             free(map.platform);
             map.platform = copy_string(value);
             continue;
         }
+
         // SDL metadata does not alter the classic hardware mapping record.
         if target_name == "crc" || target_name == "hint" || target_name == "sdk" continue;
         target := input_name_to_input_target(target_name);
@@ -85,6 +91,7 @@ parse_gamepad_mapping_string :: (input: string) -> map: SDL_Gamepad_Mapping, suc
             deinit(map);
             return .{}, false;
         }
+
         entry: SDL_Input_Map;
         entry.target = target;
         if value[0] == 98 entry.type = .BUTTON;
@@ -94,32 +101,41 @@ parse_gamepad_mapping_string :: (input: string) -> map: SDL_Gamepad_Mapping, suc
             deinit(map);
             return .{}, false;
         }
+
         position: s64 = 1;
         parsed_index, ok := mapping_integer(value, *position);
+
         entry.index = parsed_index;
+
         if !ok {
             deinit(map);
             return .{}, false;
         }
+
         if entry.type == .HAT {
             if position >= value.count || value[position] != 46 {
                 deinit(map);
                 return .{}, false;
             }
+
             position += 1;
             parsed_hat, hat_ok := mapping_integer(value, *position);
+
             entry.subindex = parsed_hat;
             if !hat_ok || entry.subindex < 1 || entry.subindex > 15 {
                 deinit(map);
                 return .{}, false;
             }
         }
+
         if position != value.count {
             deinit(map);
             return .{}, false;
         }
+
         array_add(*map.mappings, entry);
     }
+
     return map, true;
 }
 
@@ -133,17 +149,21 @@ deinit :: (map: SDL_Gamepad_Mapping) {
 get_guid_string :: (bustype: s16, vendor: s16, product: s16, version: s16) -> temp_string: string {
     bytes: [16] u8;
     words: [4] u16 = .[cast(u16) bustype, cast(u16) vendor, cast(u16) product, cast(u16) version];
+
     for word, index: words {
         bytes[index * 4] = cast(u8) word;
         bytes[index * 4 + 1] = cast(u8) (word >> 8);
     }
+
     out := cast(*u8) talloc(32);
     if !out return "";
     digits :: "0123456789abcdef";
+
     for byte, index: bytes {
         out[index * 2] = digits[byte >> 4];
         out[index * 2 + 1] = digits[byte & 15];
     }
+
     return .{ out, 32 };
 }
 
@@ -156,18 +176,22 @@ SDL_HAT_LEFT_BIT :: 0x08;
 mapping_integer :: (input: string, cursor: *s64) -> s32, bool {
     start := cursor.*;
     number: s64 = 0;
+
     while cursor.* < input.count && input[cursor.*] >= 48 && input[cursor.*] <= 57 {
         number = number * 10 + input[cursor.*] - 48;
         cursor.* += 1;
         if number > 0x7fffffff return 0, false;
     }
+
     return cast(s32) number, cursor.* > start;
 }
 
 mapping_token :: (input: string, cursor: *s64, separator: u8) -> string {
     start := cursor.*;
+
     while cursor.* < input.count && input[cursor.*] != separator cursor.* += 1;
     token: string = .{ input.data + start, cursor.* - start };
+
     if cursor.* < input.count cursor.* += 1;
     return token;
 }

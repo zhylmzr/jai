@@ -1,10 +1,12 @@
 // Printers recognize declared numeric layouts before reading their storage.
 print_numeric_row :: (builder: *Basic.String_Builder, values: [] float) {
     Basic.append(builder, "(");
+
     for values {
         if it_index != 0 Basic.append(builder, ", ");
         Basic.print_to_builder(builder, "%", it);
     }
+
     Basic.append(builder, ")");
 }
 
@@ -13,6 +15,7 @@ print_known_matrix :: (builder: *Basic.String_Builder, m: $T/interface AnyMatrix
         if i != 0 Basic.append(builder, ", ");
         print_numeric_row(builder, m.v[i].component);
     }
+
     return true;
 }
 

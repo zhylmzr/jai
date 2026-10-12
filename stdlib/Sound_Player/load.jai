@@ -41,6 +41,7 @@ load_audio_file :: (filename: string, optional := false) -> Sound_Data {
     bytes, ok := read_entire_file(filename, log_errors = !optional);
     if !ok return .{};
     result := load_audio_data(filename, bytes);
+
     free(bytes);
     result.full_path = copy_string(filename);
     return result;
@@ -59,6 +60,7 @@ load_audio_data :: (name_for_error_reporting: string, data: string) -> Sound_Dat
 
     owned := copy_string(data);
     parsed := ifx kind == .RIFF then describe_wav(*result, owned) else describe_ogg(*result, owned);
+
     if !parsed {
         if VERBOSE log_error("Sound_Player: '%' uses an unsupported encoding.\n", name_for_error_reporting);
         free(owned);
@@ -96,6 +98,7 @@ describe_wav :: (result: *Sound_Data, bytes: string) -> bool {
     if channels < 1 || channels > MAX_CHANNELS_PER_SOUND || format.nSamplesPerSec <= 0 return false;
 
     frames: s64;
+
     if format.wFormatTag == WAVE_FORMAT_PCM {
         if format.wBitsPerSample != 16 return false;
         result.type = .LINEAR_SAMPLE_ARRAY;
@@ -123,9 +126,11 @@ describe_ogg :: (result: *Sound_Data, bytes: string) -> bool {
     if bytes.count > S32_MAX return false;
     status: s32;
     handle := stb_vorbis_open_memory(bytes.data, cast(s32) bytes.count, *status, null);
+
     if !handle return false;
     info := stb_vorbis_get_info(handle);
     frames := cast(s64) stb_vorbis_stream_length_in_samples(handle);
+
     stb_vorbis_close(handle);
 
     if info.channels < 1 || info.channels > MAX_CHANNELS_PER_SOUND || info.sample_rate == 0 || frames <= 0 return false;
@@ -166,6 +171,7 @@ assign_default_directions :: (result: *Sound_Data) {
     count := cast(s64) result.nchannels;
     if count < 1 || count > 8 return;
     vorbis := result.type == .OGG_COMPRESSED;
+
     for 0..count - 1 {
         slot := (count - 1) * 8 + it;
         result.source_directions[it] = ifx vorbis then VORBIS_LAYOUTS[slot] else WAV_LAYOUTS[slot];

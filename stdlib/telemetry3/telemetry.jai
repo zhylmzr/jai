@@ -74,12 +74,14 @@
         tm_arena_allocation = cast(*u8) alloc(TM_ARENA_BYTES + 4095);
         if !tm_arena_allocation return cast(int) tm_error.TMERR_OUT_OF_RESOURCES;
         aligned := cast(*u8) ((cast(u64) tm_arena_allocation + 4095) & ~cast(u64) 4095);
+
         result = api.tmInitialize(TM_ARENA_BYTES, aligned);
         if result != .TM_OK {
             free(tm_arena_allocation);
             tm_arena_allocation = null;
             return cast(int) result;
         }
+
         tm_program_name = copy_string(program_name);
         tm_build_info = copy_string(build_info);
         g_tm_api0 = api;
@@ -92,10 +94,12 @@
         assert(frames >= 0);
         destination := output_file;
         connection: tm_connection_type = .TMCT_FILE;
+
         if destination.count == 0 {
             destination = "localhost";
             connection = .TMCT_TCP;
         }
+
         result := g_tm_api0.tmOpen(0, temp_c_string(tm_program_name), temp_c_string(tm_build_info),
                                    temp_c_string(destination), connection, 4719,
                                    .TMOF_INIT_NETWORKING, 1000);
@@ -104,6 +108,7 @@
             g_run_frames = frames;
             g_tm_api.tmSetCaptureMask(U64_MAX);
         }
+
         return cast(int) result;
     }
 
@@ -134,6 +139,7 @@
     telemetry_tick :: () {
         assert(g_tm_api);
         g_tm_api.tmTick(U64_MAX);
+
         if g_run_frames > 0 {
             g_run_frames -= 1;
             if g_run_frames == 0 telemetry_stop();
@@ -163,6 +169,7 @@
         assert(g_tm_api);
         file_id: u64;
         message_id := string_to_tm_id("%", message);
+
         g_tm_api.tmMessage_Core(U64_MAX, 0, temp_c_string(""), *file_id, 0,
                                 temp_c_string(message), *message_id);
     }
@@ -207,10 +214,12 @@
     telemetry_start_gpuzone :: (frame_number: u32, gpu_freq: u64, cpu_freq: u64, gpu_begin: u64, cpu_begin: u64, fast_begin: u64) {
         assert(g_tm_api);
         assert(gpu_freq > 0 && cpu_freq > 0);
+
         if g_gpuinfo.gpu_track_id == U32_MAX {
             g_gpuinfo.gpu_track_id = g_tm_api.tmNewTrackID();
             g_tm_api.tmTrackName(U64_MAX, g_gpuinfo.gpu_track_id, temp_c_string("GPU"));
         }
+
         g_gpuinfo.gpu_freq = gpu_freq;
         g_gpuinfo.cpu_freq = cpu_freq;
         g_gpuinfo.start_times[frame_number % 3] = .{ gpu_begin, cpu_begin, fast_begin };
@@ -513,7 +522,6 @@
         connected: s32;
         error: tm_error;
     }
-
 
     #scope_file
     TM_ARENA_BYTES :: 64 * 1024 * 1024;

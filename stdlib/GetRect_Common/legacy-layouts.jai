@@ -184,7 +184,6 @@ Button_Theme :: struct {
 
     text_offset_down := Vector2.{ .12, ifx GETRECT_Y_UP then -.12 else .12 };
 
-
     frame_thickness_over := .04;
     frame_thickness_down := .05;
     frame_thickness_flash := .07;

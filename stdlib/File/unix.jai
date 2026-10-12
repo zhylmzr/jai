@@ -13,16 +13,19 @@ file_open :: (name: string, for_writing := false, keep_existing_content := false
     // Writing handles read too, and keeping the content positions at the end without append
     // mode, so later seeks move writes as they do on Windows.
     mode := "rb";
+
     if for_writing {
         mode = "wb+";
         // "rb+" does not create, and "wb+" would truncate an existing file.
         if keep_existing_content && access(temp_c_string(name), 0) == 0 mode = "rb+";
     }
+
     stream := fopen(temp_c_string(name), temp_c_string(mode));
     if stream && for_writing && keep_existing_content && fseek(stream, 0, 2) != 0 {
         fclose(stream);
         stream = null;
     }
+
     // Reading mode opens a directory too; its "length" is file-system specific (0 on tmpfs).
     if stream && !for_writing {
         state: stat_t;
@@ -31,6 +34,7 @@ file_open :: (name: string, for_writing := false, keep_existing_content := false
             stream = null;
         }
     }
+
     if !stream && log_errors log_error("Unable to open '%'", name);
     return .{ stream }, stream != null;
 }
@@ -50,6 +54,7 @@ file_read_checked :: (f: File, vdata: *void, bytes_to_read: s64) -> (success: bo
         if amount <= 0 return feof(native_handle(f)) != 0, cursor;
         cursor += cast(s64) amount;
     }
+
     return true, cursor;
 }
 
@@ -61,6 +66,7 @@ file_write :: (file: *File, data: *void, length: s64) -> bool {
         if amount <= 0 return false;
         offset += cast(s64) amount;
     }
+
     return true;
 }
 
@@ -72,6 +78,7 @@ read_stdin_byte :: (byte: *u8) -> bool {
         if got == 0 return false;
         if errno() != EINTR return false;
     }
+
     return false;
 }
 
@@ -100,6 +107,7 @@ file_length_checked :: (file: File) -> (length: s64, success: bool) {
     if !valid || !file_seek(file, 0, .END) return 0, false;
     size, measured := file_current_position(file);
     restored := file_set_position(file, old);
+
     return size, measured && restored;
 }
 
@@ -123,6 +131,7 @@ delete_directory :: (dirname: string) -> bool {
     stream := opendir(temp_c_string(dirname));
     if !stream return false;
     success := true;
+
     while true {
         set_errno(cast(OS_Error_Code) 0);
         entry := readdir(stream);
@@ -130,14 +139,17 @@ delete_directory :: (dirname: string) -> bool {
             if errno() != 0 success = false;
             break;
         }
+
         name := to_string(entry.d_name.data);
         if name == "." || name == ".." continue;
         path := Strings.join(dirname, "/", name);
         state: stat_t;
+
         if lstat(temp_c_string(path), *state) != 0 {
             success = false;
             break;
         }
+
         if S_ISDIR(state.st_mode) {
             if !delete_directory(path) {
                 success = false;
@@ -148,6 +160,7 @@ delete_directory :: (dirname: string) -> bool {
             break;
         }
     }
+
     if closedir(stream) != 0 success = false;
     if !success return false;
     return rmdir(temp_c_string(dirname)) == 0;
@@ -168,6 +181,7 @@ get_absolute_path_unix :: (relative_path: string) -> string, success: bool {
     resolved := realpath(temp_c_string(relative_path), null);
     if !resolved return "", false;
     result := copy_temporary_string(to_string(resolved));
+
     c_free(resolved);
     return result, true;
 }

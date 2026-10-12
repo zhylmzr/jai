@@ -133,12 +133,15 @@ Offset_Range :: struct {
 init_fonts :: (_page_size_x: s32 = -1, _page_size_y: s32 = -1) {
     assert(!fonts_initted, "Simp font library is already initialized");
     if fonts_initted return;
+
     if _page_size_x != -1 || _page_size_y != -1 {
         assert(_page_size_x >= 64 && _page_size_y >= 64 && _page_size_x <= 32767 && _page_size_y <= 32767);
         page_size_x = _page_size_x;
         page_size_y = _page_size_y;
     }
+
     error := FT.FT_Init_FreeType(*ft_library);
+
     assert(error == 0, "FreeType initialization failed: %", error);
     fonts_initted = error == 0;
 }
@@ -175,9 +178,11 @@ get_font_at_size :: (memory: [] u8, pixel_height: int) -> *Dynamic_Font {
 // buffer parses it, later ones share that parse.
 font_for_memory :: (memory: [] u8) -> *Loaded_Font {
     push_allocator(SIMP_HEAP);
+
     for loaded_memory_fonts {
         if it.data.data == memory.data && it.data.count == memory.count return it;
     }
+
     fresh := make_loaded_font("", memory);
     if fresh array_add(*loaded_memory_fonts, fresh);
     return fresh;
@@ -187,10 +192,12 @@ load_font_part_2 :: (result: *Dynamic_Font, loaded_font: Loaded_Font, pixel_heig
     assert(result != null && result.face != null && pixel_height > 0);
     if !result || !result.face || pixel_height <= 0 return;
     error := FT.FT_Set_Pixel_Sizes(result.face, 0, cast(u32) pixel_height);
+
     assert(error == 0, "FreeType pixel sizing failed: %", error);
     if error return;
     result.character_height = pixel_height;
     metrics := result.face.size.metrics;
+
     result.default_line_spacing = max(cast(int) (metrics.height >> 6), pixel_height);
     result.max_ascender = cast(int) (metrics.ascender >> 6);
     result.max_descender = cast(int) (-metrics.descender >> 6);
@@ -209,15 +216,18 @@ create_dynamic_font :: (loaded: *Loaded_Font, name: string, pixel_height: int) -
     if !loaded || pixel_height <= 0 || pixel_height > 32767 return null;
     font := New(Dynamic_Font);
     error := FT.FT_New_Memory_Face(ft_library, loaded.data.data, cast(s32) loaded.data.count, 0, *font.face);
+
     if error {
         free(font);
         return null;
     }
+
     if FT.FT_Set_Pixel_Sizes(font.face, 0, cast(u32) pixel_height) {
         FT.FT_Done_Face(font.face);
         free(font);
         return null;
     }
+
     font.name = copy_string(name);
     font.loaded = loaded;
     record := New(Font_Record);
@@ -243,6 +253,7 @@ convert_to_temporary_glyphs :: (font: *Dynamic_Font, s: string, effect_flags: Fo
 prepare_text :: (font: *Dynamic_Font, text: string, effect_flags: Font_Effects = 0) -> width: s64 {
     push_allocator(SIMP_HEAP);
     effects := effect_flags;
+
     if !font return 0;
     record := font_record(font);
     if !record return 0;
@@ -256,10 +267,13 @@ prepare_text :: (font: *Dynamic_Font, text: string, effect_flags: Font_Effects =
     previous: u32;
     width: s64;
     digit_advance: s64;
+
     if effects & .LINING_FIGURES digit_advance = widest_digit_advance(font);
+
     while pos < text.count {
         offset := pos;
         codepoint := decode_utf8(text, *pos);
+
         if effects & .SMALLCAPS codepoint = capital_form(codepoint);
         if FT.FT_Get_Char_Index(font.face, codepoint) == 0 font.glyph_conversion_failed = true;
         glyph := find_or_create_glyph(font, codepoint);
@@ -267,18 +281,22 @@ prepare_text :: (font: *Dynamic_Font, text: string, effect_flags: Font_Effects =
             font.glyph_conversion_failed = true;
             continue;
         }
+
         tabular := digit_advance != 0 && codepoint >= #char "0" && codepoint <= #char "9";
         if previous && !tabular && !(effects & .NO_KERNING) && font.face.face_flags & FT.FT_FACE_FLAG_KERNING {
             delta: FT.FT_Vector;
             if FT.FT_Get_Kerning(font.face, previous, glyph.glyph_index_within_font, 0, *delta) == 0 width += delta.x >> 6;
         }
+
         advance: s64 = glyph.advance;
         slack: s64;
+
         if digit_advance && codepoint >= #char "0" && codepoint <= #char "9" {
             // Every figure takes the widest figure's cell, with its ink centred in it.
             slack = (digit_advance - advance) / 2;
             advance = digit_advance;
         }
+
         array_add(*record.starts, width + slack);
         array_add(*record.byte_offsets, cast(s32) offset);
         array_add(*record.lcd_keys, font_anti_aliasing == .lcd);
@@ -287,6 +305,7 @@ prepare_text :: (font: *Dynamic_Font, text: string, effect_flags: Font_Effects =
         previous = glyph.glyph_index_within_font;
         if glyph.glyph_index_within_font == 0 font.glyph_conversion_failed = true;
     }
+
     record.width = width;
     record.text_bytes = cast(s32) text.count;
     return width;
@@ -301,10 +320,12 @@ capital_form :: (codepoint: u32) -> u32 {
 
 widest_digit_advance :: (font: *Dynamic_Font) -> s64 {
     widest: s64;
+
     for digit: #char "0"..#char "9" {
         glyph := find_or_create_glyph(font, cast(u32) digit);
         if glyph && glyph.advance > widest widest = glyph.advance;
     }
+
     return widest;
 }
 
@@ -333,6 +354,7 @@ generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64, effect
     if !record return;
     font.current_quads.count = 0;
     left_handed := context.simp && context.simp.coordinate_system == .LEFT_HANDED;
+
     if effects & .LEFT_JUSTIFIED {
         // Start the ink at x rather than the pen: drop the first glyph's left bearing.
         for glyph: font.temporary_glyphs {
@@ -341,6 +363,7 @@ generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64, effect
             break;
         }
     }
+
     for glyph, i: font.temporary_glyphs {
         if !glyph.page || glyph.width == 0 || glyph.height == 0 continue;
         width := cast(float) glyph.width;
@@ -356,9 +379,11 @@ generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64, effect
         quad.glyph = glyph;
         quad.u0 = cast(float) glyph.x0 / page.width;
         quad.u1 = (cast(float) glyph.x0 + width) / page.width;
+
         if left_handed {
             y0 := cast(float) (y - glyph.ascent);
             y1 := y0 + cast(float) glyph.height;
+
             quad.p0 = .{ x0, y0 };
             quad.p1 = .{ x1, y0 };
             quad.p2 = .{ x1, y1 };
@@ -368,6 +393,7 @@ generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64, effect
         } else {
             y1 := cast(float) (y + glyph.ascent);
             y0 := y1 - cast(float) glyph.height;
+
             quad.p0 = .{ x0, y0 };
             quad.p1 = .{ x1, y0 };
             quad.p2 = .{ x1, y1 };
@@ -375,6 +401,7 @@ generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64, effect
             quad.v0 = bottom_v;
             quad.v1 = top_v;
         }
+
         array_add(*font.current_quads, quad);
     }
 }
@@ -390,6 +417,7 @@ draw_generated_quads :: (font: *Dynamic_Font, color := Vector4.{ 1, 1, 1, 1 }) {
     if context.simp.current_shader immediate_flush();
     set_shader_for_text();
     immediate_begin();
+
     for quad: font.current_quads {
         page := quad.glyph.page;
         if page.bitmap_data.width <= 1 || page.bitmap_data.height <= 1 continue;
@@ -397,14 +425,17 @@ draw_generated_quads :: (font: *Dynamic_Font, color := Vector4.{ 1, 1, 1, 1 }) {
         immediate_set_texture(*page.texture);
         immediate_letter_quad(quad, color);
     }
+
     immediate_flush();
 }
 
 draw_text_with_highlights :: (font: *Dynamic_Font, x: s64, y: s64, text: string, highlights: [] bool, color: u8, highlight_color: u8) -> width: s64 {
     if color >= COLOR_MAP.count || highlight_color >= COLOR_MAP.count return 0;
     width := prepare_text(font, text);
+
     generate_quads_for_prepared_text(font, x, y);
     set_shader_for_text();
+
     for quad, i: font.current_quads {
         page := quad.glyph.page;
         if page.dirty && !upload_font_page(page) return width;
@@ -413,6 +444,7 @@ draw_text_with_highlights :: (font: *Dynamic_Font, x: s64, y: s64, text: string,
         if i < highlights.count && highlights[i] index = highlight_color;
         immediate_letter_quad(quad, COLOR_MAP[index]);
     }
+
     immediate_flush();
     return width;
 }
@@ -420,28 +452,36 @@ draw_text_with_highlights :: (font: *Dynamic_Font, x: s64, y: s64, text: string,
 draw_code :: (font: *Dynamic_Font, x: s64, y: s64, char_x_advance: float, line_height: float, visible_lines: [] Code_Line, selections: [] Offset_Range = .[], tab_size: s64 = 4, start_col := 0, $is_colored := true) {
     if !font return;
     tab_size = max(tab_size, 1);
+
     for line, row: visible_lines {
         cursor := start_col + line.tab_spaces;
         pos: int;
+
         while pos < line.line.count {
             offset := pos;
             codepoint := decode_utf8(line.line, *pos);
+
             if codepoint == 9 {
                 cursor += tab_size - cursor % tab_size;
                 continue;
             }
+
             fragment := string.{ pos - offset, line.line.data + offset };
             color: u8 = 0;
+
             #if is_colored {
                 if offset < line.tokens.count color = line.tokens[offset];
             }
+
             selected := false;
             for range: selections if line.start_offset + offset >= range.start && line.start_offset + offset <= range.end selected = true;
+
             if selected && COLOR_MAP.count > 1 {
                 set_shader_for_color(true);
                 immediate_quad(cast(float) x + cursor * char_x_advance, cast(float) y - row * line_height - font.max_descender,
                     cast(float) x + (cursor + 1) * char_x_advance, cast(float) y - row * line_height + font.max_ascender, COLOR_MAP[1]);
             }
+
             draw_text(font, cast(s64) (x + cursor * char_x_advance), cast(s64) (y - row * line_height), fragment, color);
             cursor += 1;
         }
@@ -460,10 +500,12 @@ deinit :: (font: *Dynamic_Font) {
     font.temporary_glyphs = .{};
     if font.face FT.FT_Done_Face(font.face);
     free(font.name.data);
+
     for dynamic_fonts if it == font {
         array_unordered_remove_by_index(*dynamic_fonts, it_index);
         break;
     }
+
     array_reset(*record.starts);
     array_reset(*record.byte_offsets);
     array_reset(*record.lcd_keys);
@@ -474,6 +516,7 @@ deinit :: (font: *Dynamic_Font) {
 deinit_fonts :: () {
     push_allocator(SIMP_HEAP);
     immediate_flush();
+
     // deinit(font) looks its record up among all of them, so none is freed until every font is.
     for record: font_records {
         if record.font {
@@ -482,22 +525,27 @@ deinit_fonts :: () {
             free(font);
         }
     }
+
     for record: font_records free(record);
     array_reset(*font_records);
     array_reset(*dynamic_fonts);
+
     for loaded: loaded_file_fonts {
         FT.FT_Done_Face(loaded.face);
         free(loaded.data.data);
         destroy(loaded);
         free(loaded);
     }
+
     for loaded: loaded_memory_fonts {
         FT.FT_Done_Face(loaded.face);
         destroy(loaded);
         free(loaded);
     }
+
     array_reset(*loaded_file_fonts);
     array_reset(*loaded_memory_fonts);
+
     for page: font_pages {
         deinit(*page.texture);
         deinit(page.bitmap_data);
@@ -506,6 +554,7 @@ deinit_fonts :: () {
         array_reset(*page.lines);
         free(page);
     }
+
     array_reset(*font_pages);
     if ft_library FT.FT_Done_FreeType(ft_library);
     ft_library = null;
@@ -525,6 +574,7 @@ isLegalUTF8 :: (source: *u8, length: s64) -> bool {
     if length < 1 || length > 4 return false;
     first := source[0];
     expected: s64;
+
     if first < 0x80 expected = 1;
     else if first >= 0xc2 && first <= 0xdf expected = 2;
     else if first >= 0xe0 && first <= 0xef expected = 3;
@@ -551,6 +601,7 @@ make_loaded_font :: (name: string, data: [] u8) -> *Loaded_Font {
     ensure_fonts_are_initted();
     face: FT_Face;
     error := FT.FT_New_Memory_Face(ft_library, data.data, cast(s32) data.count, 0, *face);
+
     assert(error == 0, "FreeType could not open the font '%' (error %)", name, error);
     if error return null;
 
@@ -586,11 +637,13 @@ get_glyph_width_in_pixels :: (glyph: *Glyph_Data) -> s64 {
 get_character_width_in_pixels :: (font: *Dynamic_Font, utf8: *u8, effect_flags: Font_Effects) -> u32 {
     lead := utf8[0];
     length := 1;
+
     if lead >= 0xf0 length = 4;
     else if lead >= 0xe0 length = 3;
     else if lead >= 0xc0 length = 2;
     pos: int;
     glyph := find_or_create_glyph(font, decode_utf8(string.{ length, utf8 }, *pos));
+
     if !glyph return 0;
     return cast(u32) glyph.advance;
 }
@@ -599,6 +652,7 @@ accumulate_glyphs_from_font :: (source: *Dynamic_Font, dest: *Dynamic_Font) {
     push_allocator(SIMP_HEAP);
     // Glyphs taken from another font have no byte offset in this font's text, hence -1.
     first_new := dest.temporary_glyphs_byte_offsets.count;
+
     array_resize(*dest.temporary_glyphs_byte_offsets, first_new + source.temporary_glyphs.count, initialize = false);
     for source.temporary_glyphs dest.temporary_glyphs_byte_offsets[first_new + it_index] = -1;
     array_add(*dest.temporary_glyphs, ..source.temporary_glyphs);
@@ -610,6 +664,7 @@ load_font :: (path: string, basename: string, pixel_height: int) -> font: *Dynam
     font_name := tprint("%/%", path, basename);
 
     loaded := find_loaded_font(font_name);
+
     if !loaded loaded = make_loaded_font(font_name);
     if !loaded return null;
 
@@ -654,6 +709,7 @@ find_or_create_glyph :: (font: *Dynamic_Font, utf32: u32) -> *Glyph_Data {
     push_allocator(SIMP_HEAP);
     key := glyph_hash(utf32, font_anti_aliasing, font_hinting) ^ ((cast(u64) font.glyph_index_for_unknown_character) << 41);
     pointer := table_find_pointer(*font.glyph_lookup, key);
+
     if pointer return pointer.*;
     index := FT.FT_Get_Char_Index(font.face, utf32);
     if index == 0 index = font.glyph_index_for_unknown_character;
@@ -665,6 +721,7 @@ find_or_create_glyph :: (font: *Dynamic_Font, utf32: u32) -> *Glyph_Data {
     if FT.FT_Render_Glyph(font.face.glyph, mode) return null;
     slot := font.face.glyph;
     bitmap := slot.bitmap;
+
     if bitmap.pixel_mode != cast(u8) FT.FT_Pixel_Mode.GRAY && bitmap.pixel_mode != cast(u8) FT.FT_Pixel_Mode.LCD && bitmap.width > 0 return null;
     glyph := New(Glyph_Data);
     glyph.utf32 = utf32;
@@ -675,6 +732,7 @@ find_or_create_glyph :: (font: *Dynamic_Font, utf32: u32) -> *Glyph_Data {
     glyph.ascent = cast(s16) slot.bitmap_top;
     glyph.offset_y = cast(s16) (slot.bitmap_top - cast(s32) bitmap.rows);
     glyph.advance = cast(s16) ((slot.advance.x + 32) >> 6);
+
     if bitmap.width > 0 && bitmap.rows > 0 {
         width := cast(int) bitmap.width;
         if mode == .LCD width /= 3;
@@ -683,14 +741,17 @@ find_or_create_glyph :: (font: *Dynamic_Font, utf32: u32) -> *Glyph_Data {
             free(glyph);
             return null;
         }
+
         glyph.page = line.page;
         glyph.x0 = line.bitmap_cursor_x;
         glyph.y0 = line.bitmap_cursor_y;
         atlas := line.page.bitmap_data;
+
         for y: 0..cast(int) bitmap.rows - 1 {
             source := bitmap.buffer + y * bitmap.pitch;
             if bitmap.pitch < 0 source = bitmap.buffer + (cast(int) bitmap.rows - 1 - y) * (-bitmap.pitch);
             dest := atlas.data.data + (glyph.y0 + y) * atlas.stride + glyph.x0 * 3;
+
             for x: 0..width - 1 {
                 if mode == .LCD {
                     dest[x * 3] = source[x * 3];
@@ -703,19 +764,23 @@ find_or_create_glyph :: (font: *Dynamic_Font, utf32: u32) -> *Glyph_Data {
                 }
             }
         }
+
         line.bitmap_cursor_x += cast(s16) (width + 1);
         line.page.dirty = true;
     }
+
     table_add(*font.glyph_lookup, key, glyph);
     return glyph;
 }
 
 get_font_line :: (width: int, height: int) -> *Font_Line {
     if width + 2 > page_size_x || height + 2 > page_size_y return null;
+
     for page: font_pages {
         for line: page.lines if line.height >= height + 1 && line.bitmap_cursor_x + width + 1 < page_size_x return line;
         if page.line_cursor_y + height + 2 < page_size_y return new_font_line(page, height);
     }
+
     page := New(Font_Page);
     page.bitmap_data = New(Bitmap);
     bitmap_alloc(page.bitmap_data, page_size_x, page_size_y, .RGB8);
@@ -745,11 +810,13 @@ new_font_line :: (page: *Font_Page, height: int) -> *Font_Line {
 
 decode_utf8 :: (text: string, pos: *int) -> u32 {
     first := text[pos.*];
+
     pos.* += 1;
     if first < 128 return first;
     continuation: int;
     result: u32;
     minimum: u32;
+
     if first >= 0xc2 && first <= 0xdf {
         continuation = 1;
         result = first & 31;
@@ -763,11 +830,13 @@ decode_utf8 :: (text: string, pos: *int) -> u32 {
         result = first & 7;
         minimum = 0x10000;
     } else return 0xfffd;
+
     for i: 0..continuation - 1 {
         if pos.* >= text.count || (text[pos.*] & 0xc0) != 0x80 return 0xfffd;
         result = (result << 6) | (text[pos.*] & 63);
         pos.* += 1;
     }
+
     if result < minimum || result > 0x10ffff || (result >= 0xd800 && result <= 0xdfff) return 0xfffd;
     return result;
 }

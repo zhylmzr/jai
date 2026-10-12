@@ -34,6 +34,7 @@ output_open :: (config: Sound_Player_Config) -> channels: s32, rate: s32, ok: bo
         output_close();
         return 0, 0, false;
     }
+
     produced = 0;
     consumed = 0;
     return CA_CHANNELS, CA_RATE, true;
@@ -61,6 +62,7 @@ output_write :: (frames: s64) {
     head := atomic_read(*produced);
     free_frames := RING_FRAMES - (head - atomic_read(*consumed));
     count := min(frames, free_frames);
+
     while count > 0 {
         start := head % RING_FRAMES;
         span := min(count, RING_FRAMES - start);
@@ -71,6 +73,7 @@ output_write :: (frames: s64) {
         head += span;
         count -= span;
     }
+
     atomic_write(*produced, head); // Publish only after the samples are in place.
 }
 
@@ -78,8 +81,10 @@ output_devices :: () -> [] Output_Device {
     if listed_devices.count return listed_devices;
     ids_address := Property_Address.{ FOUR_CC_DEV_, FOUR_CC_GLOB, 0 };
     bytes: u32;
+
     if AudioObjectGetPropertyDataSize(SYSTEM_OBJECT, *ids_address, 0, null, *bytes) != 0 || bytes == 0 return listed_devices;
     ids := NewArray(bytes / size_of(u32), u32);
+
     defer array_free(ids);
     if AudioObjectGetPropertyData(SYSTEM_OBJECT, *ids_address, 0, null, *bytes, ids.data) != 0 return listed_devices;
 
@@ -88,6 +93,7 @@ output_devices :: () -> [] Output_Device {
         name_address := Property_Address.{ FOUR_CC_LNAM, FOUR_CC_GLOB, 0 };
         name: CFStringRef;
         name_bytes: u32 = size_of(CFStringRef);
+
         if AudioObjectGetPropertyData(id, *name_address, 0, null, *name_bytes, *name) != 0 || !name continue;
         device: Output_Device;
         device.name = to_string(name);
@@ -95,6 +101,7 @@ output_devices :: () -> [] Output_Device {
         CFRelease(name);
         array_add(*listed_devices, device);
     }
+
     return listed_devices;
 }
 
@@ -117,17 +124,21 @@ pull_samples :: (user: *void, flags: *u32, timestamp: *void, bus: u32, frames: u
     if !data || data.count != 1 return -50;
     target := data.buffers[0];
     out := cast(*s16) target.data;
+
     if !out return -50;
     wanted := cast(s64) frames;
     if wanted > target.bytes / CA_FRAME_BYTES wanted = target.bytes / CA_FRAME_BYTES;
 
     tail := atomic_read(*consumed);
     available := atomic_read(*produced) - tail;
+
     if available > wanted available = wanted;
+
     for frame: 0..available - 1 {
         source := ((tail + frame) % RING_FRAMES) * CA_CHANNELS;
         for channel: 0..CA_CHANNELS - 1 out[frame * CA_CHANNELS + channel] = ring[source + channel];
     }
+
     // Underrun: pad with silence rather than replaying stale samples.
     for value: available * CA_CHANNELS..wanted * CA_CHANNELS - 1 out[value] = 0;
     // Only this callback moves `consumed`, so the exchange always succeeds; it is there for its
@@ -140,14 +151,17 @@ pull_samples :: (user: *void, flags: *u32, timestamp: *void, bus: u32, frames: u
 output_channel_count :: (id: u32) -> s64 {
     address := Property_Address.{ FOUR_CC_SLAY, FOUR_CC_OUTP, 0 };
     bytes: u32;
+
     if AudioObjectGetPropertyDataSize(id, *address, 0, null, *bytes) != 0 || bytes < size_of(Buffer_List) return 0;
     list := cast(*Buffer_List) alloc(bytes);
+
     defer free(list);
     if AudioObjectGetPropertyData(id, *address, 0, null, *bytes, list) != 0 return 0;
     // The struct declares one buffer; more follow it in memory.
     buffers := list.buffers.data;
     room := (cast(s64) bytes - 8) / size_of(Audio_Buffer);
     total := 0;
+
     for 0..min(cast(s64) list.count, room) - 1 total += buffers[it].channels;
     return total;
 }

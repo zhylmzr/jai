@@ -94,17 +94,20 @@ create_with_memory :: (memory: [] u8, free_when_done: bool) -> *Plm {
 create_with_buffer :: (buffer: *Buffer, destroy_when_done: bool) -> *Plm {
     native := raw_plm_create_with_buffer(native_buffer(buffer), 0);
     result := wrap_plm(native, native);
+
     if result {
         entry := plm_state(result);
         entry.own_native = true;
         entry.root_buffer = buffer;
         entry.release_root = destroy_when_done;
     }
+
     return result;
 }
 
 plm_destroy :: (using self: *Plm) {
     entry := plm_state(self);
+
     assert(entry.own_native);
     raw_plm_destroy(entry.native);
     release_owned_shadows(entry.native);
@@ -114,8 +117,10 @@ plm_destroy :: (using self: *Plm) {
 
 has_headers :: (using self: *Plm) -> bool {
     entry := plm_state(self);
+
     push_plm(entry);
     result := raw_plm_has_headers(entry.native);
+
     pull_plm(entry);
     return result != 0;
 }
@@ -143,25 +148,31 @@ set_video_enabled :: (using self: *Plm, enabled: bool) {
 
 get_num_video_streams :: (self: *Plm) -> s32 {
     entry := plm_state(self);
+
     push_plm(entry);
     result := raw_plm_get_num_video_streams(entry.native);
+
     pull_plm(entry);
     return result;
 }
 
 get_size :: (self: *Plm) -> (width: s32, height: s32) {
     entry := plm_state(self);
+
     push_plm(entry);
     width := raw_plm_get_width(entry.native);
     height := raw_plm_get_height(entry.native);
+
     pull_plm(entry);
     return width, height;
 }
 
 get_framerate :: (self: *Plm) -> float64 {
     entry := plm_state(self);
+
     push_plm(entry);
     result := raw_plm_get_framerate(entry.native);
+
     pull_plm(entry);
     return result;
 }
@@ -207,16 +218,20 @@ decode :: (self: *Plm, tick: float64) {
 
 decode_video :: (self: *Plm) -> *Frame {
     entry := plm_state(self);
+
     push_plm(entry);
     result := raw_plm_decode_video(entry.native);
+
     pull_plm(entry);
     return result;
 }
 
 decode_audio :: (self: *Plm) -> *Samples {
     entry := plm_state(self);
+
     push_plm(entry);
     result := raw_plm_decode_audio(entry.native);
+
     pull_plm(entry);
     return result;
 }
@@ -251,16 +266,20 @@ read_packets :: (self: *Plm, requested_type: Start_Code) {
 
 seek_frame :: (self: *Plm, time: float64, seek_exact: bool) -> *Frame {
     entry := plm_state(self);
+
     push_plm(entry);
     result := raw_plm_seek_frame(entry.native, time, cast(s32) seek_exact);
+
     pull_plm(entry);
     return result;
 }
 
 seek :: (self: *Plm, time: float64, seek_exact: bool) -> bool {
     entry := plm_state(self);
+
     push_plm(entry);
     result := raw_plm_seek(entry.native, time, cast(s32) seek_exact);
+
     pull_plm(entry);
     return result != 0;
 }
@@ -280,12 +299,13 @@ seek :: (self: *Plm, time: float64, seek_exact: bool) -> bool {
 
 init_decoders :: (using plm: *Plm) -> bool {
     entry := plm_state(plm);
+
     push_plm(entry);
     result := raw_plm_init_decoders(entry.native);
+
     pull_plm(entry);
     return result != 0;
 }
-
 
 #assert size_of(*void) == 8 "This pinned native ABI contract supports 64-bit targets only.";
 

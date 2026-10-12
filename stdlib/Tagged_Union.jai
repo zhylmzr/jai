@@ -15,6 +15,7 @@ set :: (using u: *Tagged_Union, value: $T) {
             assert(permitted);
         }
     }
+
     destination := cast(*T) u.bytes.data;
     destination.* = value;
     u.tag = T;
@@ -33,9 +34,11 @@ isa :: (u: Code, $T: Type) -> *T #expand {
 
 get_biggest_size :: (types: [] Type) -> s64 {
     required: s64;
+
     for candidate: types {
         descriptor := cast(*Type_Info) candidate;
         if descriptor.runtime_size > required required = descriptor.runtime_size;
     }
+
     return required;
 }

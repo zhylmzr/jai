@@ -54,6 +54,7 @@ handle_one_option :: (p: *Metaprogram_Plugin, options: [] string, cursor: int) -
             log_error("[Iprof] -csv needs a file name.\n");
             return cursor + 1;
         }
+
         me.csv_filename = options[cursor + 1];
         return cursor + 2;
     }
@@ -63,13 +64,16 @@ handle_one_option :: (p: *Metaprogram_Plugin, options: [] string, cursor: int) -
             log_error("[Iprof] -min_size needs a number.\n");
             return cursor + 1;
         }
+
         text := options[cursor + 1];
         value, ok, rest := string_to_int(text);
+
         if !ok || rest.count {
             log_error("[Iprof] -min_size expects a whole number, not '%'.\n", text);
         } else {
             me.min_size = value;
         }
+
         return cursor + 2;
     }
 
@@ -134,6 +138,7 @@ maybe_instrument :: (me: *Iprof_Plugin, body: *Code_Procedure_Body, size: s64) {
     if !file || !file.enclosing_import return;
     owner := file.enclosing_import;
     in_main := owner.module_type == .MAIN_PROGRAM;
+
     if !in_main {
         if !me.include_modules return;
         if owner.module_type == .PRELOAD || owner.module_type == .RUNTIME_SUPPORT return;
@@ -145,6 +150,7 @@ maybe_instrument :: (me: *Iprof_Plugin, body: *Code_Procedure_Body, size: s64) {
     if me.should_instrument && !me.should_instrument(body) return;
 
     if !me.zone_template load_templates(me);
+
     if !in_main && !array_find(me.modules_with_import, owner) {
         add_build_string(RUNTIME_IMPORT, me.workspace, owner);
         array_add(*me.modules_with_import, owner);
@@ -154,8 +160,10 @@ maybe_instrument :: (me: *Iprof_Plugin, body: *Code_Procedure_Body, size: s64) {
     index := me.zones_planned; // 0 is the root zone.
 
     statements: [..] *Code_Node;
+
     if is_entry array_add(*statements, with_literals(me.entry_template, .[me.csv_filename]));
     line := cast(s64) body.l0;
+
     array_add(*statements, with_literals(me.zone_template, .[index, header.name, file.fully_pathed_filename, line]));
     for body.block.statements array_add(*statements, it);
     body.block.statements = statements;
@@ -175,9 +183,11 @@ with_literals :: (template: *Code_Procedure_Call, values: [] Any) -> *Code_Node 
     call.* = template.*;
 
     count := template.arguments_unsorted.count;
+
     assert(count == values.count);
     unsorted := NewArray(count, Code_Argument);
     sorted := NewArray(count, *Code_Node);
+
     for i: 0..count - 1 {
         literal := New(Code_Literal);
         literal.* = (cast(*Code_Literal) template.arguments_unsorted[i].expression).*;
@@ -187,6 +197,7 @@ with_literals :: (template: *Code_Procedure_Call, values: [] Any) -> *Code_Node 
         unsorted[i].expression = literal;
         sorted[i] = literal;
     }
+
     call.arguments_unsorted = unsorted;
     call.arguments_sorted = sorted;
     return call;

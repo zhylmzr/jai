@@ -51,6 +51,7 @@ texture_load_from_bitmap :: (using texture: *Texture, bitmap: *Bitmap) -> bool {
     if !is_supported(bitmap.format) return false;
     _, row := get_image_size(bitmap.format, bitmap.width, bitmap.height);
     if bitmap.stride < row || bitmap.data.count < bitmap.stride * bitmap.height return false;
+
     #if render_api == .OPENGL {
         if gl_api {
             if !gl_upload_texture(texture, bitmap) return false;
@@ -61,6 +62,7 @@ texture_load_from_bitmap :: (using texture: *Texture, bitmap: *Bitmap) -> bool {
     } else {
         return false;
     }
+
     texture.width = bitmap.width;
     texture.height = bitmap.height;
     texture.depth = 1;
@@ -78,6 +80,7 @@ texture_create_render_target :: (width: s32, height: s32, format: Texture_Format
     CheckInit();
     texture := New(Texture);
     texture.* = .{ format = format, flags = flags | .Render_Target, width = width, height = height };
+
     #if render_api == .OPENGL {
         if !gl_create_render_target(texture) {
             free(texture);
@@ -90,6 +93,7 @@ texture_create_render_target :: (width: s32, height: s32, format: Texture_Format
         free(texture);
         return null;
     }
+
     return texture;
 }
 
@@ -97,13 +101,16 @@ texture_create_render_target :: (width: s32, height: s32, format: Texture_Format
 deinit :: (texture: *Texture) {
     if !texture return;
     CheckInit();
+
     if context.simp.texture_render_target == texture {
         immediate_flush();
         context.simp.texture_render_target = null;
     }
+
     #if render_api == .OPENGL {
         gl_delete_texture(texture);
     }
+
     texture_free_cpu(texture);
     texture.* = .{};
 }
@@ -113,6 +120,7 @@ is_supported :: (format: Texture_Format) -> bool {
         internal := gl_texture_format(format);
         return internal != 0;
     }
+
     return format == .R8 || format == .RG8 || format == .RGB8 || format == .RGBA8 || format == .BGRA8;
 }
 
@@ -127,6 +135,7 @@ adopt_decoded_image :: (texture: *Texture, decoded: *Bitmap, srgb: bool, build_m
     if srgb decoded.flags |= .IS_SRGB;
     if build_mipmaps bitmap_build_mipmaps(decoded);
     ok := texture_load_from_bitmap(texture, decoded);
+
     deinit(decoded); // texture_load_from_bitmap copied or uploaded what it needs.
     return ok;
 }

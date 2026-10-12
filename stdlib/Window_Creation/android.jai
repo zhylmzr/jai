@@ -34,9 +34,11 @@ toggle_fullscreen :: (win: *Android.ANativeWindow, desire_fullscreen: bool, save
     if !context.android_app || !context.android_app.activity || !win return false, 0, 0;
     flag := cast(u32) Android.AWINDOW_FLAG.FULLSCREEN;
     add_flags, remove_flags: u32;
+
     if desire_fullscreen add_flags = flag;
     else remove_flags = flag;
     Android.ANativeActivity_setWindowFlags(context.android_app.activity, add_flags, remove_flags);
     _, _, width, height, valid := get_dimensions(win, false);
+
     return valid, width, height;
 }

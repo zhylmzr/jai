@@ -56,8 +56,6 @@ _glGetActiveUniform :: (program: GLuint, index: GLuint, bufSize: GLsizei, length
 }
 #scope_file
 
-
 #scope_export
-
 
 #scope_file

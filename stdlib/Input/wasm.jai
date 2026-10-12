@@ -29,6 +29,7 @@ wasm_poll_input :: () {
         event.ctrl_pressed = (native.modifiers & 2) != 0;
         event.alt_pressed = (native.modifiers & 4) != 0;
         event.cmd_meta_pressed = (native.modifiers & 8) != 0;
+
         if native.type == {
             case 1;
                 event.type = .KEYBOARD;

@@ -22,9 +22,11 @@ mix_into :: (out: [] s16) {
     if channels <= 0 return;
     frames := out.count / channels;
     done := 0;
+
     while done < frames {
         count := min(frames - done, MIX_CHUNK_FRAMES);
         values := count * channels;
+
         memset(mix_bus.data, 0, values * size_of(float));
 
         lock(*player.lock);
@@ -33,6 +35,7 @@ mix_into :: (out: [] s16) {
             if render_voice(player.voices[index], mix_bus.data, count) index += 1;
             else remove_voice_at(index);
         }
+
         unlock(*player.lock);
 
         dest := out.data + done * channels;
@@ -52,8 +55,10 @@ top_up_output :: () {
 loop_region :: (stream: *Sound_Stream) -> start: s64, end: s64 {
     length := stream_length(stream);
     end := stream.repeat_end_position;
+
     if end <= 0 || end > length end = length;
     start := clamp(stream.repeat_start_position, 0, end);
+
     return start, end;
 }
 
@@ -82,12 +87,14 @@ stop_worker :: () {
 
 worker_main :: (thread: *Thread) -> s64 {
     if player.config.set_async_thread_priority player.config.set_async_thread_priority();
+
     while !atomic_read(*player.worker_quit) {
         top_up_output();
         // Keep decoding while there is a backlog; the top-up between blocks keeps the device fed.
         if decode_one_queued_block() continue;
         wait_for(*player.worker_wake, WORKER_NAP_MS);
     }
+
     return 0;
 }
 
@@ -105,16 +112,19 @@ render_voice :: (stream: *Sound_Stream, bus: *float, frames: s64) -> bool {
 
     for frame: 0..frames - 1 {
         if looping && loop_end > loop_start && stream.play_cursor >= cast(float64) loop_end wrap_into_loop(stream, loop_start, loop_end);
+
         if stream.play_cursor < 0 {
             // Leading silence of a repeat; when it runs out, playback resumes at the loop start.
             step_cursor(stream);
             if stream.play_cursor >= 0 stream.play_cursor += cast(float64) loop_start;
             continue;
         }
+
         if stream.play_cursor >= cast(float64) length return looping && length > 0;
 
         whole := cast(s64) stream.play_cursor;
         here := frame_at(stream, whole);
+
         if !here return true; // Not decoded yet: stay put and silent until it is.
 
         after := whole + 1;
@@ -124,6 +134,7 @@ render_voice :: (stream: *Sound_Stream, bus: *float, frames: s64) -> bool {
 
         blend := cast(float) (stream.play_cursor - cast(float64) whole);
         mix := bus + frame * outputs;
+
         for source: 0..channels - 1 {
             a := cast(float) here[source];
             value := (a + (cast(float) there[source] - a) * blend) * (1.0 / 32768.0);
@@ -134,6 +145,7 @@ render_voice :: (stream: *Sound_Stream, bus: *float, frames: s64) -> bool {
         glide_gains(voice, channels, outputs);
         step_cursor(stream);
     }
+
     return true;
 }
 
@@ -158,16 +170,20 @@ step_cursor :: (stream: *Sound_Stream) {
 glide_gains :: (voice: *Voice, channels: s64, outputs: s64) {
     for source: 0..channels - 1 {
         base := source * OUTPUT_CHANNELS_MAX;
+
         for output: 0..outputs - 1 {
             slot := base + output;
             slope := voice.slope[slot];
+
             if slope == 0 continue;
             moved := voice.gain[slot] + slope;
             aim := voice.aim[slot];
+
             if (slope > 0 && moved >= aim) || (slope < 0 && moved <= aim) {
                 moved = aim;
                 voice.slope[slot] = 0;
             }
+
             voice.gain[slot] = moved;
         }
     }
@@ -182,6 +198,7 @@ frame_at :: (stream: *Sound_Stream, frame: s64) -> *s16 {
         if !block return null;
         return block.pcm + (frame - block.first) * cache.channels;
     }
+
     data := stream.sound_data;
     if !data.samples || frame >= stream_length(stream) return null;
     return data.samples + frame * data.nchannels;

@@ -37,11 +37,13 @@ record_of :: (pointer: *void) -> s64 {
 records_builder :: () -> s64 {
     if record_builder return record_builder;
     record_builder = __jaic_rec_builder();
+
     for RECORD_TYPES {
         info := cast(*Type_Info_Struct) it;
         record_plan(info);
         __jaic_rec_type(record_builder, info.name, info);
     }
+
     for BUILTIN_TYPES __jaic_rec_builtin(record_builder, BUILTIN_NAMES[it_index], cast(*Type_Info) it);
     return record_builder;
 }
@@ -85,6 +87,7 @@ record_type :: (tag: string) -> *Type_Info_Struct {
         info := cast(*Type_Info_Struct) it;
         if info.name == tag return info;
     }
+
     return null;
 }
 
@@ -95,11 +98,13 @@ UNKNOWN_TAG :: cast(*Type_Info_Struct) 1;
 record_type_of :: (id: s64) -> *Type_Info_Struct {
     tag := __jaic_rec_tag_id(id);
     if tag < 0 return null;
+
     if tag >= record_tag_types.count {
         old := record_tag_types.count;
         array_resize(*record_tag_types, tag + 1, initialize = false);
         for old..tag record_tag_types[it] = UNKNOWN_TAG;
     }
+
     if record_tag_types[tag] == UNKNOWN_TAG record_tag_types[tag] = record_type(__jaic_rec_tag(id));
     return record_tag_types[tag];
 }
@@ -142,6 +147,7 @@ last_plan: [] Record_Plan_Entry;
 record_plan :: (info: *Type_Info_Struct) -> [] Record_Plan_Entry {
     if info == last_plan_info return last_plan;
     plan := find_record_plan(info);
+
     last_plan_info = info;
     last_plan = plan;
     return plan;
@@ -153,31 +159,40 @@ find_record_plan :: (info: *Type_Info_Struct) -> [] Record_Plan_Entry {
     if record_plans.count {
         mask := record_plans.count - 1;
         slot := record_slot_hash(info) & mask;
+
         while record_plans[slot].info {
             if record_plans[slot].info == info return record_plans[slot].entries;
             slot = (slot + 1) & mask;
         }
     }
+
     entries: [..] Record_Plan_Entry;
+
     add_plan_entries(*entries, info, 0);
+
     if (record_plans_used + 1) * 2 >= record_plans.count {
         old := record_plans;
+
         record_plans = NewArray(max(64, old.count * 2), Record_Plan);
         record_plans_used = 0;
         for old if it.info insert_record_plan(it);
         array_free(old);
     }
+
     insert_record_plan(.{ info, entries });
     __jaic_rec_plan(records_builder(), info, info.runtime_size, entries.data, entries.count, info == type_info(Type_Info_Struct));
+
     for entries {
         if it.target && it.target.type == .STRUCT find_record_plan(cast(*Type_Info_Struct) it.target);
     }
+
     return entries;
 }
 
 insert_record_plan :: (plan: Record_Plan) {
     mask := record_plans.count - 1;
     slot := record_slot_hash(plan.info) & mask;
+
     while record_plans[slot].info slot = (slot + 1) & mask;
     record_plans[slot] = plan;
     record_plans_used += 1;
@@ -187,13 +202,16 @@ add_plan_entries :: (entries: *[..] Record_Plan_Entry, info: *Type_Info_Struct, 
     for member: info.members {
         if member.flags & .CONSTANT continue;
         offset := base + member.offset_in_bytes;
+
         // `#as using base`, `using location`, anonymous unions: same record.
         if member.type.type == .STRUCT && (member.flags & .USING || member.name == "") {
             add_plan_entries(entries, cast(*Type_Info_Struct) member.type, offset);
             continue;
         }
+
         entry := Record_Plan_Entry.{ offset = offset, kind = plan_kind(member.type), size = member.type.runtime_size, name = member.name, type = member.type };
         entry.target = plan_target(member.type);
+
         if member.type.type == .ARRAY {
             array := cast(*Type_Info_Array) member.type;
             if array.array_type != .FIXED {
@@ -204,6 +222,7 @@ add_plan_entries :: (entries: *[..] Record_Plan_Entry, info: *Type_Info_Struct, 
                 entry.resizable = xx (array.array_type == .RESIZABLE);
             }
         }
+
         array_add(entries, entry);
     }
 }
@@ -218,6 +237,7 @@ plan_kind :: (type: *Type_Info) -> s64 {
         case .POINTER; return PLAN_POINTER;
         case .STRUCT; return PLAN_STRUCT;
     }
+
     return PLAN_OTHER;
 }
 
@@ -250,6 +270,7 @@ struct_differs :: (memory: *u8, info: *Type_Info_Struct, id: s64) -> bool {
         if __jaic_rec_field(id, it.name) == REC_NONE && union_member_present(plan, it, id) continue;
         if value_differs(memory + it.offset, it.type, id, it.name, -1) return true;
     }
+
     return false;
 }
 
@@ -259,6 +280,7 @@ union_member_present :: (plan: [] Record_Plan_Entry, entry: Record_Plan_Entry, i
         if it.offset < entry.offset + entry.size && entry.offset < it.offset + it.size && it.name != entry.name
             && __jaic_rec_field(id, it.name) != REC_NONE return true;
     }
+
     return false;
 }
 
@@ -279,16 +301,19 @@ value_differs :: (target: *u8, type: *Type_Info, id: s64, name: string, index: s
         case .BOOL; #through;
         case .FLOAT;
             value := ifx index < 0 then __jaic_rec_int(id, name) else __jaic_rec_item_int(id, name, index);
+
             return memcmp(target, *value, type.runtime_size) != 0;
 
         case .STRING;
             value := ifx index < 0 then __jaic_rec_string(id, name) else __jaic_rec_item_string(id, name, index);
             have := (cast(*string) target).*;
+
             return have.count != value.count || (have.count > 0 && memcmp(have.data, value.data, have.count) != 0);
 
         case .POINTER;
             ref := ifx index < 0 then __jaic_rec_ref(id, name) else __jaic_rec_item_ref(id, name, index);
             pointer := (cast(**void) target).*;
+
             if !ref return pointer != null;
             if record_of(pointer) != ref return true;
             info := record_type_of(ref);
@@ -305,12 +330,15 @@ value_differs :: (target: *u8, type: *Type_Info, id: s64, name: string, index: s
             if index >= 0 || array.array_type == .FIXED return false;
             count := __jaic_rec_count(id, name);
             view := cast(*Resizable_Array) target;
+
             if view.count != count return true;
             element := array.element_type;
+
             for k: 0..count - 1 {
                 if value_differs(view.data + k * element.runtime_size, element, id, name, k) return true;
             }
     }
+
     return false;
 }
 

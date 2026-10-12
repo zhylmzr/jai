@@ -189,11 +189,13 @@ set_custom_cursor_handling :: (is_custom: bool) {
 input_per_frame_event_and_flag_update :: () {
     routed_events_this_frame.count = 0;
     unrouted_events_this_frame.count = 0;
+
     // A dropped file's names share the allocator of the array that lists them.
     for event: events_this_frame {
         for file: event.files free(file, event.files.allocator);
         array_free(event.files);
     }
+
     events_this_frame.count = 0;
     // Motion is per frame; of the button flags only "held" carries over.
     mouse_delta_x, mouse_delta_y, mouse_delta_z = 0, 0, 0;
@@ -209,6 +211,7 @@ update_window_events :: () {
         input_system_initialized = true;
         init_input_system();
     }
+
     input_per_frame_event_and_flag_update();
     if input_event_source != null input_event_source();
     window_resizes_this_frame.count = 0;
@@ -256,6 +259,7 @@ queue_window_move :: (window: Window_Type, x: s32, y: s32) {
             return;
         }
     }
+
     array_add(*pending_moves, .{ window, x, y });
 }
 
@@ -267,6 +271,7 @@ queue_window_resize :: (window: Window_Type, width: s32, height: s32) {
             return;
         }
     }
+
     array_add(*pending_resizes, .{ window, width, height });
 }
 
@@ -277,10 +282,12 @@ add_resize_record :: (hwnd: Window_Type, width: s32, height: s32) {
 
 set_input_focus :: (focused: bool) {
     unscoped_input_focus = focused;
+
     if !focused {
         for *record: window_input_states record.focused = false;
         release_focus_buttons(INVALID_WINDOW, false);
     }
+
     refresh_application_focus();
 }
 
@@ -343,6 +350,7 @@ get_input_pointer_position :: (window: Window_Type, client_area := false) -> flo
         assert(success, "Native pointer query failed");
         return x, y;
     }
+
     assert(input_pointer_source != null, "Input pointer adapter is not installed");
     return input_pointer_source(window, client_area);
 }
@@ -404,6 +412,7 @@ ensure_input_window :: (window: Window_Type) -> s64 {
 
 refresh_application_focus :: () {
     input_application_has_focus = unscoped_input_focus;
+
     for record: window_input_states if record.focused {
         input_application_has_focus = true;
         return;
@@ -432,11 +441,14 @@ key_has_scoped_source :: (key: u32) -> bool {
 queued_window_key_down :: (window: Window_Type, key: u32) -> bool {
     index := find_input_window(window);
     down := false;
+
     if index >= 0 down = (window_input_states[index].buttons[key] & .DOWN) != 0;
+
     for pending: pending_events {
         if !pending.associated || pending.window != window || pending.event.type != .KEYBOARD || cast(u32) pending.event.key_code != key continue;
         down = pending.event.key_pressed != 0;
     }
+
     return down;
 }
 
@@ -449,18 +461,23 @@ release_focus_buttons :: (window: Window_Type, scoped: bool) {
             event.key_code = cast(Key_Code) key;
             queue_input_event(window, event);
         }
+
         return;
     }
+
     // Every queued scoped press must have a real record before releasing all origins.
     for pending: pending_events if pending.associated && pending.event.type == .KEYBOARD ensure_input_window(pending.window);
     for record: window_input_states release_focus_buttons(record.window, true);
+
     for key: 0..NUM_BUTTON_STATES - 1 {
         down := (unscoped_button_states[key] & .DOWN) != 0;
         if !down && !key_has_scoped_source(cast(u32) key) down = (input_button_states[key] & .DOWN) != 0;
+
         for pending: pending_events {
             if pending.associated || pending.event.type != .KEYBOARD || cast(s64) pending.event.key_code != key continue;
             down = pending.event.key_pressed != 0;
         }
+
         if !down continue;
         event: Event;
         event.type = .KEYBOARD;
@@ -473,11 +490,14 @@ publish_pending_event :: (pending: Pending_Input_Event) {
     event := pending.event;
     if event.type == .KEYBOARD && cast(u32) event.key_code < NUM_BUTTON_STATES {
         key := cast(u32) event.key_code;
+
         if pending.associated {
             index := ensure_input_window(pending.window);
             update_owner_key_state(*window_input_states[index].buttons[key], event.key_pressed != 0);
         } else update_owner_key_state(*unscoped_button_states[key], event.key_pressed != 0);
+
         state := *input_button_states[key];
+
         if event.key_pressed {
             if (state.* & .DOWN) == 0 state.* |= .START;
             state.* |= .DOWN;
@@ -485,6 +505,7 @@ publish_pending_event :: (pending: Pending_Input_Event) {
             state.* = (state.* | .END) & ~Key_Current_State.DOWN;
         }
     }
+
     if event.type == .MOUSE_WHEEL mouse_delta_z += event.wheel_delta;
     array_add(*events_this_frame, event);
     if pending.associated array_add(*routed_events_this_frame, .{ pending.window, event });
@@ -496,11 +517,14 @@ queue_utf8_text :: (window: Window_Type, bytes: [] u8, repeat := false) {
     offset: s64 = 0;
     while offset < bytes.count {
         first := bytes[offset];
+
         offset += 1;
         scalar := cast(u32) first;
         continuation: s32 = 0;
         minimum: u32 = 0;
+
         if first > 0xf4 continue;
+
         if first >= 0xf0 {
             continuation = 3;
             scalar &= 7;
@@ -514,16 +538,20 @@ queue_utf8_text :: (window: Window_Type, bytes: [] u8, repeat := false) {
             scalar &= 31;
             minimum = 0x80;
         } else if first >= 0x80 continue;
+
         if offset + continuation > bytes.count return;
         valid := true;
+
         for i: 0..continuation - 1 {
             next := bytes[offset + i];
             if (next & 0xc0) != 0x80 {
                 valid = false;
                 break;
             }
+
             scalar = (scalar << 6) | (next & 63);
         }
+
         if !valid continue;
         offset += continuation;
         if scalar < minimum || scalar > 0x10ffff || (scalar >= 0xd800 && scalar <= 0xdfff) continue;

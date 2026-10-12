@@ -16,21 +16,25 @@ is_valid :: (file: File) -> bool {
 file_open :: (name: string, for_writing := false, keep_existing_content := false, log_errors := false) -> File, bool {
     access: u32 = 0x80000000;
     creation: u32 = 3;
+
     if for_writing {
         // Writing handles read as well, as the POSIX side's "ab+" does (Zip_File_Directory
         // reads through one).
         access |= 0x40000000;
         creation = 2;
     }
+
     if for_writing && keep_existing_content creation = 4;
     wide := os_utf8_to_wide(name);
     handle := Windows.CreateFileW(wide, access, 3, null, creation, 0x80, null);
     result: File = .{ handle };
     success := is_valid(result);
+
     if success && for_writing && keep_existing_content {
         success = file_seek(result, 0, .END);
         if !success file_close(*result);
     }
+
     if !success && log_errors log_error("Unable to open '%'", name);
     return result, success;
 }
@@ -49,10 +53,12 @@ file_read_checked :: (f: File, vdata: *void, bytes_to_read: s64) -> (success: bo
         remaining := bytes_to_read - done;
         request: u32 = xx min(remaining, 0x7fff_ffff);
         received: u32;
+
         if !Windows.ReadFile(native_handle(f), cast(*u8) vdata + done, request, *received, null) return false, done;
         if received == 0 return true, done;
         done += received;
     }
+
     return true, done;
 }
 
@@ -65,6 +71,7 @@ file_write :: (file: *File, data: *void, length: s64) -> bool {
         if !Windows.WriteFile(native_handle(file.*), cast(*u8) data + done, request, *written, null) || written == 0 return false;
         done += written;
     }
+
     return true;
 }
 
@@ -120,24 +127,29 @@ file_link :: (link: string, filepath: string) -> bool {
 delete_directory :: (dirname: string) -> bool {
     entry: Windows.WIN32_FIND_DATAW;
     search := Windows.FindFirstFileW(os_utf8_to_wide(Strings.join(dirname, "/*")), *entry);
+
     if search == cast(HANDLE) -1 return Windows.RemoveDirectoryW(os_utf8_to_wide(dirname)) != 0;
     success := true;
+
     while true {
         name := os_wide_to_utf8(entry.cFileName.data);
         if name != "." && name != ".." {
             path := Strings.join(dirname, "/", name);
             directory := (entry.dwFileAttributes & 0x10) != 0;
             symlink := (entry.dwFileAttributes & 0x400) != 0;
+
             if directory && !symlink success = delete_directory(path);
             else if directory success = Windows.RemoveDirectoryW(os_utf8_to_wide(path)) != 0;
             else success = file_delete(path);
             if !success break;
         }
+
         if !Windows.FindNextFileW(search, *entry) {
             success = cast(u32) Windows.GetLastError() == 18;
             break;
         }
     }
+
     Windows.FindClose(search);
     return success && Windows.RemoveDirectoryW(os_utf8_to_wide(dirname)) != 0;
 }
@@ -156,9 +168,11 @@ make_directory_helper :: (dir_name: string, attribs: *Windows.SECURITY_ATTRIBUTE
 get_absolute_path_windows :: (relative_path: string) -> string, success: bool {
     name := os_utf8_to_wide(relative_path);
     length := Windows.GetFullPathNameW(name, 0, null, null);
+
     if length == 0 return "", false;
     buffer := cast(*u16) alloc((length + 1) * 2, temp);
     actual := Windows.GetFullPathNameW(name, length + 1, buffer, null);
+
     if actual == 0 || actual > length return "", false;
     // Paths are spelled with `/` everywhere, so they can go into a string literal or a `#load`.
     result := os_wide_to_utf8(buffer, xx actual);
@@ -175,27 +189,32 @@ File_Map_Info :: struct {
 map_file :: (name: string, log_errors := true) -> File_Map_Info, bool {
     result: File_Map_Info;
     stream, opened := file_open(name, log_errors = log_errors);
+
     if !opened return result, false;
     size, measured := file_length_checked(stream);
     if !measured || size < 0 {
         file_close(*stream);
         return result, false;
     }
+
     if size == 0 {
         result.file = stream;
         return result, true;
     }
+
     mapping := Windows.CreateFileMappingW(native_handle(stream), null, 2, 0, 0, null);
     if !mapping {
         file_close(*stream);
         return result, false;
     }
+
     bytes := cast(*u8) Windows.MapViewOfFile(mapping, 4, 0, 0, 0);
     if !bytes {
         Windows.CloseHandle(mapping);
         file_close(*stream);
         return result, false;
     }
+
     result.file = stream;
     result.mapping = mapping;
     result.data = .{ size, bytes };

@@ -14,11 +14,13 @@ character_utf32_to_utf8 :: (codepoint: u32, out: *string) -> Unicode_Result {
     if out.count < n || !out.data return .SOURCE_EXHAUSTED;
     value := codepoint;
     i := n - 1;
+
     while i > 0 {
         out.data[i] = cast(u8) (0x80 | (value & 0x3F));
         value >>= 6;
         i -= 1;
     }
+
     if n == 1 out.data[0] = cast(u8) value;
     else if n == 2 out.data[0] = cast(u8) (0xC0 | value);
     else if n == 3 out.data[0] = cast(u8) (0xE0 | value);
@@ -31,12 +33,15 @@ character_utf32_to_utf8 :: (codepoint: u32, out: *string) -> Unicode_Result {
 character_utf8_to_utf32 :: (s: *u8, source_length: s64, $strict := false) -> u32, int, Unicode_Result {
     data := s;
     count := source_length;
+
     if count <= 0 return 0, 0, .SOURCE_EXHAUSTED;
     first := data[0];
     length := 0;
     code: u32 = 0;
     minimum: u32 = 0;
+
     if first < 0x80 return first, 1, .CONVERSION_OK;
+
     if first >= 0xC2 && first <= 0xDF {
         length = 2;
         code = first & 0x1F;
@@ -50,12 +55,15 @@ character_utf8_to_utf32 :: (s: *u8, source_length: s64, $strict := false) -> u32
         code = first & 0x07;
         minimum = 0x10000;
     } else return UNI_REPLACEMENT_CHAR, 1, .SOURCE_ILLEGAL;
+
     if count < length return 0, 0, .SOURCE_EXHAUSTED;
+
     for i: 1..length - 1 {
         byte := data[i];
         if (byte & 0xC0) != 0x80 return UNI_REPLACEMENT_CHAR, 1, .SOURCE_ILLEGAL;
         code = (code << 6) | (byte & 0x3F);
     }
+
     if code < minimum || code > UNI_MAX_UTF16 || (code >= 0xD800 && code <= 0xDFFF)
         return UNI_REPLACEMENT_CHAR, 1, .SOURCE_ILLEGAL;
     return code, length, .CONVERSION_OK;

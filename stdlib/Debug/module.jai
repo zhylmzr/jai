@@ -31,10 +31,12 @@ hash_scl :: (loc: Source_Code_Location) -> u32 {
     for byte: loc.fully_pathed_filename hash = cast,no_check(u32) (cast(u64) (hash ^ byte) * 16777619);
     line := cast,no_check(u64) loc.line_number;
     column := cast,no_check(u64) loc.character_number;
+
     for index: 0..7 {
         hash = cast,no_check(u32) (cast(u64) (hash ^ cast(u8) (line >> (index * 8) & 0xff)) * 16777619);
         hash = cast,no_check(u32) (cast(u64) (hash ^ cast(u8) (column >> (index * 8) & 0xff)) * 16777619);
     }
+
     return hash;
 }
 
@@ -52,6 +54,7 @@ init :: () {
         #if USE_GRAPHICS context.assertion_failed = interactive_assert;
         else context.assertion_failed = break_assert;
     }
+
     if context.logger == base.logger context.logger = logger;
 }
 
@@ -64,6 +67,7 @@ backtrace :: (trace: [] *void, maxcount: int, skip := 0) -> int {
         frames: [256] *void;
         count := host_backtrace(frames.data, frames.count);
         first := skip;
+
         if first < 0 first = 0;
         if first > count first = count;
         available := count - first;
@@ -89,6 +93,7 @@ backtrace_symbols :: (trace: [] *void, n: int) -> [] string {
     result: [] string;
     result.count = n;
     result.data = cast(*string) alloc(n * size_of(string));
+
     #if OS == .WINDOWS {
         // Without debug information at hand, name each frame by its module and offset.
         for index: 0..n - 1 result[index] = describe_address(trace[index]);
@@ -102,6 +107,7 @@ backtrace_symbols :: (trace: [] *void, n: int) -> [] string {
             free(result.data);
             return .{};
         }
+
         for index: 0..n - 1 result[index] = copy_string(to_string(symbols[index]));
         host_free(symbols);
         return result;
@@ -146,6 +152,7 @@ is_debugger_present :: inline () -> bool {
         query: [4] s32 = .[POSIX.CTL_KERN, POSIX.KERN_PROC, POSIX.KERN_PROC_PID, POSIX.getpid()];
         process: POSIX.kinfo_proc;
         count: u64 = size_of(POSIX.kinfo_proc);
+
         if POSIX.sysctl(query.data, query.count, *process, *count, null, 0) != 0 return false;
         return cast(bool) (process.kp_proc.p_flag & POSIX.P_TRACED);
     } else #if OS == .LINUX || OS == .ANDROID {
@@ -154,9 +161,11 @@ is_debugger_present :: inline () -> bool {
         defer host_close(descriptor);
         bytes: [4096] u8;
         count := host_read(descriptor, bytes.data, bytes.count);
+
         if count <= 0 return false;
         text := string.{ count, bytes.data };
         label := "TracerPid:";
+
         for start: 0..text.count - label.count {
             matching := true;
             for byte, index: label if text[start + index] != byte matching = false;
@@ -165,6 +174,7 @@ is_debugger_present :: inline () -> bool {
             while cursor < text.count && (text[cursor] == #char " " || text[cursor] == #char "\t") cursor += 1;
             return cursor < text.count && text[cursor] >= #char "1" && text[cursor] <= #char "9";
         }
+
         return false;
     } else {
         return false;
@@ -199,6 +209,7 @@ set_report_mode :: (interactive: bool) {
 enable_signal_handler :: (interactive := false) {
     signal_handler_interactive = interactive;
     if signal_handler_enabled return;
+
     #if OS == .MACOS || OS == .LINUX || OS == .ANDROID {
         for number, index: watched_signals prior_handlers[index] = host_signal(number, install_handler);
         signal_handler_enabled = true;
@@ -213,11 +224,13 @@ enable_signal_handler :: (interactive := false) {
 
 disable_signal_handler :: () {
     if !signal_handler_enabled return;
+
     #if OS == .WINDOWS {
         Windows.SetUnhandledExceptionFilter(prior_exception_filter);
     } else #if OS == .WASM {} else {
         for number, index: watched_signals host_signal(number, prior_handlers[index]);
     }
+
     signal_handler_enabled = false;
 }
 
@@ -237,11 +250,14 @@ print_assert :: (loc: Source_Code_Location, message: string) -> bool {
 // Like print_assert, followed by one line per frame of the current call stack.
 trace_assert :: (loc: Source_Code_Location, message: string) -> bool {
     frames := backtrace();
+
     print_assert(loc, message);
+
     for frames {
         output(it);
         output("\n");
     }
+
     free_backtrace(frames);
     return false;
 }
@@ -271,6 +287,7 @@ is_valid_pointer :: (ptr: *void) -> bool {
         if Windows.VirtualQuery(ptr, *info, size_of(Windows.MEMORY_BASIC_INFORMATION)) == 0 return false;
         if info.State != Windows.MEM_COMMIT || (info.Protect & Windows.PAGE_GUARD) return false;
         READABLE :: 0x02 | 0x04 | 0x08 | 0x20 | 0x40 | 0x80;
+
         return (info.Protect & READABLE) != 0;
     } else #if OS == .MACOS || OS == .LINUX || OS == .ANDROID {
         // The kernel reads the byte for us: writing it into a pipe fails with EFAULT, rather
@@ -278,10 +295,12 @@ is_valid_pointer :: (ptr: *void) -> bool {
         if !ptr return false;
         ends: [2] s32;
         if host_pipe(ends.data) != 0 return false;
+
         defer {
             host_close(ends[0]);
             host_close(ends[1]);
         }
+
         return host_write(ends[1], ptr, 1) == 1;
     } else {
         // Linear memory has no unmapped holes below its size, and address 0 is not a valid object.
@@ -334,14 +353,17 @@ minidump_state := Minidump_State.Mini;
     handle_exception :: (info: *Windows.EXCEPTION_POINTERS) -> s32 #c_call {
         write_string_unsynchronized("Fatal exception 0x", true);
         code := info.ExceptionRecord.ExceptionCode;
+
         write_address_unsynchronized(code);
         write_string_unsynchronized("\n", true);
         addresses: [64] *void;
         count := Windows.RtlCaptureStackBackTrace(0, addresses.count, addresses.data, null);
+
         for index: 0..cast(s64) count - 1 {
             write_address_unsynchronized(cast(u64) addresses[index]);
             write_string_unsynchronized("\n", true);
         }
+
         Windows.ExitProcess(code);
         return Windows.EXCEPTION_EXECUTE_HANDLER;
     }
@@ -350,11 +372,13 @@ minidump_state := Minidump_State.Mini;
     describe_address :: (address: *void) -> string {
         module: Windows.HANDLE;
         flags :: Windows.GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | Windows.GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
+
         if !Windows.GetModuleHandleExW(flags, cast(*u16) address, *module) return sprint("0x%", formatInt(cast(u64) address, base = 16));
         wide: [260] u16;
         length := Windows.GetModuleFileNameW(module, wide.data, wide.count);
         name: String_Builder;
         start := 0;
+
         for index: 0..length - 1 if wide[index] == #char "\\" || wide[index] == #char "/" start = index + 1;
         // Module file names are ASCII in practice; anything else shows as '?'.
         for index: start..length - 1 append(*name, ifx wide[index] < 0x80 then cast(u8) wide[index] else #char "?");
@@ -372,10 +396,12 @@ minidump_state := Minidump_State.Mini;
         write_string_unsynchronized("Fatal process signal\n", true);
         addresses: [64] *void;
         count := host_backtrace(addresses.data, addresses.count);
+
         for index: 0..count - 1 {
             write_address_unsynchronized(cast(u64) addresses[index]);
             write_string_unsynchronized("\n", true);
         }
+
         host_exit(128 + sig);
     }
 }
@@ -385,11 +411,13 @@ write_address_unsynchronized :: (address: u64) #no_context {
     bytes: [16] u8;
     position: s64 = 16;
     value := address;
+
     while true {
         position -= 1;
         bytes[position] = digits[value & 15];
         value >>= 4;
         if value == 0 break;
     }
+
     write_string_unsynchronized(string.{ 16 - position, bytes.data + position }, true);
 }

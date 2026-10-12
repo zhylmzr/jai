@@ -6,12 +6,14 @@ bubble_sort :: (array: [] $T, f: (T, T) -> s64) {
     remaining := array.count;
     while remaining > 1 {
         last_swap := 0;
+
         for i: 1..remaining - 1 {
             if f(array[i - 1], array[i]) > 0 {
                 swap_items(array.data + i - 1, array.data + i);
                 last_swap = i;
             }
         }
+
         remaining = last_swap;
     }
 }
@@ -22,15 +24,18 @@ quick_sort :: (array: [] $T, f: (T, T) -> $R) -> [] T {
         while count > SMALL_RANGE {
             pivot := median_of_three(data, count, f);
             low, high := 0, count - 1;
+
             while low <= high {
                 while f(data[low], pivot) < 0 low += 1;
                 while f(data[high], pivot) > 0 high -= 1;
+
                 if low <= high {
                     swap_items(data + low, data + high);
                     low += 1;
                     high -= 1;
                 }
             }
+
             // Recurse into the smaller side, loop on the larger one.
             if high + 1 < count - low {
                 sort_range(data, high + 1, f);
@@ -41,13 +46,16 @@ quick_sort :: (array: [] $T, f: (T, T) -> $R) -> [] T {
                 count = high + 1;
             }
         }
+
         for i: 1..count - 1 {
             value := data[i];
             j := i;
+
             while j > 0 && f(value, data[j - 1]) < 0 {
                 data[j] = data[j - 1];
                 j -= 1;
             }
+
             data[j] = value;
         }
     }
@@ -72,15 +80,18 @@ quick_sort :: (array: [] $T, f: (T) -> $R) -> [] T {
             pivot := ifx a < b then (ifx b < c then b else ifx a < c then c else a)
                            else (ifx a < c then a else ifx b < c then c else b);
             low, high := 0, count - 1;
+
             while low <= high {
                 while f(data[low]) < pivot low += 1;
                 while pivot < f(data[high]) high -= 1;
+
                 if low <= high {
                     swap_items(data + low, data + high);
                     low += 1;
                     high -= 1;
                 }
             }
+
             if high + 1 < count - low {
                 sort_range(data, high + 1, f);
                 data += low;
@@ -90,14 +101,17 @@ quick_sort :: (array: [] $T, f: (T) -> $R) -> [] T {
                 count = high + 1;
             }
         }
+
         for i: 1..count - 1 {
             value := data[i];
             key := f(value);
             j := i;
+
             while j > 0 && key < f(data[j - 1]) {
                 data[j] = data[j - 1];
                 j -= 1;
             }
+
             data[j] = value;
         }
     }
@@ -117,6 +131,7 @@ compare_strings :: (a: string, b: string) -> s64 {
     for i: 0..min(a.count, b.count) - 1 {
         if a[i] != b[i] return ifx a[i] < b[i] then -1 else 1;
     }
+
     return a.count - b.count;
 }
 

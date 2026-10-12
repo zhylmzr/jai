@@ -27,6 +27,7 @@ Zip_Directory :: struct {
 deinit :: (dir: *Zip_Directory) {
     if !dir return;
     still_open := dir.file;
+
     free(dir.memory_block);
     free(dir.entries.data);
     free(dir.name);
@@ -38,6 +39,7 @@ load_zip_directory :: (zip_filename: string, close_file := true) -> (success: bo
     // The archive opens for writing as well (callers that keep it open may extend it), which
     // would create a missing file: leave a missing archive missing.
     probe, exists := file_open(zip_filename, log_errors = false);
+
     if !exists return false, empty;
     file_close(*probe);
     opened, ok := file_open(zip_filename, true, true);
@@ -48,6 +50,7 @@ load_zip_directory :: (zip_filename: string, close_file := true) -> (success: bo
         file_close(*dir.file);
         return false, empty;
     }
+
     if close_file file_close(*dir.file);
     return true, dir;
 }
@@ -69,6 +72,7 @@ zip_read_directory :: (zip_filename: string, opened: File) -> bool, Zip_Director
 
     end: s64 = -1;
     scan := window - 22;
+
     while scan >= 0 {
         if zip_u32(tail.data + scan) == 0x06054b50 {
             comment_length := cast(s64) zip_u16(tail.data + scan + 20);
@@ -77,8 +81,10 @@ zip_read_directory :: (zip_filename: string, opened: File) -> bool, Zip_Director
                 break;
             }
         }
+
         scan -= 1;
     }
+
     if end < 0 return false, dir;
     p := tail.data + end;
     if zip_u16(p + 4) != 0 || zip_u16(p + 6) != 0 return false, dir;
@@ -86,10 +92,12 @@ zip_read_directory :: (zip_filename: string, opened: File) -> bool, Zip_Director
     if zip_u16(p + 8) != count || count == 0xffff return false, dir;
     directory_size := cast(s64) zip_u32(p + 12);
     directory_start := cast(s64) zip_u32(p + 16);
+
     if directory_size == 0xffff_ffff || directory_start == 0xffff_ffff return false, dir;
     end_position := length - window + end;
     if directory_start > end_position || directory_size > end_position - directory_start return false, dir;
     if cast(s64) count * 46 > directory_size return false, dir;
+
     if directory_size > 0 {
         dir.memory_block = alloc_string(directory_size);
         if !dir.memory_block.data return false, dir;
@@ -97,8 +105,10 @@ zip_read_directory :: (zip_filename: string, opened: File) -> bool, Zip_Director
         read_ok, received = file_read(dir.file, dir.memory_block.data, directory_size);
         if !read_ok || received != directory_size return false, dir;
     }
+
     if count > 0 {
         bytes := cast(s64) count * size_of(Zip_Entry);
+
         dir.entries.data = cast(*Zip_Entry) alloc(bytes);
         if !dir.entries.data return false, dir;
         dir.entries.allocated = count;
@@ -108,6 +118,7 @@ zip_read_directory :: (zip_filename: string, opened: File) -> bool, Zip_Director
     }
 
     offset: s64 = 0;
+
     for i: 0..cast(s64) count - 1 {
         if offset > directory_size - 46 return false, dir;
         p = dir.memory_block.data + offset;
@@ -134,6 +145,7 @@ zip_read_directory :: (zip_filename: string, opened: File) -> bool, Zip_Director
         // Use the local header's extra-field length, which can differ from the directory.
         if local_start > directory_start - 30 return false, dir;
         header: [30] u8;
+
         if !file_set_position(dir.file, local_start) return false, dir;
         read_ok, received = file_read(dir.file, header.data, 30);
         if !read_ok || received != 30 || zip_u32(header.data) != 0x04034b50 return false, dir;
@@ -144,11 +156,14 @@ zip_read_directory :: (zip_filename: string, opened: File) -> bool, Zip_Director
         dir.entries.count += 1;
         offset += span;
     }
+
     dir.name = alloc_string(zip_filename.count);
+
     if zip_filename.count > 0 {
         if !dir.name.data return false, dir;
         memcpy(dir.name.data, zip_filename.data, zip_filename.count);
     }
+
     return true, dir;
 }
 

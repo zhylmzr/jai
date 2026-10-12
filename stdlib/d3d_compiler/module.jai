@@ -10,5 +10,4 @@ d3dcompiler :: #system_library "d3dcompiler_47";
 #import "Windows_Utf8";
 #import "String";
 
-
 #load "compile-helpers.jai";

@@ -20,7 +20,6 @@ Number_Input_State :: struct #type_info_none {
 
 Subwindow_Info :: struct {
 
-
     rect: Rect;
     title_text: string;
     fixed_aspect_ratio := -1.0;

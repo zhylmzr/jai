@@ -19,23 +19,29 @@ random_get :: (state: *Random_State) -> u64 #no_aoc {
     multiplier := u16.[0xe605, 0x56f5, 0x58cd, 0x8664, 0xab32, 0xf4e9, 0x4e3b, 0x0fc9];
     input: [8] u16;
     output: [8] u16;
+
     for i: 0..3 {
         input[i] = cast,no_check(u16) (state.low >> cast(u64) (i * 16));
         input[i + 4] = cast,no_check(u16) (state.high >> cast(u64) (i * 16));
     }
+
     carry: u64 = 0;
+
     for column: 0..7 {
         sum := carry;
         for i: 0..column sum += cast(u64) input[i] * cast(u64) multiplier[column - i];
         output[column] = cast,no_check(u16) sum;
         carry = sum >> 16;
     }
+
     state.low = 0;
     state.high = 0;
+
     for i: 0..3 {
         state.low |= (cast(u64) output[i]) << cast(u64) (i * 16);
         state.high |= (cast(u64) output[i + 4]) << cast(u64) (i * 16);
     }
+
     return state.high;
 }
 

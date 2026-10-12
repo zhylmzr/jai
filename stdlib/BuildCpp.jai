@@ -46,11 +46,13 @@ build_cpp :: (output_basename: string, files: ..string, type: Build_Type, debug 
 enum_cpp_files :: (path: string, recursive := false) -> [..] string {
     sources: [..] string;
     candidates := file_list(path, recursive);
+
     for candidates {
         extension := path_extension(it);
         if extension == "c" || extension == "cpp" array_add(*sources, it);
         else free(it);
     }
+
     array_free(candidates);
     return sources;
 }
@@ -99,6 +101,7 @@ execute :: (job: *Job, tool: string, command: [] string) -> bool {
 // Objects are named relative to the directory the tools ran in, not to ours.
 remove_intermediates :: (job: *Job) {
     if job.type == .OBJ_FILE return;
+
     for job.objects {
         if job.directory file_delete(tprint("%/%", job.directory, it));
         else file_delete(it);
@@ -131,6 +134,7 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
             arch :: "x64";
             machine :: "/MACHINE:X64";
         }
+
         // The library folder of the newest MSVC toolset and its linker; cl.exe and lib.exe sit
         // next to the linker, the headers two levels above the libraries.
         vc_lib, linker := find_visual_studio_in_a_ridiculous_garbage_way();
@@ -138,19 +142,25 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
             report(job, "BuildCpp: no Visual Studio C++ toolset found.\n");
             return false;
         }
+
         vc_bin := path_strip_filename(linker);
         sdk_lib, sdk_include := find_sdk_folders(arch);
+
         if !sdk_lib {
             report(job, "BuildCpp: no Windows SDK found.\n");
             return false;
         }
+
         packs := job.type == .STATIC_LIBRARY || job.type == .OBJ_FILE;
 
         command: [..] string;
+
         array_add(*command, tprint("%cl.exe", vc_bin), "/nologo", "/W3", "/DWIN32", "-diagnostics:column", "-diagnostics:caret");
+
         for string.[tprint("%\\..\\..\\include", vc_lib), tprint("%\\ucrt", sdk_include), tprint("%\\um", sdk_include), tprint("%\\shared", sdk_include)] {
             array_add(*command, tprint("/I%", it));
         }
+
         if job.debug array_add(*command, "/Od", "/Zi", "/DEBUG", "/DDEBUG", tprint("/Fd%.pdb", output_basename));
         else array_add(*command, "/O2", "/Oi");
         array_add(*command, ..job.extra);
@@ -164,6 +174,7 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
             if job.type == .DYNAMIC_LIBRARY array_add(*command, "/DLL");
             for string.[vc_lib, tprint("%\\ucrt\\%", sdk_lib, arch), tprint("%\\um\\%", sdk_lib, arch)] array_add(*command, tprint("/libpath:%", it));
         }
+
         array_add(*command, ..job.libraries);
         // The linker leaves an export file next to a DLL; nobody asked for it.
         defer if job.type == .DYNAMIC_LIBRARY file_delete(tprint("%.exp", output_basename));
@@ -172,6 +183,7 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
         if job.type != .STATIC_LIBRARY return true;
 
         archive: [..] string;
+
         array_add(*archive, tprint("%lib.exe", vc_bin), "/nologo", tprint("/OUT:%", job.output));
         array_add(*archive, ..job.objects);
         return execute(job, "librarian", archive);
@@ -185,16 +197,20 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
         root := find_windows_kit_root();
         if !root return "", "";
         root = trim_right(root, "\\/");
+
         Search :: struct {
             arch: string;
             best: string;
         }
+
         search := Search.{ arch = arch };
+
         consider :: (info: *File_Visit_Info, search: *Search) {
             if !begins_with(info.short_name, "10.") return;
             if !file_exists(tprint("%\\um\\%\\kernel32.lib", info.full_name, search.arch)) return;
             if !search.best || version_less(search.best, info.short_name) search.best = copy_temporary_string(info.short_name);
         }
+
         visit_files(tprint("%\\Lib", root), false, *search, consider, visit_files = false, visit_directories = true);
         if !search.best return "", "";
         return tprint("%\\Lib\\%", root, search.best), tprint("%\\Include\\%", root, search.best);
@@ -207,6 +223,7 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
             x, y := string_to_int(left[it]), string_to_int(right[it]);
             if x != y return x < y;
         }
+
         return left.count < right.count;
     }
 }
@@ -220,6 +237,7 @@ report :: (job: *Job, message: string) {
 build_with_clang :: (job: *Job, compiler_override: string, archiver_override: string) -> bool {
     cpp := uses_cpp(job.sources);
     compiler, archiver := compiler_override, archiver_override;
+
     if !compiler || (!archiver && job.type == .STATIC_LIBRARY) {
         default_compiler, default_archiver, found := pick_unix_tools(job, cpp);
         if !found return false;
@@ -228,9 +246,11 @@ build_with_clang :: (job: *Job, compiler_override: string, archiver_override: st
     }
 
     command: [..] string;
+
     array_add(*command, compiler);
     if job.debug array_add(*command, "-Og", "-g");
     else array_add(*command, "-O3");
+
     if job.type == {
         case .STATIC_LIBRARY; #through;
         case .OBJ_FILE;
@@ -243,6 +263,7 @@ build_with_clang :: (job: *Job, compiler_override: string, archiver_override: st
             array_add(*command, "-o", job.output);
             if job.target == .MACOS array_add(*command, "-rpath", "@loader_path");
     }
+
     array_add(*command, ..job.extra);
     add_sources(job, *command, ".o");
     array_add(*command, ..job.libraries);
@@ -254,6 +275,7 @@ build_with_clang :: (job: *Job, compiler_override: string, archiver_override: st
     // `ar r` updates an existing archive in place, so stale members would survive.
     file_delete(job.output);
     archive: [..] string;
+
     array_add(*archive, archiver, ifx job.target == .WASM then "-rcs" else "-rc", job.output);
     array_add(*archive, ..job.objects);
     return execute(job, "archiver", archive);
@@ -266,14 +288,17 @@ pick_unix_tools :: (job: *Job, cpp: bool) -> compiler: string, archiver: string,
     if job.target == .ANDROID {
         ndk := from_environment("NDK_HOME");
         if !ndk ndk = from_environment("ANDROID_NDK_HOME");
+
         if !ndk {
             report(job, "BuildCpp: set NDK_HOME or ANDROID_NDK_HOME to an Android NDK to build for Android.\n");
             return "", "", false;
         }
+
         #if OS == .WINDOWS host := "windows-x86_64";
         else #if OS == .MACOS host := "darwin-x86_64";
         else host := "linux-x86_64";
         bin := tprint("%/toolchains/llvm/prebuilt/%/bin", ndk, host);
+
         return tprint("%/%", bin, driver), tprint("%/llvm-ar", bin), true;
     }
 
@@ -283,7 +308,9 @@ pick_unix_tools :: (job: *Job, cpp: bool) -> compiler: string, archiver: string,
             report(job, "BuildCpp: set NINTENDO_SDK_ROOT to build for Switch.\n");
             return "", "", false;
         }
+
         bin := tprint("%\\Compilers\\NX\\nx\\aarch64\\bin", sdk);
+
         return tprint("%\\%", bin, driver), tprint("%\\llvm-ar.exe", bin), true;
     }
 

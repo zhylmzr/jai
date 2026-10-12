@@ -52,11 +52,9 @@ SDL_ClearError :: () #foreign SDL2;
 } else #if OS == .MACOS {
     SDL2 :: #system_library "SDL2";
 
-
 } else #if OS == .LINUX {
     #import "X11";
 
     SDL2 :: #system_library "SDL2";
-
 
 }

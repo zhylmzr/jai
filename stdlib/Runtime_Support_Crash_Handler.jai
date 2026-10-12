@@ -15,6 +15,7 @@ init :: () {
     on_unhandled_seh :: (crash: *Seh_Info) -> s32 #c_call {
         write_string_unsynchronized("fatal runtime exception 0x", true);
         code := crash.record.code;
+
         write_address_unsynchronized(code);
         write_string_unsynchronized("\n", true);
         write_frames();
@@ -33,6 +34,7 @@ write_frames :: () #no_context {
     if __runtime_support_disable_stack_trace return;
     frames: [64] *void;
     found := host_backtrace(frames.data, frames.count);
+
     for index: 0..found - 1 {
         write_address_unsynchronized(cast(u64) frames[index]);
         write_string_unsynchronized("\n", true);
@@ -97,11 +99,13 @@ write_address_unsynchronized :: (address: u64) #no_context {
     bytes: [16] u8;
     position: s64 = 16;
     value := address;
+
     while true {
         position -= 1;
         bytes[position] = digits[value & 15];
         value >>= 4;
         if value == 0 break;
     }
+
     write_string_unsynchronized(string.{ 16 - position, bytes.data + position }, true);
 }

@@ -133,6 +133,7 @@ operator << :: inline (a: U128, $$x: u8) -> U128 {
     if x >= 128 return U128.{};
     shift := x & 63;
     reverse_shift := (64 - shift) & 63;
+
     if x >= 64 return U128.{ 0, a.low << shift };
     return U128.{ a.low << shift, (a.high << shift) | (a.low >> reverse_shift) };
 }
@@ -148,6 +149,7 @@ operator >> :: (a: U128, $$x: u8) -> U128 {
     if x >= 128 return U128.{};
     shift := x & 63;
     reverse_shift := (64 - shift) & 63;
+
     if x >= 64 return U128.{ a.high >> shift, 0 };
     return U128.{ (a.low >> shift) | (a.high << reverse_shift), a.high >> shift };
 }
@@ -159,6 +161,7 @@ operator >> :: (a: S128, $$x: u8) -> S128 {
     if x >= 128 return S128.{ cast,no_check(u64) sign, sign };
     shift := x & 63;
     reverse_shift := (64 - shift) & 63;
+
     if x >= 64 return S128.{ cast,no_check(u64) (a.high >> shift), sign };
     return S128.{ (a.low >> shift) | ((cast,no_check(u64) a.high) << reverse_shift), a.high >> shift };
 }
@@ -177,6 +180,7 @@ __u128_multiply_limbs :: (a: u64, b: u64) -> high: u64, low: u64 #no_aoc {
     p10 := (a >> 32) * (b & MASK);
     p11 := (a >> 32) * (b >> 32);
     middle := (p00 >> 32) + (p01 & MASK) + (p10 & MASK);
+
     return p11 + (p01 >> 32) + (p10 >> 32) + (middle >> 32), (middle << 32) | (p00 & MASK);
 }
 
@@ -209,15 +213,19 @@ multiply_64bits_with_overflow :: (a: u64, b: u64) -> (high: u64, low: u64) {
 // Restoring long division keeps a carry for the temporary 129th remainder bit.
 unsigned_divide_with_remainder :: (u: U128, v: U128) -> quotient: U128, remainder: U128, overflow_or_divide_by_zero: bool {
     if !v return U128_ERROR, U128_ERROR, true;
+
     if !v.high {
         q, r := __u128_divide_by_u64(u, v.low);
         return q, r, false;
     }
+
     quotient: U128;
     remainder: U128;
     bit: s64 = 127;
+
     while bit >= 0 {
         carry := (remainder.high >> 63) != 0;
+
         remainder = remainder << 1;
         incoming: u64 = 0;
         if bit >= 64 incoming = (u.high >> cast(u8) (bit - 64)) & 1;
@@ -228,8 +236,10 @@ unsigned_divide_with_remainder :: (u: U128, v: U128) -> quotient: U128, remainde
             if bit >= 64 quotient.high |= (cast(u64) 1) << cast(u8) (bit - 64);
             else quotient.low |= (cast(u64) 1) << cast(u8) bit;
         }
+
         bit -= 1;
     }
+
     return quotient, remainder, false;
 }
 
@@ -241,24 +251,30 @@ __u128_divide_by_u64 :: (u: U128, d: u64) -> quotient: U128, remainder: U128 #no
     quotient.high = u.high / d;
     r := u.high % d;
     bit: s64 = 63;
+
     while bit >= 0 {
         carry := r >> 63;
+
         r = (r << 1) | ((u.low >> cast(u8) bit) & 1);
         if carry || r >= d {
             r -= d;
             quotient.low |= (cast(u64) 1) << cast(u8) bit;
         }
+
         bit -= 1;
     }
+
     return quotient, U128.{ low = r };
 }
 
 signed_divide_with_remainder :: inline (dividend: S128, divisor: S128) -> quotient: S128, remainder: S128, overflow_or_divide_by_zero: bool {
     minimum :: S128.{ 0, cast,no_check(s64) 0x8000_0000_0000_0000 };
     minus_one :: S128.{ 0xffff_ffff_ffff_ffff, -1 };
+
     if !divisor || (dividend == minimum && divisor == minus_one) return S128_ERROR, S128_ERROR, true;
     dividend_magnitude := to_u128(dividend);
     divisor_magnitude := to_u128(divisor);
+
     if dividend.high < 0 dividend_magnitude = U128.{} - dividend_magnitude;
     if divisor.high < 0 divisor_magnitude = U128.{} - divisor_magnitude;
     q, r, error := unsigned_divide_with_remainder(dividend_magnitude, divisor_magnitude);

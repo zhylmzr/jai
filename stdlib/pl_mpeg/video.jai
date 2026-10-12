@@ -104,11 +104,13 @@ video_create_with_buffer :: (buffer: *Buffer, destroy_when_done: bool) -> *Video
         entry.own_native = true;
         result.destroy_buffer_when_done = destroy_when_done;
     }
+
     return result;
 }
 
 video_destroy :: (video: *Video) {
     entry := video_state(video);
+
     assert(entry.own_native, "A borrowed decoder is owned by its parent");
     raw_plm_video_destroy(entry.native);
     if video.destroy_buffer_when_done buffer_destroy(video.buffer);
@@ -117,8 +119,10 @@ video_destroy :: (video: *Video) {
 
 video_get_framerate :: (video: *Video) -> float64 {
     entry := video_state(video);
+
     push_video(entry);
     result := raw_plm_video_get_framerate(entry.native);
+
     pull_video(entry);
     return result;
 }
@@ -146,32 +150,40 @@ video_rewind :: (video: *Video) {
 
 video_has_ended :: (video: *Video) -> bool {
     entry := video_state(video);
+
     push_video(entry);
     result := raw_plm_video_has_ended(entry.native);
+
     pull_video(entry);
     return result != 0;
 }
 
 video_decode :: (video: *Video) -> *Frame {
     entry := video_state(video);
+
     push_video(entry);
     result := raw_plm_video_decode(entry.native);
+
     pull_video(entry);
     return result;
 }
 
 video_has_header :: (video: *Video) -> bool {
     entry := video_state(video);
+
     push_video(entry);
     result := raw_plm_video_has_header(entry.native);
+
     pull_video(entry);
     return result != 0;
 }
 
 video_decode_sequence_header :: (video: *Video) -> bool {
     entry := video_state(video);
+
     push_video(entry);
     result := raw_plm_video_decode_sequence_header(entry.native);
+
     pull_video(entry);
     return result != 0;
 }
@@ -213,8 +225,10 @@ video_decode_motion_vectors :: (video: *Video) {
 
 video_decode_motion_vector :: (video: *Video, r_size: s32, motion: s32) -> s32 {
     entry := video_state(video);
+
     push_video(entry);
     result := raw_plm_video_decode_motion_vector(entry.native, r_size, motion);
+
     pull_video(entry);
     return result;
 }
@@ -246,6 +260,7 @@ BLOCK_SET :: (dest: *u8, dest_width: s32, source_width: s32, block_size: s32, co
     dest_scan := dest_width - block_size;
     source_scan := source_width - block_size;
     y: s32;
+
     while y < block_size {
         x: s32;
         while x < block_size {
@@ -254,6 +269,7 @@ BLOCK_SET :: (dest: *u8, dest_width: s32, source_width: s32, block_size: s32, co
             si += 1;
             x += 1;
         }
+
         di += dest_scan;
         si += source_scan;
         y += 1;
@@ -293,6 +309,7 @@ convert_function :: (frame: *Frame, dest: *u8, stride: s32,
                      BYTES_PER_PIXEL: s32, RI: s32, GI: s32, BI: s32) {
     assert(BYTES_PER_PIXEL == 3 || BYTES_PER_PIXEL == 4);
     assert(stride >= frame.width * BYTES_PER_PIXEL);
+
     if BYTES_PER_PIXEL == 3 {
         if RI == 0 && GI == 1 && BI == 2 raw_plm_frame_to_rgb(frame, dest, stride);
         else if RI == 2 && GI == 1 && BI == 0 raw_plm_frame_to_bgr(frame, dest, stride);

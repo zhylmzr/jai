@@ -7,9 +7,11 @@ maybe_array_add :: inline (array: *[..] $T, item: T) #no_abc {
 // identifier names, parent blocks, owning statements) are not followed, so walks terminate.
 get_subexpressions :: (node: *Code_Node, pointers: *[..] *Code_Node) {
     if !node return;
+
     add :: (child: *Code_Node) #expand {
         maybe_array_add(pointers, child);
     }
+
     if node.kind == {
         case .BLOCK;
             block := cast(*Code_Block) node;
@@ -29,25 +31,30 @@ get_subexpressions :: (node: *Code_Node, pointers: *[..] *Code_Node) {
             add((cast(*Code_Unary_Operator) node).subexpression);
         case .BINARY_OPERATOR;
             binary := cast(*Code_Binary_Operator) node;
+
             add(binary.left);
             add(binary.right);
         case .PROCEDURE_BODY;
             add((cast(*Code_Procedure_Body) node).block);
         case .PROCEDURE_CALL;
             call := cast(*Code_Procedure_Call) node;
+
             add(call.procedure_expression);
             for call.arguments_unsorted add(it.expression);
         case .WHILE;
             loop := cast(*Code_While) node;
+
             add(loop.condition);
             add(loop.block);
         case .IF;
             branch := cast(*Code_If) node;
+
             add(branch.condition);
             add(branch.then_block);
             add(branch.else_block);
         case .CASE;
             arm := cast(*Code_Case) node;
+
             add(arm.condition);
             add(arm.then_block);
         case .RETURN;
@@ -55,17 +62,20 @@ get_subexpressions :: (node: *Code_Node, pointers: *[..] *Code_Node) {
             for ret.arguments_unsorted add(it.expression);
         case .FOR;
             loop := cast(*Code_For) node;
+
             add(loop.iteration_expression);
             add(loop.iteration_expression_right);
             add(loop.block);
         case .TYPE_INSTANTIATION;
             inst := cast(*Code_Type_Instantiation) node;
+
             add(inst.type_valued_expression);
             add(inst.pointer_to);
             add(inst.array_element_type);
             add(inst.array_dimension);
         case .ENUM;
             e := cast(*Code_Enum) node;
+
             add(e.internal_type_inst);
             add(e.block);
         case .PROCEDURE_HEADER;
@@ -83,14 +93,17 @@ get_subexpressions :: (node: *Code_Node, pointers: *[..] *Code_Node) {
             for (cast(*Code_Make_Varargs) node).expressions add(it);
         case .DECLARATION;
             decl := cast(*Code_Declaration) node;
+
             add(decl.type_inst);
             add(decl.expression);
         case .COMPOUND_DECLARATION;
             compound := cast(*Code_Compound_Declaration) node;
+
             add(compound.comma_separated_assignment);
             add(compound.declaration_properties);
         case .CAST;
             c := cast(*Code_Cast) node;
+
             add(c.target_type);
             add(c.expression);
         case .DIRECTIVE_RUN;
@@ -103,6 +116,7 @@ get_subexpressions :: (node: *Code_Node, pointers: *[..] *Code_Node) {
             add((cast(*Code_Directive_Bake) node).procedure_call);
         case .PUSH_CONTEXT;
             push := cast(*Code_Push_Context) node;
+
             add(push.to_push);
             add(push.block);
         case .EXPRESSION_QUERY;
@@ -115,6 +129,7 @@ get_subexpressions :: (node: *Code_Node, pointers: *[..] *Code_Node) {
             add((cast(*Code_Directive_Add_Context) node).expression);
         case .DIRECTIVE_INSERT;
             insert := cast(*Code_Directive_Insert) node;
+
             add(insert.expression);
             add(insert.expansion);
         case .USING;
@@ -131,7 +146,9 @@ get_subexpressions :: (node: *Code_Node, pointers: *[..] *Code_Node) {
 get_recursive_nodes_breadth_first :: (node: *Code_Node, pointers: *[..] *Code_Node) {
     if !node return;
     level_start := pointers.count;
+
     Basic.array_add(pointers, node);
+
     while level_start < pointers.count {
         level_end := pointers.count;
         for i: level_start..level_end - 1 get_subexpressions(pointers.*[i], pointers);
@@ -143,6 +160,7 @@ get_recursive_nodes_depth_first :: (node: *Code_Node, pointers: *[..] *Code_Node
     if !node return;
     Basic.array_add(pointers, node);
     children: [..] *Code_Node;
+
     defer Basic.array_free(children);
     get_subexpressions(node, *children);
     for children get_recursive_nodes_depth_first(it, pointers);
@@ -153,6 +171,7 @@ get_recursive_nodes_depth_first :: (node: *Code_Node, pointers: *[..] *Code_Node
 // before `code` first runs, so the inserted code may rewrite the tree it is walking.
 visit_pre_and_postorder :: (node: *Code_Node, code: Code) #expand {
     schedule: [..] Visit_Step;
+
     defer Basic.array_free(schedule);
     schedule_visits(node, *schedule);
     cursor := 0;
@@ -175,12 +194,16 @@ Visit_Step :: struct {
 schedule_visits :: (root: *Code_Node, schedule: *[..] Visit_Step) {
     if !root return;
     stack: [..] Visit_Step;
+
     defer Basic.array_free(stack);
     children: [..] *Code_Node;
+
     defer Basic.array_free(children);
     Basic.array_add(*stack, .{ root, true });
+
     while stack.count > 0 {
         step := stack[stack.count - 1];
+
         stack.count -= 1;
         Basic.array_add(schedule, step);
         if !step.entering continue;

@@ -68,12 +68,15 @@ mac_poll_geometry :: () {
             event.type = .QUIT;
             queue_input_event(cast(Window_Type) cast(u64) window, event);
             array_ordered_remove_by_index(*macos_program_windows, index);
+
             for mac_input_windows if it.window == window {
                 array_ordered_remove_by_index(*mac_input_windows, it_index);
                 break;
             }
+
             continue;
         }
+
         index += 1;
         view := Mac.NSWindow.contentView(window);
         if !view continue;
@@ -85,6 +88,7 @@ mac_poll_geometry :: () {
         height := cast(s32) area.size.height;
         routed := cast(Window_Type) cast(u64) window;
         found := false;
+
         for *entry: mac_input_windows {
             if entry.window != window continue;
             if width != entry.width || height != entry.height queue_window_resize(routed, width, height);
@@ -96,6 +100,7 @@ mac_poll_geometry :: () {
             found = true;
             break;
         }
+
         if !found {
             array_add(*mac_input_windows, .{ window, x, y, width, height });
             queue_window_resize(routed, width, height);
@@ -113,7 +118,9 @@ macos_poll_input :: () {
     application := Mac.NSApplication.sharedApplication();
     if !application return;
     pool := ObjC.objc_init(ObjC.objc_alloc(Foundation.NSAutoreleasePool));
+
     defer Foundation.NSAutoreleasePool.drain(pool);
+
     while true {
         native := Mac.NSApplication.nextEventMatchingMask(application, .NSEventMaskAny,
             Foundation.NSDate.distantPast(), Mac.NSDefaultRunLoopMode, ObjC.YES);
@@ -122,15 +129,19 @@ macos_poll_input :: () {
         kind := Mac.NSEvent.type(native);
         flags := cast(u64) Mac.NSEvent.modifierFlags(native);
         event: Event;
+
         mac_modifiers(*event, flags);
+
         if window {
             routed := cast(Window_Type) cast(u64) window;
+
             if kind == .NSEventTypeKeyDown || kind == .NSEventTypeKeyUp {
                 event.type = .KEYBOARD;
                 event.key_code = mac_key_code(native);
                 event.key_pressed = xx (kind == .NSEventTypeKeyDown);
                 event.repeat = event.key_pressed && Mac.NSEvent.isARepeat(native) != 0;
                 queue_input_event(routed, event);
+
                 if event.key_pressed && !event.ctrl_pressed && !event.cmd_meta_pressed {
                     text := Mac.NSEvent.characters(native);
                     if text {
@@ -145,6 +156,7 @@ macos_poll_input :: () {
             } else if kind == .NSEventTypeFlagsChanged {
                 masks: [4] u64 = .[1 << 17, 1 << 18, 1 << 19, 1 << 20];
                 codes: [4] Key_Code = .[.SHIFT, .CTRL, .ALT, .CMD];
+
                 for mask, index: masks {
                     if ((flags ^ mac_modifier_mask) & mask) == 0 continue;
                     modifier_event := event;
@@ -169,6 +181,7 @@ macos_poll_input :: () {
                 queue_mouse_delta(cast(int) Mac.NSEvent.deltaX(native), cast(int) Mac.NSEvent.deltaY(native));
             }
         }
+
         mac_modifier_mask = flags;
         Mac.NSApplication.sendEvent(application, native);
         // AppKit keeps whatever cursor was set last; put the arrow back unless the program
@@ -176,32 +189,39 @@ macos_poll_input :: () {
         is_move := kind == .NSEventTypeMouseMoved || kind == .NSEventTypeMouseEntered;
         if window && is_move && !custom_cursor_handling Mac.NSCursor.set(Mac.NSCursor.arrowCursor());
     }
+
     focused := Mac.NSApplication.keyWindow(application);
     if !mac_application_active(application) focused = null;
+
     if focused != mac_input_focus {
         if mac_input_focus set_input_focus(cast(Window_Type) cast(u64) mac_input_focus, false);
         if focused set_input_focus(cast(Window_Type) cast(u64) focused, true);
         mac_input_focus = focused;
     }
+
     mac_poll_geometry();
 }
 
 macos_pointer_query :: (window: Window_Type, client_area: bool) -> float, float, bool {
     native := cast(*Mac.NSWindow) cast(u64) window;
     application := Mac.NSApplication.sharedApplication();
+
     if !native && application native = Mac.NSApplication.keyWindow(application);
     if !native return 0, 0, false;
     point := Mac.NSWindow.mouseLocationOutsideOfEventStream(native);
+
     if client_area {
         view := Mac.NSWindow.contentView(native);
         if !view return 0, 0, false;
         point = Mac.NSView.convertPoint(view, point, null);
         point = Mac.NSView.convertPointToBacking(view, point);
         area := Mac.NSView.convertRectToBacking(view, Mac.NSView.bounds(view));
+
         point.y = area.size.height - point.y;
     } else {
         point = mac_point_to_screen(native, point);
     }
+
     return cast(float) point.x, cast(float) point.y, true;
 }
 

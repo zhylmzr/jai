@@ -68,10 +68,12 @@ starts_with :: begins_with;
 find_index_from_left :: (s: string, byte: u8, start_index := 0) -> s64 {
     i := start_index;
     if i < 0 i = 0;
+
     while i < s.count {
         if s.data[i] == byte return i;
         i += 1;
     }
+
     return -1;
 }
 
@@ -81,6 +83,7 @@ find_index_from_right :: (s: string, byte: u8) -> s64 {
         if s.data[i] == byte return i;
         i -= 1;
     }
+
     return -1;
 }
 
@@ -88,10 +91,12 @@ find_index_from_left :: (s: string, substring: string, start_index := 0) -> s64 
     if substring.count == 0 return -1;
     i := start_index;
     if i < 0 i = 0;
+
     while i + substring.count <= s.count {
         if slice(s, i, substring.count) == substring return i;
         i += 1;
     }
+
     return -1;
 }
 
@@ -102,16 +107,19 @@ find_index_from_right :: (s: string, substring: string) -> s64 {
         if slice(s, i, substring.count) == substring return i;
         i -= 1;
     }
+
     return -1;
 }
 
 find_index_of_any_from_left :: (s: string, bytes: string, start_index := 0) -> s64 {
     i := start_index;
     if i < 0 i = 0;
+
     while i < s.count {
         if is_any(s.data[i], bytes) return i;
         i += 1;
     }
+
     return -1;
 }
 
@@ -121,14 +129,17 @@ find_index_of_any_from_right :: (s: string, bytes: string) -> s64 {
         if is_any(s.data[i], bytes) return i;
         i -= 1;
     }
+
     return -1;
 }
 
 index_of_string_nocase :: (s: string, substring: string) -> int, found: bool {
     if s.count < substring.count return -1, false;
+
     for i: 0..s.count - substring.count {
         if equal_nocase(slice(s, i, substring.count), substring) return i, true;
     }
+
     return -1, false;
 }
 
@@ -161,6 +172,7 @@ contains_any_string :: (s: string, substrings: ..string) -> found: bool, remaind
         found, remainder := contains(s, needle);
         if found return true, remainder;
     }
+
     return false, "";
 }
 
@@ -210,15 +222,18 @@ split :: (s: string, separator: $T) -> [] string {
     #assert (T == u8) || (T == string);
     results: [..] string;
     remainder := s;
+
     while remainder.count > 0 {
         found, left, right := split_from_left(remainder, separator);
         if !found {
             array_add(*results, remainder);
             break;
         }
+
         array_add(*results, left);
         remainder = right;
     }
+
     if remainder.count == 0 array_add(*results, "");
     return results;
 }
@@ -257,6 +272,7 @@ eat_until_space :: (_s: string) -> string {
         s.data += 1;
         s.count -= 1;
     }
+
     return s;
 }
 
@@ -302,18 +318,22 @@ join :: (inputs: ..string, separator := "", before_first := false, after_last :=
     data := cast(*u8) alloc(total);
     if !data return "";
     at := 0;
+
     if before_first {
         memcpy(data, separator.data, separator.count);
         at += separator.count;
     }
+
     for part, i: inputs {
         memcpy(data + at, part.data, part.count);
         at += part.count;
+
         if i < inputs.count - 1 || after_last {
             memcpy(data + at, separator.data, separator.count);
             at += separator.count;
         }
     }
+
     return .{ count = total, data = data };
 }
 
@@ -323,6 +343,7 @@ replace :: (s: string, old: string, new: string) -> string, ocurrences: int {
     builder: String_Builder;
     cursor := 0;
     count := 0;
+
     while true {
         i := find_index_from_left(s, old, cursor);
         if i == -1 break;
@@ -331,6 +352,7 @@ replace :: (s: string, old: string, new: string) -> string, ocurrences: int {
         cursor = i + old.count;
         count += 1;
     }
+
     append(*builder, slice(s, cursor, s.count - cursor));
     return builder_to_string(*builder), count;
 }
@@ -339,12 +361,14 @@ replace :: (s: string, old: string, new: string) -> string, ocurrences: int {
 // Rewrites CRLF pairs as LF in place, shrinking the string; a CR on its own is kept.
 normalize_line_endings :: (s: *string) {
     kept := 0;
+
     for i: 0..s.count - 1 {
         byte := s.data[i];
         if byte == #char "\r" && i + 1 < s.count && s.data[i + 1] == #char "\n" continue;
         s.data[kept] = byte;
         kept += 1;
     }
+
     s.count = kept;
 }
 
@@ -362,6 +386,7 @@ path_decomp :: (name: string) -> path: string, basename: string, extension: stri
     full := advance(name, path.count);
     extension, has_extension := path_extension(full);
     base := full;
+
     // Only a real extension (possibly empty, as in "file.") takes its dot along; ".." keeps both.
     if has_extension base.count -= extension.count + 1;
     return path, base, extension, full;
@@ -378,11 +403,13 @@ path_extension :: (path: string) -> extension: string, found_extension: bool {
     if i <= 0 || path.data[i] != #char "." return "", false;
     before := path.data[i - 1];
     if before == #char "\\" || before == #char "/" return "", false;
+
     if before == #char "." {
         if i == 1 return "", false;
         two := path.data[i - 2];
         if two == #char "\\" || two == #char "/" return "", false;
     }
+
     return slice(path, i + 1, path.count - i - 1), true;
 }
 
@@ -427,6 +454,7 @@ is_absolute_path :: (path: string) -> bool {
 wildcard_match :: (s: string, pat: string) -> bool {
     si := 0;
     pi := 0;
+
     while true {
         if pi >= pat.count return si >= s.count;
         c := pat.data[pi];
@@ -434,23 +462,29 @@ wildcard_match :: (s: string, pat: string) -> bool {
             pi += 1;
             if pi >= pat.count return true;
             rest := slice(pat, pi, pat.count - pi);
+
             while true {
                 if wildcard_match(slice(s, si, s.count - si), rest) return true;
                 if si >= s.count return false;
                 si += 1;
             }
         }
+
         if si >= s.count return false;
+
         if c == #char "?" {
             pi += 1;
             si += 1;
             continue;
         }
+
         if c == #char "[" {
             pi += 1;
             matched := false;
+
             while pi < pat.count && pat.data[pi] != #char "]" {
                 lo := pat.data[pi];
+
                 if pi + 2 < pat.count && pat.data[pi + 1] == #char "-" && pat.data[pi + 2] != #char "]" {
                     hi := pat.data[pi + 2];
                     if (lo <= s.data[si] && s.data[si] <= hi) || (hi <= s.data[si] && s.data[si] <= lo) matched = true;
@@ -460,15 +494,18 @@ wildcard_match :: (s: string, pat: string) -> bool {
                     pi += 1;
                 }
             }
+
             if !matched return false;
             pi += 1;
             si += 1;
             continue;
         }
+
         if c != s.data[si] return false;
         pi += 1;
         si += 1;
     }
+
     return false;
 }
 
@@ -476,19 +513,24 @@ wildcard_match :: (s: string, pat: string) -> bool {
 parse_token :: (line: *string, delimiters := DEFAULT_DELIMITERS, spaces := DEFAULT_SPACES) -> value: string, success: bool {
     assert(line != null);
     backup := line.*;
+
     line.* = trim_left(line.*, spaces);
     if line.count == 0 {
         rest := line.*;
         line.* = backup;
         return rest, false;
     }
+
     n := 0;
+
     if is_any(line.data[0], delimiters) {
         n = 1;
     } else {
         while n < line.count && !is_any(line.data[n], spaces) && !is_any(line.data[n], delimiters) n += 1;
     }
+
     token := slice(line.*, 0, n);
+
     line.* = slice(line.*, n, line.count - n);
     return token, true;
 }
@@ -508,6 +550,7 @@ parse_bool :: (line: *string, delimiters := DEFAULT_DELIMITERS, spaces := DEFAUL
     if have_word {
         for spelling, truth: string.["false", "true"] if equal_nocase(word, spelling) return truth == 1, true;
     }
+
     return false, false;
 }
 
@@ -517,7 +560,9 @@ parse_enum :: (line: *string, $T: Type, delimiters := DEFAULT_DELIMITERS, spaces
         member, known := Reflection.enum_name_to_value(T, word);
         if known return member, true;
     }
+
     nothing: T;
+
     return nothing, false;
 }
 
@@ -533,6 +578,7 @@ parse_int :: (line: *string, $T: Type = int, spaces := " \t", delimiters := DEFA
     if !have_word return 0, false;
     // Parse straight into T so a value outside its range fails instead of wrapping.
     number, parsed := string_to_int(word, T = T);
+
     return number, parsed;
 }
 
@@ -544,12 +590,15 @@ three_way :: (a: string, b: string, fold_case: bool) -> int {
     shared := min(a.count, b.count);
     for i: 0..shared - 1 {
         x, y := a.data[i], b.data[i];
+
         if fold_case {
             x = to_lower(x);
             y = to_lower(y);
         }
+
         if x != y return ifx x < y then -1 else 1;
     }
+
     if a.count == b.count return 0;
     return ifx a.count < b.count then -1 else 1;
 }
@@ -568,6 +617,7 @@ next_token_is :: (line: *string, expected: string, delimiters: string, spaces: s
         if !s return 0;
         text := string.{ c_style_strlen(s), s };
         value, parsed := string_to_float64(text);
+
         if !parsed return 0;
         return value;
     }
@@ -582,15 +632,18 @@ scan :: (format: string, text: string) -> bool, [] Any {
     result.allocator = Basic.temp;
     format_cursor := format;
     text_cursor := text;
+
     // Both strings empty is a trivial match; one empty and not the other is a mismatch.
     if format_cursor.count == 0 && text_cursor.count == 0 return true, result;
     if format_cursor.count == 0 || text_cursor.count == 0 return false, result;
+
     while true {
         if format_cursor[0] == #char "%" {
             if format_cursor.count == 1 return false, result;
             success := false;
             value: Any;
             kind := format_cursor[1];
+
             if kind == #char "f" {
                 number, ok, rest := Basic.string_to_float(text_cursor);
                 success = ok;
@@ -615,6 +668,7 @@ scan :: (format: string, text: string) -> bool, [] Any {
                 if text_cursor[0] == #char "\"" {
                     i := 1;
                     while i < text_cursor.count && text_cursor[i] != #char "\"" i += 1;
+
                     if i < text_cursor.count {
                         success = true;
                         value = scan_copy_any(slice(text_cursor, 1, i - 1));
@@ -626,6 +680,7 @@ scan :: (format: string, text: string) -> bool, [] Any {
                 success = true;
                 text_cursor = slice(text_cursor, 1, text_cursor.count - 1);
             }
+
             if !success return false, result;
             if kind != #char "%" Basic.array_add(*result, value);
             format_cursor = slice(format_cursor, 2, format_cursor.count - 2);
@@ -634,9 +689,11 @@ scan :: (format: string, text: string) -> bool, [] Any {
             format_cursor = slice(format_cursor, 1, format_cursor.count - 1);
             text_cursor = slice(text_cursor, 1, text_cursor.count - 1);
         }
+
         if format_cursor.count == 0 && text_cursor.count == 0 return true, result;
         if format_cursor.count == 0 || text_cursor.count == 0 return false, result;
     }
+
     return false, result;
 }
 
@@ -647,14 +704,17 @@ scan2 :: (text: string, format: string, args: ..Any) -> bool {
     pending := text;
     used_args := 0;
     f := 0;
+
     while f < format.count {
         expected := format[f];
+
         f += 1;
 
         is_slot := expected == #char "%" && !(f < format.count && format[f] == #char "%");
         if is_slot {
             if used_args == args.count return false;
             target := args[used_args];
+
             used_args += 1;
             if target.type.type != .POINTER return false;
 
@@ -669,6 +729,7 @@ scan2 :: (text: string, format: string, args: ..Any) -> bool {
         if pending.count == 0 || pending[0] != expected return false;
         pending = advance(pending, 1);
     }
+
     return pending.count == 0;
 }
 

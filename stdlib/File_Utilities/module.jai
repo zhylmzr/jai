@@ -12,28 +12,34 @@ copy_file :: (source: string, dest: string) -> bool {
     if !created return false;
     defer file_close(*output);
     buffer: [65536] u8;
+
     while true {
         read_ok, received := file_read_checked(input, buffer.data, buffer.count);
         if !read_ok return false;
         if received > 0 && !file_write(*output, buffer.data, received) return false;
         if received < buffer.count break;
     }
+
     return true;
 }
 
 copy_directory :: (source: string, dest: string) {
     if !make_directory_if_it_does_not_exist(dest, true) return;
+
     Copy_State :: struct {
         source: string;
         destination: string;
     }
+
     state: Copy_State = .{ source, dest };
+
     visitor :: (info: *File_Visit_Info, state: Copy_State) {
         suffix := Strings.slice(info.full_name, state.source.count, info.full_name.count - state.source.count);
         output := Strings.join(state.destination, suffix);
         if info.is_directory make_directory_if_it_does_not_exist(output, true);
         else copy_file(info.full_name, output);
     }
+
     visit_files(source, true, state, visitor, visit_directories = true);
 }
 
@@ -63,18 +69,22 @@ visit_files :: (dir_name: string, recursive: bool, user_data: $T, proc: (info: *
     cursor: int;
     while cursor < pending.count {
         directory := pending[cursor];
+
         cursor += 1;
         canonical, resolved := get_absolute_path(directory);
         if !resolved return false;
         already_seen := false;
+
         for seen: visited if seen == canonical {
             already_seen = true;
             break;
         }
+
         if already_seen continue;
         array_add(*visited, canonical);
         entries, scanned := directory_entries(directory);
         if !scanned return false;
+
         for entry: entries {
             info := entry;
             info.descend_into_directory = recursive && info.is_directory && (!info.is_symlink || follow_directory_symlinks) && !info.had_error;
@@ -83,14 +93,17 @@ visit_files :: (dir_name: string, recursive: bool, user_data: $T, proc: (info: *
             if info.descend_into_directory array_add(*pending, info.full_name);
         }
     }
+
     return true;
 }
 
 file_list :: (path: string, recursive := false, follow_directory_symlinks := true) -> [] string #must {
     result: [..] string;
+
     visitor :: (info: *File_Visit_Info, output: *[..] string) {
         array_add(output, copy_string(info.full_name));
     }
+
     visit_files(path, recursive, *result, visitor, follow_directory_symlinks = follow_directory_symlinks);
     return result;
 }

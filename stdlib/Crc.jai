@@ -22,5 +22,6 @@ crc64_update :: (s: string, accumulator: u64) -> u64 #no_aoc {
             bit += 1;
         }
     }
+
     return accumulator;
 }

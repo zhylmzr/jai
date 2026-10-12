@@ -17,16 +17,19 @@ write_nonnegative_number :: (n: u64, base := 10, to_standard_error := false) #no
         write_string("<invalid numeric base>", to_standard_error);
         return;
     }
+
     buffer: [64] u8;
     position: s64 = buffer.count;
     value := n;
     alphabet := "0123456789abcdefghijklmnopqrstuvwxyz";
+
     while true {
         position -= 1;
         buffer[position] = alphabet[value % cast(u64) base];
         value /= cast(u64) base;
         if value == 0 break;
     }
+
     text: string;
     text.count = buffer.count - position;
     text.data = buffer.data + position;
@@ -35,10 +38,12 @@ write_nonnegative_number :: (n: u64, base := 10, to_standard_error := false) #no
 
 write_number :: (n: s64, base := 10, to_standard_error := false) #no_context #no_aoc {
     bits := cast,no_check(u64) n;
+
     if n < 0 {
         write_string("-", to_standard_error);
         bits = 0 - bits;
     }
+
     write_nonnegative_number(bits, base, to_standard_error);
 }
 
@@ -64,6 +69,7 @@ runtime_support_report_assertion :: (loc: Source_Code_Location, message: string)
     while node && !runtime_support_runs_line(node, loc) node = node.next;
     if !node node = context.stack_trace;
     if node write_string("call stack (innermost first):\n", true);
+
     while node {
         if node.info {
             write_string("    ", true);
@@ -73,6 +79,7 @@ runtime_support_report_assertion :: (loc: Source_Code_Location, message: string)
             write_number_after(":", node.line_number, true);
             write_string("\n", true);
         }
+
         node = node.next;
     }
 }
@@ -84,12 +91,14 @@ __jaic_build_directory: string #elsewhere;
 runtime_support_shown_path :: (path: string) -> string #no_context #no_abc {
     base := __jaic_build_directory;
     if base.count == 0 || path.count <= base.count return path;
+
     for i: 0..base.count - 1 {
         x, y := path[i], base[i];
         if x == #char "\\" x = #char "/";
         if y == #char "\\" y = #char "/";
         if x != y return path;
     }
+
     shown := path;
     shown.data += base.count;
     shown.count -= base.count;
@@ -103,6 +112,7 @@ runtime_support_runs_line :: (node: *Stack_Trace_Node, loc: Source_Code_Location
 
 runtime_support_same_text :: (a: string, b: string) -> bool #no_context {
     if a.count != b.count return false;
+
     // Windows paths may be spelled with either separator (the report header's `D:/a/x.jai` and
     // a frame's `D:\a\x.jai` name the same file).
     for i: 0..a.count - 1 {
@@ -111,6 +121,7 @@ runtime_support_same_text :: (a: string, b: string) -> bool #no_context {
         if y == #char "\\" y = #char "/";
         if x != y return false;
     }
+
     return true;
 }
 
@@ -155,6 +166,7 @@ __arithmetic_overflow :: (left: s64, right: s64, type_code: u16, line_number: s6
     bits := cast(u64) (type_code & 0xf) * 8;
 
     operator_text := " * ";
+
     if operator_index == 1 operator_text = " + ";
     else if operator_index == 2 operator_text = " - ";
 
@@ -199,6 +211,7 @@ __null_pointer_check_fail :: (index: s64, line_number: s64, filename: *u8) #no_c
 runtime_support_check_failed :: (reason: s64, a: s64, b: s64, fatal: bool, line: s64, filename: *u8) #no_context #no_abc #no_aoc {
     write_failure_location(filename, line);
     write_string(ifx fatal then "error: " else "warning: ", true);
+
     if reason == {
         case 1;
             write_string("reached the end of a procedure that must return a value", true);
@@ -225,6 +238,7 @@ runtime_support_check_failed :: (reason: s64, a: s64, b: s64, fatal: bool, line:
             else if a == 2 write_string("memory copy", true);
             else if a == 3 write_string("memory fill", true);
             else write_string("read", true);
+
             if b == 0 {
                 write_string(" through a null pointer", true);
             } else {
@@ -235,6 +249,7 @@ runtime_support_check_failed :: (reason: s64, a: s64, b: s64, fatal: bool, line:
         case;
             write_string("runtime check failed", true);
     }
+
     write_string("\n", true);
 }
 
@@ -247,9 +262,11 @@ write_string_unsynchronized :: (s: string, to_standard_error := false) #no_conte
             #if OS == .WINDOWS {
                 handle := GetStdHandle(ifx to_standard_error then -12 else -11);
                 remaining := s.count - cursor;
+
                 if remaining > 0x7fff_ffff remaining = 0x7fff_ffff;
                 requested := cast(u32) remaining;
                 transferred: u32;
+
                 if WriteFile(handle, s.data + cursor, requested, *transferred, null) == 0 return;
                 amount := cast(s64) transferred;
             } else #if OS_IS_UNIX {
@@ -257,6 +274,7 @@ write_string_unsynchronized :: (s: string, to_standard_error := false) #no_conte
             } else {
                 #assert false "Runtime output requires a host adapter for this target";
             }
+
             // A failed or zero write cannot make forward progress.
             if amount <= 0 return;
             cursor += amount;
@@ -303,6 +321,7 @@ one_time_init :: (synch_value: *s32, to_insert: Code) #expand {
             if !committed debug_break();
             break;
         }
+
         if previous == 2 break;
     }
 }
@@ -373,18 +392,22 @@ __instrumentation_second :: () {
     __system_entry_point :: (argc: s32, argv: **u8) -> s32 #c_call {
         runtime_context := __jai_runtime_init(argc, argv);
         exit_code: s32;
+
         push_context runtime_context.* {
             #if ENABLE_BACKTRACE_ON_CRASH {
                 Handler :: #import "Runtime_Support_Crash_Handler";
                 Handler.init();
             }
+
             __instrumentation_first();
             __instrumentation_second();
             // The compiler binds this to the program's `main`; a `main` returning
             // an integer provides the process exit code.
             __program_main :: () -> s32 #entry_point;
+
             exit_code = __program_main();
         }
+
         __jai_runtime_fini(runtime_context);
         return exit_code;
     }
@@ -456,20 +479,24 @@ __panic_due_to_runtime_call_of_compile_time_procedure :: (line_number: s64, file
         CP_UTF8 :: 65001;
         count: s32;
         wide := CommandLineToArgvW(GetCommandLineW(), *count);
+
         if !wide return;
         heap := GetProcessHeap();
         arguments := cast(**u8) HeapAlloc(heap, 0, cast(u64) (count + 1) * size_of(*u8));
+
         if !arguments return;
         index: s32;
         while index < count {
             bytes := WideCharToMultiByte(CP_UTF8, 0, wide[index], -1, null, 0, null, null);
             text := cast(*u8) HeapAlloc(heap, 0, cast(u64) bytes + 1);
+
             if !text return;
             text[0] = 0;
             WideCharToMultiByte(CP_UTF8, 0, wide[index], -1, text, bytes, null, null);
             arguments[index] = text;
             index += 1;
         }
+
         arguments[count] = null;
         LocalFree(wide);
         __command_line_arguments = .{ count, arguments };

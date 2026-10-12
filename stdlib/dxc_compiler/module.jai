@@ -48,5 +48,4 @@ BSTR :: struct {}
 #import "Windows";
 #import "d3d12";
 
-
 #load "compile-helpers.jai";

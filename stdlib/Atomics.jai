@@ -7,6 +7,7 @@ atomic_read :: (pointer: *$T) -> T #expand {
 
 atomic_swap :: (dest: *$T, new_value: T) -> (old_value: T) {
     old := atomic_read(dest);
+
     while true {
         success, observed := compare_and_swap(dest, old, new_value);
         if success return old;
@@ -20,12 +21,14 @@ atomic_write :: (pointer: *$T, new_value: T) #expand {
 
 atomic_add :: (dest: *$T, to_add: $I) -> T {
     old := atomic_read(dest);
+
     while true {
         replacement := old + cast,trunc(T) to_add;
         success, observed := compare_and_swap(dest, old, replacement);
         if success return old;
         old = observed;
     }
+
     return old;
 }
 
@@ -40,6 +43,7 @@ atomic_decrement :: (dest: *$T) -> bool {
 
 atomic_and :: (dest: *$T, value: T) {
     old := atomic_read(dest);
+
     while true {
         success, observed := compare_and_swap(dest, old, old & value);
         if success return;
@@ -49,6 +53,7 @@ atomic_and :: (dest: *$T, value: T) {
 
 atomic_or :: (dest: *$T, value: T) {
     old := atomic_read(dest);
+
     while true {
         success, observed := compare_and_swap(dest, old, old | value);
         if success return;
@@ -58,6 +63,7 @@ atomic_or :: (dest: *$T, value: T) {
 
 atomic_xor :: (dest: *$T, value: $I) {
     old := atomic_read(dest);
+
     while true {
         success, observed := compare_and_swap(dest, old, old ^ cast,trunc(T) value);
         if success return;
@@ -69,11 +75,13 @@ atomic_bit_test_and_set :: (dest: *$T, $$i: s64) -> bool {
     assert(i >= 0 && i < size_of(T) * 8);
     mask := (cast(T) 1) << i;
     old := atomic_read(dest);
+
     while true {
         success, observed := compare_and_swap(dest, old, old | mask);
         if success return (old & mask) != 0;
         old = observed;
     }
+
     return false;
 }
 
@@ -90,9 +98,11 @@ compare_and_swap2 :: (dest: *void, old_value_1: $T1_64, old_value_2: $T2_64,
     new_value_1: T1_64, new_value_2: T2_64) -> bool
     #deprecated "Nobody is using this and it is currently x64-only so... yeah." {
     #assert size_of(T1_64) == 8 && size_of(T2_64) == 8;
+
     #if OS == .LINUX && CPU == .X64 {
         pair: [2] u64;
         replacement: [2] u64;
+
         memcpy(*pair, *old_value_1, 8);
         memcpy(*pair[1], *old_value_2, 8);
         memcpy(*replacement, *new_value_1, 8);
@@ -127,6 +137,7 @@ integer_for_size :: (size: s64, signed := false) -> Type, exists: bool = true #c
         if size == 4 return u32, true;
         if size == 8 return u64, true;
     }
+
     return void, false;
 }
 

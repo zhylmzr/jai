@@ -71,6 +71,7 @@ table_set :: (table: *Table, key: table.Key_Type, value: table.Value_Type) -> *t
         found.* = value;
         return found;
     }
+
     return table_add(table, key, value);
 }
 
@@ -107,22 +108,27 @@ table_find_multiple :: (table: *Table, key: table.Key_Type) -> [] table.Value_Ty
     index := (cast(int) hash) & (table.allocated - 1);
     step := _probe_stride(hash);
     visited := 0;
+
     while visited < table.allocated {
         entry := table.entries[index];
         if entry.hash == NEVER_OCCUPIED_HASH break;
+
         if entry.hash == hash && table.compare_function(entry.key, key) Basic.array_add(*output, entry.value);
         else {
             #if COUNT_COLLISIONS table.find_collisions += 1;
         }
+
         index = (index + step) & (table.allocated - 1);
         visited += 1;
     }
+
     return output;
 }
 
 table_remove :: (table: *Table, key: table.Key_Type) -> (success: bool, value: table.Value_Type) {
     index := _find_index(table, key);
     zero: table.Value_Type;
+
     if index < 0 return false, zero;
     value = table.entries[index].value;
     table.entries[index].hash = REMOVED_HASH;
@@ -134,6 +140,7 @@ table_reset :: (using table: *Table) {
     for *entry: entries entry.hash = NEVER_OCCUPIED_HASH;
     count = 0;
     slots_filled = 0;
+
     #if COUNT_COLLISIONS {
         add_collisions = 0;
         find_collisions = 0;
@@ -158,6 +165,7 @@ resize :: (using table: *Table, slots_to_allocate: s64 = 0) {
     while count * 100 >= capacity * LOAD_FACTOR_PERCENT capacity *= 2;
     previous := entries;
     replacement, base := Basic.NewArray(capacity, Entry, true,, allocator);
+
     entries = replacement;
     allocated = capacity;
     count = 0;
@@ -183,19 +191,24 @@ expand :: (table: *Table) {
 for_expansion :: (table: *$T/Table, body: Code, flags: For_Flags) #expand {
     cursor := 0;
     delta := 1;
+
     #if flags & .REVERSE {
         cursor = table.allocated - 1;
         delta = -1;
     }
+
     while cursor >= 0 && cursor < table.allocated {
         index := cursor;
+
         cursor += delta;
         if table.entries[index].hash < FIRST_VALID_HASH continue;
+
         #if flags & .POINTER {
             `it := *table.entries[index].value;
         } else {
             `it := table.entries[index].value;
         }
+
         `it_index := table.entries[index].key;
         #insert (remove = {
             table.entries[index].hash = REMOVED_HASH;
@@ -209,6 +222,7 @@ Walk_Table :: (code: Code) #expand {
     `index := (cast(int) hash) & (`table.allocated - 1);
     stride := _probe_stride(hash);
     remaining := `table.allocated;
+
     while remaining > 0 {
         `table_while_loop := `table.entries[index].hash;
         if !table_while_loop break;
@@ -237,20 +251,25 @@ _place_entry :: (table: *Table, entry: table.Entry) -> *table.Value_Type {
     index := (cast(int) entry.hash) & (table.allocated - 1);
     stride := _probe_stride(entry.hash);
     visited := 0;
+
     while visited < table.allocated {
         tag := table.entries[index].hash;
         reusable := tag == NEVER_OCCUPIED_HASH;
+
         #if table.REFILL_REMOVED reusable = reusable || tag == REMOVED_HASH;
+
         if reusable {
             table.entries[index] = entry;
             table.count += 1;
             if tag == NEVER_OCCUPIED_HASH table.slots_filled += 1;
             return *table.entries[index].value;
         }
+
         #if COUNT_COLLISIONS table.add_collisions += 1;
         index = (index + stride) & (table.allocated - 1);
         visited += 1;
     }
+
     Basic.assert(false, "hash table has no available slot");
     return null;
 }
@@ -261,6 +280,7 @@ _find_index :: (table: *Table, key: table.Key_Type) -> int {
     index := (cast(int) hash) & (table.allocated - 1);
     step := _probe_stride(hash);
     visited := 0;
+
     while visited < table.allocated {
         entry := table.entries[index];
         if entry.hash == NEVER_OCCUPIED_HASH return -1;
@@ -269,5 +289,6 @@ _find_index :: (table: *Table, key: table.Key_Type) -> int {
         index = (index + step) & (table.allocated - 1);
         visited += 1;
     }
+
     return -1;
 }

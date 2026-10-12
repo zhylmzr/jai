@@ -64,6 +64,7 @@ get_image_size :: (tf: Texture_Format, w: int, h: int) -> int, stride: int {
         if h > 0 && row_bytes > 0x7fff_ffff_ffff_ffff / h return 0, 0;
         return row_bytes * h, row_bytes;
     }
+
     block := get_image_bytes_per_block(tf);
     if !block return 0, 0;
     columns := w / 4;

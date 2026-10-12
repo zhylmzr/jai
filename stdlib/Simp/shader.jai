@@ -68,6 +68,7 @@ set_shader_for_gradient :: (rect: Vector4, mode: u8, value: float) {
     context.simp.specific.gradient_mode = mode;
     context.simp.specific.gradient_value = value;
     bind_builtin_shader(*shader_gradient);
+
     #if render_api == .OPENGL {
         gl_set_gradient(rect, mode, value);
     }
@@ -123,6 +124,7 @@ get_uniform_location :: (gl_handle: GLuint, name: string) -> GLint {
         if !gl_api return -1;
         return gl_api.glGetUniformLocation(gl_handle, temp_c_string(name));
     }
+
     return -1;
 }
 

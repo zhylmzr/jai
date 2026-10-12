@@ -1,6 +1,7 @@
 // Explicit assignments generated from authored ABI fields and current canonical GL names.
 gl_load :: (procs: *GL_Procedures, GetProcAddress: GetProcAddressFunction = null) {
     if GetProcAddress == null GetProcAddress = _gl_platform_get_proc;
+
     #if OS == .LINUX {
         __gl_swap_interval_ext = cast(type_of(__gl_swap_interval_ext)) GetProcAddress(cast(*u8) "glXSwapIntervalEXT\0");
         __gl_swap_interval_mesa = cast(type_of(__gl_swap_interval_mesa)) GetProcAddress(cast(*u8) "glXSwapIntervalMESA\0");
@@ -10,6 +11,7 @@ gl_load :: (procs: *GL_Procedures, GetProcAddress: GetProcAddressFunction = null
         if __gl_swap_interval_mesa procs.glXSwapIntervalMESA = _gl_swap_interval_mesa_compat;
         procs.glXSwapIntervalSGI = cast(type_of(procs.glXSwapIntervalSGI)) GetProcAddress(cast(*u8) "glXSwapIntervalSGI\0");
     }
+
     #if !(OS == .WINDOWS || OS == .MACOS || OS == .LINUX) {
         procs.glCullFace = cast(type_of(procs.glCullFace)) GetProcAddress(cast(*u8) "glCullFace\0");
     }
@@ -193,6 +195,7 @@ gl_load :: (procs: *GL_Procedures, GetProcAddress: GetProcAddressFunction = null
     #if !(OS == .WINDOWS || OS == .MACOS) {
         procs.glIsTexture = cast(type_of(procs.glIsTexture)) GetProcAddress(cast(*u8) "glIsTexture\0");
     }
+
     procs.glDrawRangeElements = cast(type_of(procs.glDrawRangeElements)) GetProcAddress(cast(*u8) "glDrawRangeElements\0");
     procs.glTexImage3D = cast(type_of(procs.glTexImage3D)) GetProcAddress(cast(*u8) "glTexImage3D\0");
     procs.glTexSubImage3D = cast(type_of(procs.glTexSubImage3D)) GetProcAddress(cast(*u8) "glTexSubImage3D\0");
@@ -856,6 +859,7 @@ gl_load :: (procs: *GL_Procedures, GetProcAddress: GetProcAddressFunction = null
     procs.glDepthBoundsdNV = cast(type_of(procs.glDepthBoundsdNV)) GetProcAddress(cast(*u8) "glDepthBoundsdNV\0");
     raw_version := procs.glGetString(GL_VERSION);
     major, minor := gl_parse_version(_gl_string(raw_version));
+
     procs.gl_version_major = major;
     procs.gl_version_minor = minor;
     procs.GL_VERSION_1_0 = major > 1 || (major == 1 && minor >= 0);

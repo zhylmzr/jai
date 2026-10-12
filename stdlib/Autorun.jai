@@ -20,6 +20,7 @@ message :: (_p: *Plugin, message: *Compiler.Message) {
 // Runs at the very end, after the executable has been written.
 shutdown :: (_p: *Plugin) {
     runner := cast(*Runner) _p;
+
     defer free(runner);
 
     executable, why_not := executable_to_run(runner);
@@ -29,6 +30,7 @@ shutdown :: (_p: *Plugin) {
     }
 
     command: [..] string;
+
     defer array_free(command);
     for LAUNCHER_COMMAND array_add(*command, it);
     array_add(*command, executable);
@@ -61,6 +63,7 @@ executable_to_run :: (runner: *Runner) -> path: string, reason: string {
 
     name := tprint("%1%2", options.output_executable_name, OUTPUT_EXECUTABLE_EXTENSION);
     directory := options.output_path;
+
     if !directory return tprint("./%", name), "";
 
     // A directory from the command line has no trailing separator; one the compiler
@@ -72,6 +75,7 @@ executable_to_run :: (runner: *Runner) -> path: string, reason: string {
 
 complain_if_unsuccessful :: (result: Process.Process_Result) {
     text: string;
+
     if result.type == {
         case .EXITED;
             if result.exit_code == 0 return;
@@ -83,5 +87,6 @@ complain_if_unsuccessful :: (result: Process.Process_Result) {
         case;
             text = tprint("[Autorun] Unexpected process state: %", result);
     }
+
     Compiler.compiler_report(text);
 }

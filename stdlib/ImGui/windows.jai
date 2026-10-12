@@ -2779,7 +2779,6 @@ ModFlags :: enum_flags s32 {
 
 imgui :: #system_library "imgui";
 
-
 #scope_file
 ImGui_String_Memory :: #import "Basic";
 

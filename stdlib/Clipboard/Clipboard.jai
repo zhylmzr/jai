@@ -29,6 +29,7 @@
         defer W.GlobalUnlock(handle);
         maximum := clipboard_global_size(handle) / 2;
         length: u64;
+
         while length < maximum && pointer[length] != 0 length += 1;
         if length == maximum return "";
         return os_wide_to_utf8(pointer, xx length, temporary = false);
@@ -37,6 +38,7 @@
     os_clipboard_set_text :: (hwnd: W.HWND, text: string) {
         wide := os_utf8_to_wide(text);
         count: s64;
+
         while wide[count] != 0 count += 1;
         memory := W.GlobalAlloc(2, xx ((count + 1) * 2));
         if !memory return;
@@ -45,6 +47,7 @@
             clipboard_global_free(memory);
             return;
         }
+
         memcpy(pointer, wide, (count + 1) * 2);
         W.GlobalUnlock(memory);
         if !publish_windows(hwnd, 13, memory) clipboard_global_free(memory);
@@ -67,6 +70,7 @@
             clipboard_global_free(memory);
             return;
         }
+
         memcpy(pointer, dib.data, dib.count);
         W.GlobalUnlock(memory);
         if !publish_windows(hwnd, 8, memory) clipboard_global_free(memory);
@@ -87,20 +91,25 @@
 } else #if OS == .MACOS {
     os_clipboard_get_text :: () -> string {
         pool := clipboard_autorelease_pool();
+
         defer objc_clear(pool, clipboard_selector("drain"));
         board := clipboard_board();
         value := objc_one(board, clipboard_selector("stringForType:"), clipboard_nsstring("public.utf8-plain-text"));
+
         if !value return "";
         count := objc_encoding_length(value, clipboard_selector("lengthOfBytesUsingEncoding:"), 4);
         bytes := cast(*u8) objc_zero(value, clipboard_selector("UTF8String"));
+
         if !bytes return "";
         return copy_string(string.{ xx count, bytes });
     }
 
     os_clipboard_set_text :: (text: string) {
         pool := clipboard_autorelease_pool();
+
         defer objc_clear(pool, clipboard_selector("drain"));
         board := clipboard_board();
+
         objc_clear(board, clipboard_selector("clearContents"));
         objc_two_bool(board, clipboard_selector("setString:forType:"), clipboard_nsstring(text), clipboard_nsstring("public.utf8-plain-text"));
     }
@@ -113,12 +122,14 @@
 
     os_clipboard_set_bitmap :: (width: s32, height: s32, pixels: *u8, channels: s32, flip := false) {
         pool := clipboard_autorelease_pool();
+
         defer objc_clear(pool, clipboard_selector("drain"));
         bmp, valid := make_bmp(width, height, pixels, channels, flip);
         if !valid return;
         defer free(bmp);
         data := objc_bytes(clipboard_class("NSData"), clipboard_selector("dataWithBytes:length:"), bmp.data, xx bmp.count);
         board := clipboard_board();
+
         objc_clear(board, clipboard_selector("clearContents"));
         objc_two_bool(board, clipboard_selector("setData:forType:"), data, clipboard_nsstring("com.microsoft.bmp"));
     }
@@ -160,8 +171,10 @@
     os_clipboard_get_text :: () -> string {
         arguments: [3] string = .["wl-paste", "--no-newline", ""];
         status, out, err, timeout := Processes.run_command(..slice_array(arguments, 0, 2), capture_and_return_output = true);
+
         if status.type == .EXITED && status.exit_code == 0 return copy_string(out);
         x_arguments: [4] string = .["xclip", "-selection", "clipboard", "-o"];
+
         status, out, err, timeout = Processes.run_command(..x_arguments, capture_and_return_output = true);
         if status.type == .EXITED && status.exit_code == 0 return copy_string(out);
         return "";
@@ -187,6 +200,7 @@
         arguments: [3] string = .["wl-copy", "--type", "image/bmp"];
         if clipboard_send(arguments, bmp) return;
         fallback: [5] string = .["xclip", "-selection", "clipboard", "-t", "image/bmp"];
+
         clipboard_send(fallback, bmp);
     }
 
@@ -202,8 +216,10 @@
             if !success || count == 0 return false;
             offset += count;
         }
+
         Processes.deinit(*process.input);
         success, result := Processes.get_process_result(*process, 5000);
+
         return success && result.type == .EXITED && result.exit_code == 0;
     }
 
@@ -242,6 +258,7 @@ make_dib :: (width: s32, height: s32, pixels: *u8, channels: s32, flip: bool) ->
     if pitch > (0xffff_ffff - 40) / cast(s64) height return "", false;
     count := pitch * height + 40;
     bytes := cast(*u8) alloc(count);
+
     if !bytes return "", false;
     memset(bytes, 0, count);
     write_le32(bytes, 40);
@@ -250,9 +267,11 @@ make_dib :: (width: s32, height: s32, pixels: *u8, channels: s32, flip: bool) ->
     bytes[12] = 1;
     bytes[14] = 24;
     write_le32(bytes + 20, xx (pitch * height));
+
     for y: 0..height - 1 {
         source_y := height - y - 1;
         if flip source_y = y;
+
         for x: 0..width - 1 {
             source := pixels + (cast(s64) source_y * width + x) * channels;
             output := bytes + 40 + y * pitch + x * 3;
@@ -261,6 +280,7 @@ make_dib :: (width: s32, height: s32, pixels: *u8, channels: s32, flip: bool) ->
             output[2] = source[0];
         }
     }
+
     return .{ count, bytes }, true;
 }
 

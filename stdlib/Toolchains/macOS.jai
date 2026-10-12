@@ -39,10 +39,12 @@ get_macos_sdk_path :: () -> string, bool {
 
     result, output := run_command("xcrun", "--show-sdk-path", capture_and_return_output = true);
     path := trim(output);
+
     if result.exit_code != 0 || !path {
         log_error("Could not determine the macOS SDK path with xcrun (exit code %). Set MACOS_SDK_PATH.", result.exit_code);
         return "", false;
     }
+
     cached_macos_sdk_path = copy_string(path);
     return cached_macos_sdk_path, true;
 }

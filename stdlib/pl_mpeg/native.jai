@@ -207,6 +207,7 @@ buffer_state :: (object: *Buffer) -> *Buffer_State {
         if entry.public == object return entry;
         entry = entry.next;
     }
+
     assert(false, "Object was not created by the pl_mpeg bridge");
     return null;
 }
@@ -224,8 +225,10 @@ wrap_buffer :: (native: *Native_Buffer, owner: *void = null) -> *Buffer {
             pull_buffer(entry);
             return entry.public;
         }
+
         entry = entry.next;
     }
+
     entry = New(Buffer_State);
     entry.public = New(Buffer);
     entry.native = native;
@@ -270,6 +273,7 @@ push_buffer :: (entry: *Buffer_State) {
     if !entry.backing target.free_when_done = cast(s32) source.free_when_done;
     target.bytes = source.bytes;
     target.mode = cast(s32) source.mode;
+
     if source.load_callback == default_buffer_load {
         raw_plm_buffer_set_load_callback(target, entry.default_callback, entry.default_user);
     } else if source.load_callback {
@@ -287,6 +291,7 @@ forget_buffer :: (object: *Buffer) {
             free(entry, entry.creator.allocator);
             return;
         }
+
         link = *entry.next;
     }
 }
@@ -297,6 +302,7 @@ demux_state :: (object: *Demux) -> *Demux_State {
         if entry.public == object return entry;
         entry = entry.next;
     }
+
     assert(false, "Object was not created by the pl_mpeg bridge");
     return null;
 }
@@ -314,8 +320,10 @@ wrap_demux :: (native: *Native_Demux, owner: *void = null) -> *Demux {
             pull_demux(entry);
             return entry.public;
         }
+
         entry = entry.next;
     }
+
     entry = New(Demux_State);
     entry.public = New(Demux);
     entry.native = native;
@@ -350,6 +358,7 @@ pull_demux :: (entry: *Demux_State) {
 push_demux :: (entry: *Demux_State) {
     source := entry.public;
     target := entry.native;
+
     if source.buffer push_buffer(buffer_state(source.buffer));
     target.buffer = native_buffer(source.buffer);
     target.system_clock_ref = source.system_clock_ref;
@@ -377,6 +386,7 @@ forget_demux :: (object: *Demux) {
             free(entry, entry.creator.allocator);
             return;
         }
+
         link = *entry.next;
     }
 }
@@ -387,6 +397,7 @@ video_state :: (object: *Video) -> *Video_State {
         if entry.public == object return entry;
         entry = entry.next;
     }
+
     assert(false, "Object was not created by the pl_mpeg bridge");
     return null;
 }
@@ -404,8 +415,10 @@ wrap_video :: (native: *Native_Video, owner: *void = null) -> *Video {
             pull_video(entry);
             return entry.public;
         }
+
         entry = entry.next;
     }
+
     entry = New(Video_State);
     entry.public = New(Video);
     entry.native = native;
@@ -509,6 +522,7 @@ forget_video :: (object: *Video) {
             free(entry, entry.creator.allocator);
             return;
         }
+
         link = *entry.next;
     }
 }
@@ -519,6 +533,7 @@ audio_state :: (object: *Audio) -> *Audio_State {
         if entry.public == object return entry;
         entry = entry.next;
     }
+
     assert(false, "Object was not created by the pl_mpeg bridge");
     return null;
 }
@@ -536,8 +551,10 @@ wrap_audio :: (native: *Native_Audio, owner: *void = null) -> *Audio {
             pull_audio(entry);
             return entry.public;
         }
+
         entry = entry.next;
     }
+
     entry = New(Audio_State);
     entry.public = New(Audio);
     entry.native = native;
@@ -611,6 +628,7 @@ forget_audio :: (object: *Audio) {
             free(entry, entry.creator.allocator);
             return;
         }
+
         link = *entry.next;
     }
 }
@@ -621,6 +639,7 @@ plm_state :: (object: *Plm) -> *Plm_State {
         if entry.public == object return entry;
         entry = entry.next;
     }
+
     assert(false, "Object was not created by the pl_mpeg bridge");
     return null;
 }
@@ -638,8 +657,10 @@ wrap_plm :: (native: *Native_Plm, owner: *void = null) -> *Plm {
             pull_plm(entry);
             return entry.public;
         }
+
         entry = entry.next;
     }
+
     entry = New(Plm_State);
     entry.public = New(Plm);
     entry.native = native;
@@ -675,6 +696,7 @@ pull_plm :: (entry: *Plm_State) {
 push_plm :: (entry: *Plm_State) {
     source := entry.public;
     target := entry.native;
+
     if source.video_decode_callback raw_plm_set_video_decode_callback(target, native_video_callback, entry);
     else raw_plm_set_video_decode_callback(target, null, null);
     if source.audio_decode_callback raw_plm_set_audio_decode_callback(target, native_audio_callback, entry);
@@ -711,6 +733,7 @@ forget_plm :: (object: *Plm) {
             free(entry, entry.creator.allocator);
             return;
         }
+
         link = *entry.next;
     }
 }
@@ -772,9 +795,11 @@ file_load_callback :: (native: *Native_Buffer, user: *void) #c_call {
     push_context entry.creator {
         raw_plm_buffer_discard_read_bytes(native);
         bytes := cast(*u8) alloc(BUFFER_DEFAULT_SIZE);
+
         assert(bytes != null);
         defer free(bytes);
         success, received := file_read_checked(entry.public.fh, bytes, BUFFER_DEFAULT_SIZE);
+
         assert(success);
         if received != 0 raw_plm_buffer_write(native, bytes, cast(u64) received);
         else raw_plm_buffer_signal_end(native);
@@ -814,18 +839,21 @@ release_owned_shadows :: (owner: *void) {
         if buffer_entry.owner == owner forget_buffer(buffer_entry.public);
         buffer_entry = next;
     }
+
     video_entry := video_states;
     while video_entry {
         next := video_entry.next;
         if video_entry.owner == owner forget_video(video_entry.public);
         video_entry = next;
     }
+
     audio_entry := audio_states;
     while audio_entry {
         next := audio_entry.next;
         if audio_entry.owner == owner forget_audio(audio_entry.public);
         audio_entry = next;
     }
+
     demux_entry := demux_states;
     while demux_entry {
         next := demux_entry.next;
@@ -950,6 +978,7 @@ public_callback_user :: (native_user: *void) -> *void {
         if entry.native == native_user return entry.public;
         entry = entry.next;
     }
+
     return native_user;
 }
 
