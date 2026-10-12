@@ -746,8 +746,8 @@ print_enum_body :: (builder: *String_Builder, e: *Enum) {
     append(builder, " {\n");
 
     context.generator.tab_depth += 1;
-    printed_values := print_enum_values(builder, e);
-    if e.flags & .ALIAS_ORIGINAL_NAMES print_enum_aliases(builder, e, printed_values);
+    printed_values, last_value := print_enum_values(builder, e);
+    if e.flags & .ALIAS_ORIGINAL_NAMES print_enum_aliases(builder, e, printed_values, last_value);
     context.generator.tab_depth -= 1;
 
     append_indentation(builder);
@@ -755,13 +755,16 @@ print_enum_body :: (builder: *String_Builder, e: *Enum) {
 }
 
 // One `NAME :: value;` line per value that has a name, the names padded to a common width.
-// Returns whether there was any.
-print_enum_values :: (builder: *String_Builder, e: *Enum) -> bool {
+// Comments on values are not carried over (only the blank lines around them, with spacing
+// mimicked). Returns whether there was any.
+print_enum_values :: (builder: *String_Builder, e: *Enum) -> bool, Location {
     width := 0;
     for e.enumerates {
         if !(it.decl_flags & .OMIT_FROM_OUTPUT) width = max(width, it.output_name.count);
     }
     signed := is_signed_storage(e.type);
+    storage := strip_type(e.type, typedefs = true);
+    storage_bytes := ifx storage then storage.size else 0;
     hex := (e.flags & .VALUES_IN_HEX) != 0;
     keep_blank_lines := (e.flags & .MIMIC_SPACING) != 0;
 
@@ -776,10 +779,6 @@ print_enum_values :: (builder: *String_Builder, e: *Enum) -> bool {
         }
         maybe_add_spacing(builder, *previous, it.location, 0, keep_blank_lines);
         append_indentation(builder);
-        has_comment := it.comment.text.count > 0;
-        comment_above := has_comment && is_prefix_comment(it.comment);
-        if comment_above print_comment_prefix(builder, it.comment, false);
-
         append_padded(builder, it.output_name, width);
         append(builder, " :: ");
         // A value from a macro keeps its expression text.
@@ -787,28 +786,42 @@ print_enum_values :: (builder: *String_Builder, e: *Enum) -> bool {
         if value.kind != .LITERAL print_expression_to_builder(builder, it.expression);
         else if value.literal_kind == .MACRO append(builder, value.raw_value);
         else if signed append_integer(builder, value.int_value, hex);
-        else append_integer(builder, cast,no_check(u64) value.int_value, hex);
-        append(builder, ";");
-        if has_comment && !comment_above print_to_builder(builder, " %", it.comment.text);
-        append(builder, "\n");
+        else if value.int_value < 0 && storage_bytes > 0 && storage_bytes < 8 {
+            // A negative C value in an enum made unsigned: its bits in the enum's width, in hex.
+            mask := (cast(u64) 1 << cast(u64) (storage_bytes * 8)) - 1;
+            bits := (cast,no_check(u64) value.int_value) & mask;
+            digits := tprint("%", formatInt(bits, base = 16));
+            append(builder, "0x");
+            for digits {
+                if it_index > 0 && (digits.count - it_index) % 4 == 0 append(builder, "_");
+                append(builder, slice(digits, it_index, 1));
+            }
+        } else append_integer(builder, cast,no_check(u64) value.int_value, hex);
+        append(builder, ";\n");
         count += 1;
     }
-    return count > 0;
+    return count > 0, previous;
 }
 
-// `C_NAME :: NAME;` for each renamed value, after a blank line when values precede them.
-print_enum_aliases :: (builder: *String_Builder, e: *Enum, after_values: bool) {
+// `C_NAME :: NAME;` for each renamed value. They follow the values after a blank line, or
+// (with spacing mimicked) as far apart as the first of them lay from the last value, then
+// from each other as their values did.
+print_enum_aliases :: (builder: *String_Builder, e: *Enum, after_values: bool, last_value: Location) {
     width := 0;
     for e.enumerates {
         if it.name != it.output_name && !(it.decl_flags & .OMIT_FROM_OUTPUT) width = max(width, it.name.count);
     }
-    need_gap := after_values;
+    keep_blank_lines := (e.flags & .MIMIC_SPACING) != 0;
+    // Values without a place in a file cannot be compared: a plain blank line then.
+    need_gap := after_values && (!keep_blank_lines || !last_value.file);
+    previous := last_value;
     for e.enumerates {
         if !it.output_name || it.name == it.output_name || (it.decl_flags & .OMIT_FROM_OUTPUT) continue;
         if need_gap {
             append(builder, "\n");
             need_gap = false;
         }
+        maybe_add_spacing(builder, *previous, it.location, 0, keep_blank_lines);
         append_indentation(builder);
         append_padded(builder, it.name, width);
         print_to_builder(builder, " :: %;\n", it.output_name);
@@ -1161,8 +1174,13 @@ print_struct_body :: (builder: *String_Builder, s: *Struct, as_type: bool, part 
         printed = true;
     }
 
-    append(builder, "\n");
     context.generator.tab_depth -= 1;
+    // A struct with nothing in it closes on the same line: `S :: struct {}`.
+    if !printed {
+        append(builder, "}");
+        return;
+    }
+    append(builder, "\n");
     append_indentation(builder);
     append(builder, "}");
 }

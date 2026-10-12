@@ -33,7 +33,7 @@ jaic check generate.jai -os linux   # generators for another OS's headers
 1. `generate_bindings` (`generate.jai`) builds a `Generator_State` (stored in `context.generator`, options in `context.generator_options`), resolves the requested libraries, and asks libclang to parse a synthetic `generate_temp.h` that `#include`s each entry of `source_files`.
 2. `convert.jai` walks the translation unit and builds the declaration model of `types.jai` (`Declaration`, `Function`, `Struct`, `Enum`, `Typedef`, `Namespace`, `Bitfield`, `CType`, `Literal`...). Declarations from system headers are skipped unless `path_fragments_to_treat_as_non_system_paths` or `system_types_to_include` whitelist them; types declared in system headers are referred to by name (see "System types" below), except the builtin integer typedefs (`uint32_t`, `size_t`...), which become primitives. Macros are kept only when their body is a constant expression over literals and already-known constants.
 3. `post_process` converts macros to enums (`generate_enums_from_macros_with_prefixes`), assigns functions to libraries, then the user `visitor` runs over every declaration (it may set `decl_flags`, rename `output_name`, swap types, add default values), followed by `omit_unnecessary_typedefs_and_macros`.
-4. `print.jai` prints the model. Enum values are prefix-stripped (`auto_detect_enum_prefixes`), original names stay as aliases, unions print as `union`, bit fields as a `__bitfield` storage member plus `S_get_x`/`S_set_x` accessors (see "Bit fields"), C++ reference parameters become pointers with a value-taking `#no_context` wrapper when they have defaults, and printf-like variadics get a `_CFormat` foreign declaration plus a Jai `string` wrapper.
+4. `print.jai` prints the model. Enum values are prefix-stripped (`auto_detect_enum_prefixes`, see "Enum output rules"), original names stay as aliases, an empty struct prints as `struct {}`, unions print as `union`, bit fields as a `__bitfield` storage member plus `S_get_x`/`S_set_x` accessors (see "Bit fields"), C++ reference parameters become pointers with a value-taking `#no_context` wrapper when they have defaults, and printf-like variadics get a `_CFormat` foreign declaration plus a Jai `string` wrapper.
 
 Library assignment: each `libraries` / `libnames` entry is located (search paths, then `lib` prefix and `.dylib/.so/.dll/.lib/.a` suffixes) and its exported symbols read with `nm -g`. A function binds to the first library exporting its symbol. A library file that can't be found is "unknown": unresolved functions go to the first unknown library with a logged note. With `SYMBOLS_WITH_UNKNOWN_FOREIGN_LIBS` in `strip_flags`, a function found in no library is stripped instead.
 
@@ -153,7 +153,7 @@ When clang puts a member at an offset its natural alignment would not give (`#pr
 
 - A function whose printed name is not its C symbol (`name_CFormat`, a name shortened by `strip_prefixes`, or a Jai keyword escaped with `_`) names the symbol in its `#foreign` directive; C++ functions always do, with the mangled name (`append_elsewhere` in `print.jai`).
 - Unnamed parameters print as `unknown0`, `unknown1`... (the `Declaration.name` stays empty; only `output_name` is set).
-- A comment starting on an earlier line than the declaration, or spanning several lines, is printed before it; a one-line comment on the same line goes after it (`is_prefix_comment`). The bridge op `comment_line` gives the comment's first line.
+- A comment starting on an earlier line than the declaration, or spanning several lines, is printed before it; a one-line comment on the same line goes after it (`is_prefix_comment`). Enum values are the exception: their comments are dropped. The bridge op `comment_line` gives the comment's first line.
 - Character macros (`#define SEP '%'`) become `#char "%"`.
 - Macros whose value names an enum constant are dropped (C enum constants are not top-level names in Jai). Inside `generate_enums_from_macros_with_prefixes` enums, references to other enums' values are rewritten (`V`, `Enum.V` or `xx Enum.V`; `rewrite_enum_macro_references`).
 - `(T)(-1)` style casts print as `cast,trunc(T) -1`; `extern const` variables print as `#elsewhere`; `extern "C" { ... }` blocks are walked (`LINKAGE_SPEC`).
@@ -201,6 +201,16 @@ When clang puts a member at an offset its natural alignment would not give (`#pr
 | Include guards and `TOKENS_TO_REPLACE`-style preprocessing tweaks | Missing | Not needed by any generator in the corpus |
 | 128-bit integers | Partial | `__int128` prints as Basic's `S128`/`U128` |
 
+### Enum output rules
+
+Checked against the pinned bindings of the corpus (jai-tracy, sgpu's Slang, renderdoc and Vulkan_With_VMA, Vk-Engine's ImGui and Vulkan): the 721 enums those generators produce are identical to the pinned files, and the rules below are what made them so.
+
+- **Value prefix** (`detect_value_prefix`, `ends_word_in_all` in `convert.jai`): `auto_detect_enum_prefixes` drops the longest start every value shares, as long as it ends a word in every name. A word ends at an `_` (`KEY_UP`, `KEY_DOWN`) or, for camel case, where a lower case letter or digit is followed by a capital in every name and the start is longer than one letter (`TracyPlotFormatNumber`, `TracyPlotFormatWatt` lose `TracyPlotFormat`). `Digit1`/`Digit2` keep their names. A start that would leave a name beginning with a digit gets an `_` (`_0_0`).
+- **Aliases**: each renamed value gets `C_NAME :: NAME;` after the values (`alias_original_enum_names`). With spacing mimicked, the first alias is separated from the last value as far apart as the first alias was from it in the header, and each alias from the one before as their values were, so a one-line enum has no blank line before its aliases and a multi-line one has.
+- **Comments** on values are not printed, only the blank lines they leave between values (`print_enum_values`).
+- **Underlying type**: libclang's type for the enum. On a `os = .WINDOWS` target an enum with no `: type` whose values fit an `int` is `s32` whatever the host's clang says (MSVC's rule; `has_fixed_underlying_type` looks for the colon). The pinned jai-tracy file was generated on Windows, which is why a macOS or Linux run of its `generate.jai` prints `u32`.
+- **Negative values in an unsigned enum** (a generator that retypes enums to `u32`, as the Vulkan ones do) print as the value's bits in the enum's width, in hex with a `_` every four digits: `0xffff_ffff`.
+
 ### Enum values and libraries
 
 `Enum.enumerates` is a `[..] *Declaration`. Each value is a constant declaration (`decl_flags` has `IS_CONST`) whose `parent` is the enum and whose `expression` is a `Literal`:
@@ -224,7 +234,7 @@ Generators written for the older value-type API (`*Enum.Enumerate`, `for * enume
 
 `Library_Info.identifier` is the name the bindings give a library (`libvulkan :: #library ...`, `#foreign libvulkan`); `name` is its file name without directory or extension. `will_print_bindings` may rename one: `context.generator.libraries[0].identifier = "libvulkan";` (sgpu).
 
-Tests: `tests/stdlib/bindings-generator-declaration-api.jai`.
+Tests: `tests/stdlib/bindings-generator-declaration-api.jai`, and `tests/stdlib/bindings-generator-enum-names.jai` for the enum output rules.
 
 `tests/stdlib/bindings-generator-parity.jai` pins the output rules above (system types, `unknownN`, comments, char macros, enum macro rewriting, casts, packed `#align`, `long double`) for C and C++.
 

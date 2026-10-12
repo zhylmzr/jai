@@ -1989,6 +1989,15 @@ create_enum :: (c: Cursor) -> *Enum {
 
     int_type := clang("enum_int_type", key);
     e.type = create_type(int_type, key);
+    if context.generator_options.os == .WINDOWS && !is_signed_storage(e.type) && e.type.size == 4 && !e.type.type_of_typedef && !has_fixed_underlying_type(key) {
+        // MSVC gives an enum without a stated type `int` when its values fit, whichever
+        // way the host's clang would have typed it.
+        fits := true;
+        for get_children(key) {
+            if cursor_kind(it) == .ENUM_CONSTANT_DECL && clang("enum_uvalue", it) > 0x7fff_ffff fits = false;
+        }
+        if fits e.type = g.type_def_s32;
+    }
     if context.generator_options.alias_original_enum_names e.flags |= .ALIAS_ORIGINAL_NAMES;
     if options_mimic_enums() e.flags |= .MIMIC_SPACING;
 
@@ -2008,6 +2017,15 @@ create_enum :: (c: Cursor) -> *Enum {
     }
     if e.name compute_enum_names(e, false);
     return e;
+}
+
+// `enum E : unsigned char { ... }`: a colon between the name and the brace.
+has_fixed_underlying_type :: (enum_cursor: Cursor) -> bool {
+    for tokens_of(enum_cursor) {
+        if it.spelling == "{" return false;
+        if it.spelling == ":" return true;
+    }
+    return false;
 }
 
 // A value of `e`, ready to be added to `e.enumerates`; `value` is its `Literal`.
@@ -2070,7 +2088,7 @@ compute_enum_names :: (e: *Enum, already_stripped := false) {
     avoid_name_clash(*context.generator.anon_declarations, e);
 }
 
-// The longest start up to and including an `_` that every value name has, leaving each name
+// The longest start, ending at a word boundary, that every value name has, leaving each name
 // at least one character. Nothing when a value began with the enum's name: then
 // `strip_enum_prefixes` has already removed the prefix that matters.
 detect_value_prefix :: (e: *Enum) -> string {
@@ -2089,9 +2107,24 @@ detect_value_prefix :: (e: *Enum) -> string {
         while same < limit && shared[same] == it.output_name[same] same += 1;
         shared.count = same;
     }
-    // Only whole words: cut back to the last underscore.
-    shared.count = find_index_from_right(shared, #char "_") + 1;
+    // Only whole words: cut back to where a word ends in every name.
+    while shared.count > 0 && !ends_word_in_all(e, shared.count) shared.count -= 1;
     return shared;
+}
+
+// Does every value name of `e` have a word boundary `length` characters in? Either the
+// prefix ends in `_`, or (`TracyPlotFormatNumber`, `TracyPlotFormatWatt`) a lower case letter
+// or digit is followed by a capital in each name and the prefix is longer than one letter.
+ends_word_in_all :: (e: *Enum, length: int) -> bool {
+    first := e.enumerates[0].output_name;
+    if first[length - 1] == #char "_" return true;
+    if length < 2 return false;
+    previous := first[length - 1];
+    if !((previous >= #char "a" && previous <= #char "z") || is_digit(previous)) return false;
+    for e.enumerates {
+        if it.output_name.count <= length || !(it.output_name[length] >= #char "A" && it.output_name[length] <= #char "Z") return false;
+    }
+    return true;
 }
 
 // ----------------------------------------------------------------------------
