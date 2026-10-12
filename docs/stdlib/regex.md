@@ -114,14 +114,7 @@ cargo build --release --manifest-path tools/regex_oracle/Cargo.toml
 python3 tools/gen_regex_corpus.py --oracle tools/regex_oracle/target/release/regex-oracle
 ```
 
-Rough native throughput (`-O2`, Apple M-series, 16 MB of mixed ASCII and Unicode text):
-
-| Pattern | Speed |
-| --- | --- |
-| DFA-only patterns such as `\w+@\w+\.com` or `\p{Greek}+` | 400–600 MB/s |
-| A literal with no match | about 1 GB/s |
-| Typed `captures_all` of a one-pass pattern (dates) | about 200 MB/s (150 with the backtracker) |
-| `\b\w+\b` (Pike VM at non-ASCII bytes) | about 20 MB/s |
+Throughput (`-O2`, Apple M5, 16 MB of mixed ASCII and Unicode text): about 450-1,000 MB/s for DFA-bound patterns such as `\w+@\w+\.com`, `\p{Greek}+` or a literal, 1.4 GB/s for a literal with no match, about 600 MB/s for typed `captures_all` of dates, and about 50 MB/s for `\b\w+\b` (Pike VM at non-ASCII bytes). That is the speed of Rust's dense DFA without its prefilters, and well below the SIMD prefilters in Rust `regex`, PCRE2 and Hyperscan on sparse matches. The [regex benchmark](../tools/regex-benchmark.md) compares eight engines and records the numbers in `benchmarks/results/regex.md`.
 
 ## Dependencies
 
