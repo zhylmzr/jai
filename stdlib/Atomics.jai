@@ -78,7 +78,7 @@ atomic_bit_test_and_set :: (dest: *$T, $$i: s64) -> bool {
 }
 
 IsAtomicScalar :: (T: Type) -> bool #compile_time {
-    bytes := size_of(T);
+    bytes := type_info(T).runtime_size;
     if bytes != 1 && bytes != 2 && bytes != 4 && bytes != 8 return false;
     info := type_info(T);
     while info.type == .VARIANT info = (cast(*Type_Info_Variant) info).variant_of;
