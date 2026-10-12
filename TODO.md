@@ -20,10 +20,8 @@ Work we know about but haven't done yet. Remove an item when it lands (or move i
 
 ## Extensions
 
-- **Add portable SIMD (`Extensions/SIMD`).**
-  - Type-safe: check at compile time that operations are valid, and pick the best lanes and layout.
-  - Runtime feature detection is a requirement.
-  - For type-safe API inspiration, look at `fearless_simd` and `std::simd` (Rust) and `std::experimental::simd` (C++).
+- **SIMD follow-ups.** `Extensions/SIMD` and `Extensions/Byte_Search` exist (docs/stdlib/simd.md).
+  - Runtime CPU feature detection, with procedures compiled for several targets (AVX2, AVX-512).
   - Dogfood on chess-jai: it hand-writes SSE with a CPU fallback. Rewrite those parts with portable SIMD and benchmark them.
 
 ## Later
