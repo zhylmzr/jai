@@ -2,7 +2,7 @@
 
 ## What it is
 
-`#import "Extensions/Io";` gives cooperative fibers on a per-thread scheduler: `io_run`, `spawn`, `yield`, `sleep`, `cancel`, a bounded `Channel(T)`, `Wait_Group` and `Fiber_Mutex`. A jaic extension. IO (sockets, files) will plug into the same scheduler later; milestone 2 of [the async IO plan](../plans/async-io.md) is fibers only. It builds on the [fiber intrinsics](../compiler/fibers.md) and is a compile error on wasm.
+`#import "Extensions/Io";` gives cooperative fibers on a per-thread scheduler: `io_run`, `spawn`, `yield`, `sleep`, `cancel`, a bounded `Channel(T)`, `Wait_Group` and `Fiber_Mutex`. A jaic extension. Sockets, files, deadlines and name lookups run on the same scheduler through a completion engine: see [the Io engine](io-engine.md). It builds on the [fiber intrinsics](../compiler/fibers.md) and is a compile error on wasm.
 
 ```jai
 Io :: #import "Extensions/Io";
@@ -20,7 +20,7 @@ main :: () {
 
 - Each fiber has an own stack from `mmap`/`VirtualAlloc` with a guard page (`STACK_BYTES`, 256 KiB). Stacks of finished fibers are pooled up to `POOL_LIMIT`.
 - The scheduler lives in `context.io_scheduler` (the language has no thread-locals) and runs on the OS thread's own stack. `io_run(proc)` starts a root fiber and returns when it returns, canceling and draining the rest. A fiber belongs to the thread that spawned it.
-- Ready queue, plus a timer min-heap. When nothing is ready the thread sleeps until the next timer (`wait_step`/`engine_wait` is the internal point an IO engine will replace). Nothing ready, no timers and nothing pending prints a deadlock message and exits 1.
+- Ready queue, plus a timer min-heap. When nothing is ready the thread sleeps until the next timer (`wait_step` calls `engine_wait`, which waits on the [IO engine](io-engine.md) with that timeout). Nothing ready, no timers and nothing pending prints a deadlock message and exits 1.
 - Blocking calls (`sleep`, `recv`, `send`, `wait`, `lock`, `yield`) return an `Io_Error`: `.NONE`, `.CANCELED` after `cancel(handle)` (sticky for that fiber, see `is_canceled()`), or `.CLOSED` for a closed channel. Waiters sit in intrusive lists on the blocked fiber's stack.
 - Each fiber gets a copy of the spawner's `context` with its own temporary storage (`TEMPORARY_BYTES`, reset when the fiber ends).
 - `Fiber_Handle` carries a generation, so a stale handle (to a finished, reused fiber) is ignored by `cancel`.
