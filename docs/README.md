@@ -111,6 +111,7 @@ The clean-room `stdlib/`. Contributors must not read the source of an official J
 - [Regex: regular expressions with compile-time typed patterns (jaic extension)](stdlib/regex.md)
 - [Json: typed JSON generated at compile time (jaic extension)](stdlib/json.md)
 - [Http: the HTTP/1 codec, strict and sans-IO (jaic extension)](stdlib/http-codec.md)
+- [Tls: TLS 1.2 and 1.3 over Io readers and writers on mbedTLS, system trust per OS (jaic extension)](stdlib/tls.md)
 - [Http server: routes, extractors checked at compile time, middleware, graceful shutdown (jaic extension)](stdlib/http-server.md)
 - [Http client: requests that return a response, body readers, a connection pool, redirects and timeouts (jaic extension)](stdlib/http-client.md)
 - [Http testing: a client wired to an App in memory, expectations with readable failures, a small test runner (jaic extension)](stdlib/http-testing.md)

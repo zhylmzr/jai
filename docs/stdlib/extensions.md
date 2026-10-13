@@ -24,6 +24,7 @@ A program imports them by path, so the import itself says the code is jaic-only:
 | `WebGPU` | `#import "Extensions/WebGPU";` | The standard WebGPU C API (`webgpu.h`), generated from `webgpu.yml`: wgpu-native natively, the page's WebGPU in the playground. | [WebGPU](webgpu.md) |
 | `Io` | `#import "Extensions/Io";` | Cooperative fibers on a per-thread scheduler: `spawn`, `sleep`, `cancel`, bounded channels, wait groups and fiber mutexes, plus fiber TCP, files, name lookups, deadlines and cancellation over a completion engine (io_uring, epoll, kqueue). Not available on wasm; no IO on Windows yet. | [Io](io-fibers.md), [engine](io-engine.md) |
 | `Io_Uring` | `#import "Extensions/Io_Uring";` | Linux io_uring: constants and structs generated from the kernel header, `io_uring_setup/enter/register`, and a mapped `Ring` with submit, completion and probe helpers. Linux only. | [Io_Uring](io-uring.md) |
+| `Tls` | `#import "Extensions/Tls";` | TLS 1.2 and 1.3 on a vendored mbedTLS: `tls_connect`/`tls_accept` over any `Io.Reader`/`Io.Writer`, a config with PEM certificates, roots and ALPN, system trust (certificate bundles on Linux, Security.framework on macOS, CryptoAPI on Windows). Not available on wasm. | [Tls](tls.md) |
 | `Wasi_Runtime` | `#import "Extensions/Wasi_Runtime";` | The C library entry points (threads included, as green threads) and `_start` a wasm64 program needs to run as a WASI command. jaic adds it to `-os wasm` builds itself; a program rarely imports it. | [wasm target](../native/wasm-target.md) |
 
 ## How it works
