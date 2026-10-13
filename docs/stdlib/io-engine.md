@@ -149,7 +149,33 @@ libc (`socket`, `kevent`/`epoll`, `eventfd`, `pread`, `getaddrinfo`, ...), [`Ext
 
 *What was verified where.* macOS (kqueue, the file pool): all tests, interp and native. Windows x64 and arm64, and Linux x64 and arm64: `jaic check stdlib/Extensions/Io/tests/backends.jai -no_dce -os windows -cpu x64|arm64` (and `-os linux`) type-check; nothing of the Windows backends has run yet, so the first run is the `windows native` workflow.
 
-`bench/bench.jai` (`jaic build -O2 stdlib/Extensions/Io/bench/bench.jai -o /tmp/io-bench`; `JAI_IO_BACKEND` forces a backend; a thread count argument runs the connection test on several schedulers) measures echo round trips on 64 connections and connections per second, server and clients on one scheduler. Apple silicon, kqueue, native `-O2`: about 140,000 echo round trips per second (64-byte messages), about 43,000 connections per second on one thread. Linux numbers come from CI machines and are not recorded yet.
+`bench/bench.jai` (`jaic build -O2 stdlib/Extensions/Io/bench/bench.jai -o /tmp/io-bench`; `JAI_IO_BACKEND` forces a backend; a thread count argument runs the connection test on several schedulers) measures echo round trips on 64 connections and connections per second, server and clients on one scheduler. Apple silicon, kqueue, native `-O2`: about 140,000 echo round trips per second (64-byte messages), about 43,000 connections per second on one thread. Linux numbers are in [Numbers](#numbers).
+
+### Numbers
+
+Linux baseline for milestone 9 of the [plan](../plans/async-io.md). Machine: 4 vCPUs of an Intel Xeon @ 2.10GHz in a VM (Firecracker), Linux 6.18.44, jaic `-O2`, loopback. Load generators run on the same cores as the server, so these are floors, and the run-to-run spread is about 10%. Medians of 5 runs, requests (or operations) per second; `JAI_IO_BACKEND` picks the backend.
+
+```
+jaic build stdlib/Extensions/Http/bench/server_bench.jai -O2 -o /tmp/http-bench
+JAI_IO_BACKEND=io_uring /tmp/http-bench 4 3000      # threads, ms per route; also epoll, and 1 thread
+jaic build stdlib/Extensions/Http/bench/idle_bench.jai -O2 -o /tmp/http-idle
+JAI_IO_BACKEND=io_uring /tmp/http-idle 1000
+jaic build stdlib/Extensions/Io/bench/bench.jai -O2 -o /tmp/io-bench
+JAI_IO_BACKEND=io_uring /tmp/io-bench 4             # also 1 thread (no argument), and epoll
+```
+
+| Benchmark | io_uring | epoll | io_uring vs epoll |
+|---|---|---|---|
+| HTTP hello, 1 thread (5 runs of 3 s) | 99.4k | 84.0k | +18% |
+| HTTP JSON, 1 thread | 83.1k | 69.8k | +19% |
+| HTTP hello, 4 threads | 375k | 310k | +21% |
+| HTTP JSON, 4 threads | 335k | 281k | +19% |
+| Idle server RSS, 1,000 connections | 16.3 KB each | 16.2 KB each | same |
+| Io echo round trips, 1 thread (64 connections, 64 bytes) | 148k | 126k | +18% |
+| Io connections per second, 1 thread | 27.7k | 25.3k | +10% |
+| Io connections per second, 4 threads | 47.2k | 37.7k | +25% |
+
+io_uring is ahead of epoll by about a fifth on every request-shaped benchmark, one thread or four, and by about a tenth to a quarter on connection churn; memory is the same, because it is the fiber stacks. Four threads give 3.7 to 4.0 times one thread on four cores that also run the load generator, so the engine is not the limit there. The benchmarks do not measure latency percentiles; that is still open.
 
 ## Not done yet
 
