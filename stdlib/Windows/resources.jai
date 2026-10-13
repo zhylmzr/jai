@@ -37,7 +37,8 @@ find_windows_kit_root :: (version: string) -> string {
     return text;
 }
 
-find_windows_kit_root :: () -> (root: string, windows_version: s32) {
+// The kit's installation folder from the registry, and 10 or 8 for the kit it belongs to.
+find_windows_kit_install_root :: () -> (root: string, windows_version: s32) {
     current := find_windows_kit_root("KitsRoot10");
     if current.count > 0 return current, 10;
 
@@ -45,6 +46,56 @@ find_windows_kit_root :: () -> (root: string, windows_version: s32) {
     if earlier.count > 0 return earlier, 8;
 
     return "", 0;
+}
+
+// The folder holding the `um` and `ucrt` library folders of the newest Windows SDK that has
+// libraries for this CPU (`...\Windows Kits\10\Lib\10.0.26100.0`), and 10 or 8 for the kit.
+// Empty if there is none. Link commands append `/um/x64` and `/ucrt/x64` to it.
+find_windows_kit_root :: () -> (root: string, windows_version: s32) {
+    install, kit := find_windows_kit_install_root();
+    if kit == 0 return "", 0;
+
+    install = trim_right(install, "\\/");
+
+    #if CPU == .ARM64 arch :: "arm64";
+    else arch :: "x64";
+
+    if kit == 8 return tprint("%\\Lib\\winv6.3", install), 8;
+
+    Search :: struct {
+        arch: string;
+        best: string;
+        best_name: string;
+    }
+
+    search := Search.{ arch = arch };
+
+    consider :: (info: *File_Visit_Info, search: *Search) {
+        if !begins_with(info.short_name, "10.") return;
+        if !file_exists(tprint("%\\um\\%\\kernel32.lib", info.full_name, search.arch)) return;
+
+        if !search.best || _kit_version_newer(info.short_name, search.best_name) {
+            search.best = copy_temporary_string(info.full_name);
+            search.best_name = copy_temporary_string(info.short_name);
+        }
+    }
+
+    visit_files(tprint("%\\Lib", install), false, *search, consider, visit_files = false, visit_directories = true);
+    if !search.best return "", 0;
+
+    return search.best, 10;
+}
+
+// Dotted versions compared part by part as numbers: 10.0.9 is older than 10.0.10.
+_kit_version_newer :: (a: string, b: string) -> bool {
+    left, right := split(a, "."), split(b, ".");
+
+    for 0..min(left.count, right.count) - 1 {
+        x, y := string_to_int(left[it]), string_to_int(right[it]);
+        if x != y return x > y;
+    }
+
+    return left.count > right.count;
 }
 
 set_icon_by_filename :: (exe_filename: string, icon_filename: string, resource_id: s32 = 2, delete_existing_resources := false) -> bool {

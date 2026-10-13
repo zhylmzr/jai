@@ -200,7 +200,7 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
     // `Lib\<version>` and `Include\<version>` of the newest Windows 10+ SDK that has libraries
     // for `arch`. The registry names only the kit's root.
     find_sdk_folders :: (arch: string) -> lib: string, include: string {
-        root := find_windows_kit_root();
+        root := find_windows_kit_install_root();
         if !root return "", "";
 
         root = trim_right(root, "\\/");
