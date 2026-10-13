@@ -110,7 +110,7 @@ Vector code (via `Extensions/SIMD`, `u8x16`: SSE2/NEON) accelerates the hot byte
 
 A full simdjson-style structural index (every `{}[],:` plus a stage 2 that walks it) was built experimentally and dropped: for documents of short strings and numbers it cost more to build than the scalar reader's own byte checks cost to repeat. `from_json(T)` is already a schema-guided single pass (generated decoder over the bytes, vector string scanning, no full index), and it measured equal to or faster than index-then-decode, so typed decoding does not build a structural index. A structural index or tape for untyped `from_json(Json_Value, ...)` remains a possible future step. The number fast paths that this section used to list as future work are done (floats above); an untyped number is kept as its text, so only typed decoding converts.
 
-Tried and dropped (measured on the machine below, kept only if a row gained about 5% beyond noise): writing a string that needs no escaping with `ensure_contiguous_space` in one reservation instead of three appends (7% slower on twitter, citm and the catalog); Schubfach for subnormals (it gives two digits where one reads back, e.g. `4.9e-323` for `5e-323`) and for `float32`. `#no_abc` is used on the loops that guard every index themselves (number, whitespace and string scans, the escaper, the float conversion): tests run under `jaic build -sanitize address,undefined` stay clean.
+Tried and dropped (measured on the machine below, kept only if a row gained about 5% beyond noise): writing a string that needs no escaping with `ensure_contiguous_space` in one reservation instead of three appends (7% slower on twitter, citm and the catalog); encoding the escapes of a string and the run before each in one reservation, and the same with room for the worst case (six bytes per byte) in pieces of 512 bytes (a wash: the catalog gained 4%, twitter and citm lost about 5%, since a reservation that does not fit starts a new segment and leaves the end of the old one unused); a key written with its comma and colon by the string encoder (no gain); the separator and a number's text of a `Json_Value` array written in one reservation (canada 3 to 8% faster but twitter 9 to 13% slower, which is code layout, not the change); Schubfach for subnormals (it gives two digits where one reads back, e.g. `4.9e-323` for `5e-323`) and for `float32`. `#no_abc` is used on the loops that guard every index themselves (number, whitespace and string scans, the escaper, the float conversion): tests run under `jaic build -sanitize address,undefined` stay clean.
 
 ### Benchmark
 
@@ -121,18 +121,22 @@ Tried and dropped (measured on the machine below, kept only if a row gained abou
 | Document | Operation | before | after | |
 | --- | --- | --- | --- | --- |
 | twitter.json (632 KB) | from_json (untyped) | 276 | 382 | 1.38x |
-| twitter.json | to_json (Json_Value) | 356 | 382 | 1.07x |
+| twitter.json | to_json (Json_Value) | 368 | 501 | 1.36x |
 | canada.json (2.2 MB) | from_json (untyped) | 103 | 179 | 1.74x |
-| canada.json | to_json (Json_Value) | 439 | 583 | 1.33x |
+| canada.json | to_json (Json_Value) | 365 | 443 | 1.21x |
 | citm_catalog.json (1.7 MB) | from_json (untyped) | 326 | 464 | 1.42x |
-| citm_catalog.json | to_json (Json_Value) | 230 | 260 | 1.13x |
+| citm_catalog.json | to_json (Json_Value) | 215 | 322 | 1.50x |
 | generated catalog (4 MB) | from_json (untyped) | 119 | 162 | 1.36x |
 | generated catalog | from_json(Catalog) | 195 | 245 | 1.26x |
-| generated catalog | to_json(Catalog) | 242 | 245 | 1.01x |
+| generated catalog | to_json(Catalog) | 220 | 262 | 1.19x |
 | coordinates (2 MB, float64) | from_json(Floats) | 37 | 238 | 6.4x |
-| coordinates | to_json(Floats) | 50 | 189 | 3.8x |
+| coordinates | to_json(Floats) | 174 | 242 | 1.39x |
+
+The `to_json` rows are from a second pass (encoder only): the best of repeated runs inside a process, median of 11 processes, old and new binaries interleaved on the same machine while another job was running, so absolute numbers sit below the quiet-machine ones above (canada's `to_json` was 583 in the first pass, on a quiet run of its faster speed). The `from_json` rows are from the first pass.
 
 What moved them: `Json_Value` arrays and objects are built in a reusable stack and allocated once at their exact size (a growing `[..]` reserves at least eight 104-byte elements, so canada's pairs took 832 bytes each); the whitespace test is inline and number scanning has no bounds checks (citm is mostly indentation); floats take the direct conversion and Schubfach printing; integers of up to 19 digits skip the per-digit overflow test (typed integers, about 1.2x). String scanning and escaping without bounds checks gave 3 to 9%. The remaining cost is allocation (a text per number in a `Json_Value`) and `String_Builder.append`.
+
+The encoder pass: the writer's small pieces (a key with its separator and colon, `{`, `,`, `null`, a number's text) are appended through `put`, which reserves room at the end of the builder's current segment (`builder_reserve`), copies short runs with two overlapping word moves (`copy_bytes`) and commits the count, instead of `String_Builder.append`'s initialisation test, copy loop and segment loop; the whole path is inlined into the generated encoders. Integers count their digits and write them two at a time from a 200-byte table straight into the reserved room; `float64` writes the Schubfach digits as characters (two at a time) and builds the text in the reserved room, so a float is one commit. A string that needs no escaping is quote, bytes and quote in one reservation. Output is byte-for-byte what it was: `tests/encode.jai` compares a struct with every field kind and attribute, compact and pretty, against fixed texts that were taken before the change.
 
 **Apple silicon**, before this work (native `-O2`, best of two; not rerun):
 
@@ -157,6 +161,7 @@ The vector scans themselves are worth about 1.0 to 1.1x (1.4x for long clean str
 - `query.jai` is the non-JSON text decoders; a new field kind there needs a `Pair_Kind` and a case in `generate_pair_kinds` (`generate.jai`).
 - Runtime helpers (`json_read_*`, `json_key`, ...) live in `reader.jai` and `writer.jai`; float printing in `number.jai` (reading a validated token calls Basic); stage 1 in `index.jai`.
 - `pow5.jai` (Eisel-Lemire) and `pow10.jai` (Schubfach) are generated tables of exact big-integer arithmetic; their header comments say how. `tests/numbers.jai` checks the direct conversions against Basic's exact one (`fast_path_agrees`) and the printed digits against Basic's exact generator (`shortest_matches_exact`); both sweeps grow with `FULL_SWEEP`.
+- Encoder output is pinned by `tests/encode.jai` (every field kind and attribute, compact and pretty, exact text); changing the writer's pieces (`put`, `builder_reserve`, `copy_bytes`) must leave it passing. A reserved window is only valid until the next call that appends to the builder: write at most what you reserved, then `builder_commit` the count.
 - Vector paths stay behind `simd_enabled()` and must give identical results; run `tests/differential.jai`.
 - A new owning type in the decoder needs a matching case in `emit_free` (generate.jai), or a failed decode leaks it; `tests/leaks.jai` shows it.
 - The random sweeps in `tests/numbers.jai` and `tests/stdlib/basic-float-parse-correct-rounding.jai` are small by default so they run in seconds under a debug jaic; set their `FULL_SWEEP` constant to `true` for the large sweep.
