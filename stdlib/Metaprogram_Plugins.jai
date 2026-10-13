@@ -130,12 +130,15 @@ deliver_grouped_options :: (plugins: [] *Metaprogram_Plugin, options: [] string,
         if index < counts.count count = counts[index];
 
         mine: [..] string;
+
         defer array_free(mine);
 
         for 0..count - 1 array_add(*mine, options[start + it]);
+
         start += count;
 
         one: [..] *Metaprogram_Plugin;
+
         defer array_free(one);
 
         array_add(*one, plugin);
