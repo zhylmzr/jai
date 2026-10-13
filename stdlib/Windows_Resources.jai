@@ -5,6 +5,8 @@ Manifest_Options :: struct {
     use_segment_heap := true;
 }
 
+// Returns the newest MSVC toolset's library folder and the folder (no trailing separator) that holds
+// its link.exe, cl.exe and lib.exe.
 find_visual_studio_in_a_ridiculous_garbage_way :: () -> (library_path := "", linker_path := "") {
     // S_OK and S_FALSE both require balancing CoUninitialize. A changed apartment
     // already supplies COM; this function must not uninitialize someone else's.
@@ -84,14 +86,14 @@ find_visual_studio_in_a_ridiculous_garbage_way :: () -> (library_path := "", lin
 
         #if CPU == .ARM64 {
             candidate_library = _sdk_vs_join(tools_root, "lib\\arm64");
-            candidate_linker = _sdk_vs_join(tools_root, "bin\\Hostarm64\\arm64\\link.exe");
-            if !_sdk_vs_file(candidate_linker) {
+            candidate_linker = _sdk_vs_join(tools_root, "bin\\Hostarm64\\arm64");
+            if !_sdk_vs_linker_in(candidate_linker) {
                 free(candidate_linker);
-                candidate_linker = _sdk_vs_join(tools_root, "bin\\Hostx64\\arm64\\link.exe");
+                candidate_linker = _sdk_vs_join(tools_root, "bin\\Hostx64\\arm64");
             }
         } else #if CPU == .X64 {
             candidate_library = _sdk_vs_join(tools_root, "lib\\x64");
-            candidate_linker = _sdk_vs_join(tools_root, "bin\\Hostx64\\x64\\link.exe");
+            candidate_linker = _sdk_vs_join(tools_root, "bin\\Hostx64\\x64");
         } else {
             // The supplied declarations target Win64 only.
             continue;
@@ -100,7 +102,7 @@ find_visual_studio_in_a_ridiculous_garbage_way :: () -> (library_path := "", lin
         runtime_lib := _sdk_vs_join(candidate_library, "vcruntime.lib");
 
         defer free(runtime_lib);
-        valid := _sdk_vs_file(runtime_lib) && _sdk_vs_file(candidate_linker);
+        valid := _sdk_vs_file(runtime_lib) && _sdk_vs_linker_in(candidate_linker);
         if !valid {
             free(candidate_library);
             free(candidate_linker);
@@ -222,6 +224,15 @@ _sdk_vs_join :: (left: string, right: string) -> string {
     append(*builder, right);
 
     return builder_to_string(*builder);
+}
+
+// Whether `directory` holds link.exe.
+_sdk_vs_linker_in :: (directory: string) -> bool {
+    path := _sdk_vs_join(directory, "link.exe");
+
+    defer free(path);
+
+    return _sdk_vs_file(path);
 }
 
 _sdk_vs_file :: (path: string) -> bool {

@@ -139,15 +139,15 @@ build_with_msvc :: (job: *Job, output_basename: string) -> bool {
             machine :: "/MACHINE:X64";
         }
 
-        // The library folder of the newest MSVC toolset and its linker; cl.exe and lib.exe sit
-        // next to the linker, the headers two levels above the libraries.
+        // The library folder of the newest MSVC toolset and the folder of its linker; cl.exe and
+        // lib.exe sit beside link.exe, the headers two levels above the libraries.
         vc_lib, linker := find_visual_studio_in_a_ridiculous_garbage_way();
         if !vc_lib || !linker {
             report(job, "BuildCpp: no Visual Studio C++ toolset found.\n");
             return false;
         }
 
-        vc_bin := path_strip_filename(linker);
+        vc_bin := tprint("%\\", linker);
         sdk_lib, sdk_include := find_sdk_folders(arch);
 
         if !sdk_lib {
