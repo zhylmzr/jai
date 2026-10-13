@@ -6,7 +6,7 @@
 
 ## How it works
 
-Write a small program (usually the project's `generate.jai`) that fills in the options and calls `generate_bindings`, and run it with `jaic run`. It needs libclang (see Configuration).
+Write a small program (usually the project's `generate.jai`) that fills in the options and calls `generate_bindings`, and run it with `jaic -interp`. It needs libclang (see Configuration).
 
 ```jai
 #import "Basic";
@@ -22,8 +22,8 @@ main :: () {
 ```
 
 ```sh
-jaic run generate.jai            # writes mylib.jai
-jaic check generate.jai -os linux   # generators for another OS's headers
+jaic generate.jai -interp            # writes mylib.jai
+jaic generate.jai -check -os linux   # generators for another OS's headers
 ```
 
 `tests/stdlib/bindings-generator-c.jai` is a complete example, including a `visitor` and output assertions; it generates in `#run` and writes its header into a scratch directory under the system temporary directory (`tests/stdlib/modules/Scratch_Directory`). Every `tests/stdlib/bindings-generator-*.jai` test writes its headers and C libraries there, never to a fixed path: `<TMPDIR or TEMP>/jaic-<name>-<pid>`, with forward slashes so it can go into `#library` unescaped. Tests that only generate delete it afterwards; tests that link a library they built keep it, because the program loads the library from that path when it runs. The directory name carries the process id, so a test that generates through `generate_bindings(options, filename)` (which logs `wrote <path>`) first calls `hide_scratch_directory_in_log(dir)`: log messages then show the directory as `<scratch>` and the program's output is the same on every run and every backend (`tools/jaic-diff.py` compares them).
@@ -58,7 +58,7 @@ Compiler support the generated code relies on:
 - `#cpp_method` implies the C calling convention and no context, for procedure literals and procedure types (so vtable entries are called correctly). `#cpp_return_type_is_non_pod` sets `ProcType.non_pod_return`; the IR sets `CAbi.ret_indirect`, and `interp/native.rs::call` and the LLVM backend (`lower_sig`) then return the aggregate through the hidden result pointer even when it would fit in registers. By-value struct arguments and results otherwise use the shared classifier (`crates/jaic/src/abi.rs`).
 - Bridge ops used for C++: `is_virtual`, `is_pure_virtual`, `is_const_method`, `is_copy_ctor`, `is_move_ctor`, `is_inlined`, `access`, `manglings`, `specialized_template`, `t_template_arg`, `is_virtual_base`, `base_offset` (bits; `-1` when the libclang is too old for `clang_getOffsetOfBase`), `comment_line`.
 
-Real-world check: scratch copies of the Vk-Engine generators (`jaic check generate.jai -os linux`) bind Vulkan-Headers with VMA and Dear ImGui (docking branch). The ImGui output type-checks and drives a real frame (`CreateContext`, `Style.Constructor`, `NewFrame`, `Begin`, `Render`) against a dylib built from the same sources.
+Real-world check: scratch copies of the Vk-Engine generators (`jaic generate.jai -check -os linux`) bind Vulkan-Headers with VMA and Dear ImGui (docking branch). The ImGui output type-checks and drives a real frame (`CreateContext`, `Style.Constructor`, `NewFrame`, `Begin`, `Render`) against a dylib built from the same sources.
 
 ### Struct checks, inline stripping and the `#library` declaration
 
@@ -240,7 +240,7 @@ Tests: `tests/stdlib/bindings-generator-declaration-api.jai`, and `tests/stdlib/
 
 `GENERATOR_DEFAULT_SYSTEM_INCLUDE_PATH` may be listed in `system_include_paths`. It stands for clang's builtin headers, which libclang adds itself, so the generator skips it.
 
-A program importing `Bindings_Generator` also builds natively: `lower_intrinsic_wrapper` (`sema/procs.rs`) emits a trap for `#compiler` hook procedures that have no intrinsic op. The stub first writes `runtime error: '<name>' is a compiler primitive; it runs only at compile time` to stderr. A native program that calls `generate_bindings` from `main` works under `jaic run`, where the interpreter calls the hook; built natively, it now says why it stops.
+A program importing `Bindings_Generator` also builds natively: `lower_intrinsic_wrapper` (`sema/procs.rs`) emits a trap for `#compiler` hook procedures that have no intrinsic op. The stub first writes `runtime error: '<name>' is a compiler primitive; it runs only at compile time` to stderr. A native program that calls `generate_bindings` from `main` works under `jaic -interp`, where the interpreter calls the hook; built natively, it now says why it stops.
 
 ## How to change it
 

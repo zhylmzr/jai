@@ -47,7 +47,7 @@ Aliases name the common shapes: `u8x16`, `u8x32`, `u8x64`, `s8x16`, `u16x8`, `s3
 
 ## How to change it
 
-- **A new operation:** write it as a loop over `lanes` in an `inline` procedure. Then check that `-O2` vectorizes it: build a small benchmark with `--emit-ir`, or disassemble with `otool -tV`/`objdump -d`. If LLVM keeps a per-lane loop, or a branch per lane, the operation needs either a different formulation (as `any` did) or an intrinsic.
+- **A new operation:** write it as a loop over `lanes` in an `inline` procedure. Then check that `-O2` vectorizes it: build a small benchmark with `-emit_ir`, or disassemble with `otool -tV`/`objdump -d`. If LLVM keeps a per-lane loop, or a branch per lane, the operation needs either a different formulation (as `any` did) or an intrinsic.
 - **A new intrinsic:** the work is in the compiler (`docs/language/intrinsics.md`). Declare it in this module's `#scope_module` and keep a scalar path for shapes it doesn't cover.
 - **Checks belong in `#modify`, or in `#assert` in the body.** Inside `#modify`, `$V: Type` is a variable: use `type_info`/`runtime_size`, not `size_of(V)` or `V.T`.
 - **Tests:** `tests/vectors.jai` runs in all four stdlib-runtime modes:

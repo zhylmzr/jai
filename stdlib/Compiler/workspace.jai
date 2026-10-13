@@ -46,7 +46,7 @@ Metaprogram_Plugin :: struct {
     handle_one_option: (p: *Metaprogram_Plugin, options: [] string, cursor: int) -> (new_cursor: int);
     log_help: (p: *Metaprogram_Plugin);
 
-    // Newer plugins take all of their `-plug Name -- ...` options at once instead of
+    // Newer plugins take all of their `+Name ...` options at once instead of
     // through handle_one_option, and can refuse them.
     init: (p: *Metaprogram_Plugin, options: [] string) -> bool;
 }
@@ -613,6 +613,7 @@ __jaic_compiler_version :: () -> string #compiler;
 __jaic_custom_link_complete :: (ws: s64, exit_code: s64) #compiler;
 __jaic_base_path :: () -> string #compiler;
 __jaic_main_file :: () -> string #compiler;
+__jaic_main_override :: (which: s64) -> string #compiler;
 __jaic_add_library_dir :: (path: string) #compiler;
 __jaic_workspace_remap_import :: (ws: s64, host: string, name: string, replacement: string) #compiler;
 __jaic_workspace_provide_import :: (ws: s64, host: string, target: string, type: s64, value: string) #compiler;

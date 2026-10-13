@@ -150,24 +150,24 @@ libc (`socket`, `kevent`/`epoll`, `eventfd`, `pread`, `getaddrinfo`, ...), [`Ext
 
 ## Tests and numbers
 
-`stdlib/Extensions/Io/tests/` (run by the [stdlib runtime tests](../tools/stdlib-runtime-tests.md) in `interp` and `native` on Linux, macOS and Windows; skipped on wasm): `tcp.jai` (addresses, 40 client fibers against an echo server, a 600 KB transfer, end of stream, reset, refused, address in use, close under a reader, accept (300 connections queued before the first `accept`, two acceptors on one listener, a listener closed with connections queued, `close(now = true)` releasing the port), name lookups, edge-triggered readiness (data and an end of stream that arrive before anyone looks), `wait_readable`: a deadline, data arriving, nothing consumed, the end of the stream, cancel, close, and a deadline racing the data), `streams.jai` (the [reader/writer](io-streams.md) operations over each source, `read_json`), `timeouts.jai` (deadlines, nesting, cancel during accept, read, write and lookup, a scheduler that ends with blocked fibers), `files.jai` (which includes a large read that is canceled or whose file is closed while it is out) and `backends.jai`, which sets `JAI_IO_BACKEND` for each backend the system offers (io_uring and epoll on Linux, kqueue on macOS, iocp and ioring on Windows) and runs every check on it, skipping a backend the system refuses and printing the engine's reason. On epoll and kqueue it also runs the file tests with every operation on the pool and with the pool off. The shared checks are in `tests/lib/suite.jai`. With a release `jaic run` each program takes about a second on macOS.
+`stdlib/Extensions/Io/tests/` (run by the [stdlib runtime tests](../tools/stdlib-runtime-tests.md) in `interp` and `native` on Linux, macOS and Windows; skipped on wasm): `tcp.jai` (addresses, 40 client fibers against an echo server, a 600 KB transfer, end of stream, reset, refused, address in use, close under a reader, accept (300 connections queued before the first `accept`, two acceptors on one listener, a listener closed with connections queued, `close(now = true)` releasing the port), name lookups, edge-triggered readiness (data and an end of stream that arrive before anyone looks), `wait_readable`: a deadline, data arriving, nothing consumed, the end of the stream, cancel, close, and a deadline racing the data), `streams.jai` (the [reader/writer](io-streams.md) operations over each source, `read_json`), `timeouts.jai` (deadlines, nesting, cancel during accept, read, write and lookup, a scheduler that ends with blocked fibers), `files.jai` (which includes a large read that is canceled or whose file is closed while it is out) and `backends.jai`, which sets `JAI_IO_BACKEND` for each backend the system offers (io_uring and epoll on Linux, kqueue on macOS, iocp and ioring on Windows) and runs every check on it, skipping a backend the system refuses and printing the engine's reason. On epoll and kqueue it also runs the file tests with every operation on the pool and with the pool off. The shared checks are in `tests/lib/suite.jai`. With a release `jaic -interp` each program takes about a second on macOS.
 
-*What was verified where.* macOS (kqueue, the file pool): all tests, interp and native. Windows x64 and arm64, and Linux x64 and arm64: `jaic check stdlib/Extensions/Io/tests/backends.jai -no_dce -os windows -cpu x64|arm64` (and `-os linux`) type-check; nothing of the Windows backends has run yet, so the first run is the `windows native` workflow.
+*What was verified where.* macOS (kqueue, the file pool): all tests, interp and native. Windows x64 and arm64, and Linux x64 and arm64: `jaic stdlib/Extensions/Io/tests/backends.jai -check -no_dce -os windows -cpu x64|arm64` (and `-os linux`) type-check; nothing of the Windows backends has run yet, so the first run is the `windows native` workflow.
 
-`bench/bench.jai` (`jaic build -O2 stdlib/Extensions/Io/bench/bench.jai -o /tmp/io-bench`; `JAI_IO_BACKEND` forces a backend; a thread count argument runs the connection test on several schedulers) measures echo round trips on 64 connections and connections per second, server and clients on one scheduler. Apple silicon, kqueue, native `-O2`: about 140,000 echo round trips per second (64-byte messages), about 43,000 connections per second on one thread. Linux numbers are in [Numbers](#numbers).
+`bench/bench.jai` (`jaic -O2 stdlib/Extensions/Io/bench/bench.jai -exe /tmp/io-bench`; `JAI_IO_BACKEND` forces a backend; a thread count argument runs the connection test on several schedulers) measures echo round trips on 64 connections and connections per second, server and clients on one scheduler. Apple silicon, kqueue, native `-O2`: about 140,000 echo round trips per second (64-byte messages), about 43,000 connections per second on one thread. Linux numbers are in [Numbers](#numbers).
 
 ### Numbers
 
 Linux baseline for milestone 9 of the [plan](../plans/async-io.md), and what the performance pass after it changed. Machine: 4 vCPUs of an Intel Xeon @ 2.10GHz in a VM (Firecracker), Linux 6.18.44, jaic `-O2`, loopback. Load generators run on the same cores as the server, so these are floors, and the run-to-run spread is about 10% (more on the short connection benchmarks, up to 30% between single runs). Medians of 5 to 15 runs with the old and the new binary alternating, requests (or operations) per second; `JAI_IO_BACKEND` picks the backend.
 
 ```
-jaic build stdlib/Extensions/Http/bench/server_bench.jai -O2 -o /tmp/http-bench
+jaic stdlib/Extensions/Http/bench/server_bench.jai -O2 -exe /tmp/http-bench
 JAI_IO_BACKEND=io_uring /tmp/http-bench 4 3000      # threads, ms per route; also epoll, and 1 thread
-jaic build stdlib/Extensions/Http/bench/idle_bench.jai -O2 -o /tmp/http-idle
+jaic stdlib/Extensions/Http/bench/idle_bench.jai -O2 -exe /tmp/http-idle
 JAI_IO_BACKEND=io_uring /tmp/http-idle 1000
-jaic build stdlib/Extensions/Io/bench/bench.jai -O2 -o /tmp/io-bench
+jaic stdlib/Extensions/Io/bench/bench.jai -O2 -exe /tmp/io-bench
 JAI_IO_BACKEND=io_uring /tmp/io-bench 4             # also 1 thread (no argument), and epoll
-jaic build stdlib/Extensions/Http/bench/client_bench.jai -O2 -o /tmp/http-client-bench
+jaic stdlib/Extensions/Http/bench/client_bench.jai -O2 -exe /tmp/http-client-bench
 JAI_IO_BACKEND=io_uring /tmp/http-client-bench 3000
 ```
 

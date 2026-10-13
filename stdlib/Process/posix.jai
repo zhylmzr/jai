@@ -55,7 +55,7 @@ create_process :: (process: *Process, args: ..string, working_directory := "", c
         if ok && working_directory ok = P.chdir(directory) == 0;
 
         // At compile time `OS` is the target, which need not be the host running the compiler
-        // (`jaic check -os linux` on macOS), and the parent is the compiler itself.
+        // (`jaic -check -os linux` on macOS), and the parent is the compiler itself.
         #if OS == .LINUX {
             if ok && kill_process_if_parent_exits && !#compile_time ok = process_prctl(1, 9, 0, 0, 0) == 0;
         }

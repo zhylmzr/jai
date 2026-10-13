@@ -26,7 +26,7 @@ main :: () {
 - `in_scheduler()` says whether the caller runs on a fiber (inside `io_run`), for code that starts a scheduler of its own when there is none (the [HTTP client](http-client.md) does).
 - `make_pipe()` returns two connected `*Pipe_Stream` ends, an in-memory duplex stream with the shape of a TCP connection: `read` (waits for bytes, 0 once the other end closed and everything was read, honours `with_deadline` and `cancel`), `read_full`, `write` and `write_some` (never block, `.BROKEN_PIPE` after the peer closed), `shutdown_write` and `close` (each end once; the pair frees itself after the second). `reader_of(pipe)`/`writer_of(pipe)` make an `Io.Reader`/`Io.Writer` ([io-streams.md](io-streams.md)). Both ends belong to one scheduler. It is what lets the [HTTP test client](http-testing.md) run a server connection without a socket. `pipe.jai`; test: `Extensions/Io/tests/pipe.jai`.
 - `Fiber_Handle` carries a generation, so a stale handle (to a finished, reused fiber) is ignored by `cancel`.
-- Stack overflow (POSIX): a SIGSEGV/SIGBUS handler on an alternate stack checks the fault address against the running fiber's guard page and prints `fatal: fiber stack overflow: ...`, exit status 139. On Windows the runtime's usual access violation report applies. Under `jaic run` the interpreter's own stack-depth trap fires instead.
+- Stack overflow (POSIX): a SIGSEGV/SIGBUS handler on an alternate stack checks the fault address against the running fiber's guard page and prints `fatal: fiber stack overflow: ...`, exit status 139. On Windows the runtime's usual access violation report applies. Under `jaic -interp` the interpreter's own stack-depth trap fires instead.
 
 ## How to change it
 

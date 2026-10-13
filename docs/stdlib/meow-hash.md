@@ -40,4 +40,4 @@ None. `MEOW_HASH_VERSION`, `MEOW_HASH_VERSION_NAME` and the page and prefetch co
 
 ## Dependencies
 
-jaic's `#asm` lowering of `aesdec`, `paddq`, `pxor` and `movdqu` (`sema/asm/simd.rs`); no other module. Test: `tests/stdlib/meow-hash.jai` compares 16 input lengths (0 to 1000) against digests produced by the published 0.5 x64 implementation compiled with clang and run with the default seed; on other CPUs it only prints `ok`. To run the x64 path on an arm64 Mac: `jaic build tests/stdlib/meow-hash.jai -target x86_64-apple-darwin -o mh && arch -x86_64 ./mh` (Rosetta).
+jaic's `#asm` lowering of `aesdec`, `paddq`, `pxor` and `movdqu` (`sema/asm/simd.rs`); no other module. Test: `tests/stdlib/meow-hash.jai` compares 16 input lengths (0 to 1000) against digests produced by the published 0.5 x64 implementation compiled with clang and run with the default seed; on other CPUs it only prints `ok`. To run the x64 path on an arm64 Mac: `jaic tests/stdlib/meow-hash.jai -target x86_64-apple-darwin -o mh && arch -x86_64 ./mh` (Rosetta).

@@ -389,7 +389,24 @@ derive_main_outputs :: (options: *Build_Options) {
     for *with_separator if it.* == #char "\\" it.* = #char "/";
 
     options.output_path = with_separator;
-    options.intermediate_path = copy_text(tprint("%.build", with_separator));
+
+    // The command line's `-output_path` replaces the main file's directory; `-exe` the name.
+    chosen_path := __jaic_main_override(1);
+    if chosen_path.count > 0 {
+        last := chosen_path[chosen_path.count - 1];
+        if last == #char "/" || last == #char "\\" {
+            options.output_path = copy_text(chosen_path);
+        } else {
+            options.output_path = copy_text(tprint("%/", chosen_path));
+        }
+    }
+
+    chosen_name := __jaic_main_override(0);
+    if chosen_name.count > 0 options.output_executable_name = copy_text(chosen_name);
+
+    if __jaic_main_override(2) == "OFF" options.backtrace_on_crash = .OFF;
+
+    options.intermediate_path = copy_text(tprint("%.build", options.output_path));
     main_intermediate_default = copy_text(options.intermediate_path);
 }
 
@@ -563,7 +580,7 @@ check_build_options :: (previous: Build_Options, options: Build_Options, loc: So
         option_warning(loc, "Build_Options.info_flags", "jaic does not print polymorph matching information");
     }
     if o.text_output_flags != p.text_output_flags && o.text_output_flags != 0 {
-        option_warning(loc, "Build_Options.text_output_flags", "jaic does not print the link line or timings (use -time for timings)");
+        option_warning(loc, "Build_Options.text_output_flags", "jaic does not print the link line or timings (use -timings for timings)");
     }
 
     llvm := *o.llvm_options;

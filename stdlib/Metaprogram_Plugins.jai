@@ -1,17 +1,18 @@
-// Metaprogram plugins (`jai first.jai -plug Name`), newer-Jai API shape.
+// Metaprogram plugins (`jaic first.jai +Name`), newer-Jai API shape.
 //
-// `jaic check|build file.jai -plug Name` works: the command line names the plugin
-// modules before compilation starts, so jaic writes a small metaprogram that imports
-// them and calls `build_with_plugins` below. What does not work is choosing plugins
+// `jaic file.jai +Name` works: the command line names the plugin modules before
+// compilation starts, so jaic writes a small metaprogram that imports them and calls
+// `build_with_plugin_groups` below (`build_with_plugins` is the same with one shared
+// option list). What does not work is choosing plugins
 // while a metaprogram runs (`init_plugins` with names only known then), which would
 // need `#import` of a computed name mid-#run.
 
 Plugin_To_Create :: struct {
     name: string;
-    options: [..] string; // Arguments given to the plugin, e.g. `-plug Check -- -no_unused`.
+    options: [..] string; // Arguments given to the plugin, e.g. `+Check -no_unused`.
 }
 
-// Split `-plug Name` arguments (and their trailing options) from the rest.
+// Split `-plug Name` arguments from the rest (the newer Jai spelling; jaic itself uses `+Name`).
 parse_plugin_arguments :: (args: [] string) -> (success: bool, plugins_to_create: [..] Plugin_To_Create, remaining_args: [..] string) {
     plugins: [..] Plugin_To_Create;
     remaining: [..] string;
@@ -45,7 +46,7 @@ init_plugins :: (plugins: [] Plugin_To_Create, results: *[..] *Metaprogram_Plugi
     if !plugins.count return true;
 
     for plugins {
-        Compiler.compiler_report(tprint("Metaprogram plugin '%' cannot be loaded from inside a metaprogram; pass it to jaic as '-plug %' instead.\n", it.name, it.name), mode = .ERROR_CONTINUABLE);
+        Compiler.compiler_report(tprint("Metaprogram plugin '%' cannot be loaded from inside a metaprogram; pass it to jaic as '+%' instead.\n", it.name, it.name), mode = .ERROR_CONTINUABLE);
     }
 
     return false;
@@ -55,6 +56,18 @@ init_plugins :: (plugins: [] Plugin_To_Create, results: *[..] *Metaprogram_Plugi
 // command-line arguments jaic did not recognize: plugins with an `init` hook get all of
 // them; older plugins take theirs one at a time through `handle_one_option`.
 build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [] string, output_name := "", output_path := "") -> bool {
+    return build_plugin_workspace(file, plugins, options, .[], .[], .[], output_name, output_path);
+}
+
+// The same, with each plugin handed only its own options: `counts[i]` of the entries of
+// `options` (in plugin order) belong to `plugins[i]`. `added` holds extra source strings
+// for the program (`-add`, `-run`).
+build_with_plugin_groups :: (file: string, plugins: [] *Metaprogram_Plugin, options: [] string, counts: [] s64, added: [] string, output_name := "", output_path := "") -> bool {
+    return build_plugin_workspace(file, plugins, .[], options, counts, added, output_name, output_path);
+}
+
+#scope_file
+build_plugin_workspace :: (file: string, plugins: [] *Metaprogram_Plugin, shared_options: [] string, grouped_options: [] string, counts: [] s64, added: [] string, output_name: string, output_path: string) -> bool {
     Compiler.set_build_options_dc(.{ do_output = false });
     w := Compiler.compiler_create_workspace("Target Program");
     build_options := Compiler.get_build_options(w);
@@ -65,7 +78,15 @@ build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [
     Compiler.set_build_options(build_options, w);
     for plugins it.workspace = w;
 
-    if !deliver_plugin_options(plugins, options) {
+    delivered := true;
+
+    if counts.count {
+        delivered = deliver_grouped_options(plugins, grouped_options, counts);
+    } else {
+        delivered = deliver_plugin_options(plugins, shared_options);
+    }
+
+    if !delivered {
         Compiler.compiler_set_workspace_status(.FAILED, w);
         return false;
     }
@@ -77,6 +98,7 @@ build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [
     for plugins if it.add_source it.add_source(it);
 
     Compiler.add_build_file(file, w);
+    for added Compiler.add_build_string(it, w);
 
     failed := false;
 
@@ -100,7 +122,29 @@ build_with_plugins :: (file: string, plugins: [] *Metaprogram_Plugin, options: [
     return !failed;
 }
 
-#scope_file
+deliver_grouped_options :: (plugins: [] *Metaprogram_Plugin, options: [] string, counts: [] s64) -> bool {
+    start := 0;
+
+    for plugin, index: plugins {
+        count := 0;
+        if index < counts.count count = counts[index];
+
+        mine: [..] string;
+        defer array_free(mine);
+
+        for 0..count - 1 array_add(*mine, options[start + it]);
+        start += count;
+
+        one: [..] *Metaprogram_Plugin;
+        defer array_free(one);
+
+        array_add(*one, plugin);
+        if !deliver_plugin_options(one, mine) return false;
+    }
+
+    return true;
+}
+
 deliver_plugin_options :: (plugins: [] *Metaprogram_Plugin, options: [] string) -> bool {
     stepwise: [..] *Metaprogram_Plugin;
 

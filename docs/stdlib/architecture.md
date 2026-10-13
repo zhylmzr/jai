@@ -31,16 +31,16 @@ Module parameters select behaviour at import time, for example `#import "Basic"(
 
 ## How to change it
 
-- Edit the module and add or extend a regression program in `tests/stdlib/*.jai`. Each must exit 0 under `jaic run`; use runtime `assert`s or compile-time `#assert`. Programs that must fail go in `tests/corpus/negative/` with an entry in `tests/corpus/manifest.json`.
+- Edit the module and add or extend a regression program in `tests/stdlib/*.jai`. Each must exit 0 under `jaic -interp`; use runtime `assert`s or compile-time `#assert`. Programs that must fail go in `tests/corpus/negative/` with an entry in `tests/corpus/manifest.json`.
 - Some modules keep tests beside the source (`stdlib/Math/tests`, `Random/tests`, `PCG/tests`, `Float16/tests`, `Srgb/tests`, `Sloppy_Math/tests`, `GetRect/tests`), and `stdlib/tests/` holds string, UTF-8, command-line and binary-format programs.
 - Run everything with `tools/jaic-sweep.py stdlib modules` ([sweep](../tools/jaic-sweep.md)).
 - Declaring an `#intrinsic` the compiler doesn't know implements nothing; new intrinsics need Rust support ([intrinsics](../language/intrinsics.md)).
-- To check that a rewrite keeps behaviour, run a probe against both versions: `git archive HEAD stdlib prelude | tar -x -C /some/dir`, then diff `JAIC_STDLIB=/some/dir/stdlib jaic run probe.jai` against plain `jaic run probe.jai`. The prelude must sit beside the stdlib as `../prelude`.
+- To check that a rewrite keeps behaviour, run a probe against both versions: `git archive HEAD stdlib prelude | tar -x -C /some/dir`, then diff `JAIC_STDLIB=/some/dir/stdlib jaic probe.jai -interp` against plain `jaic probe.jai -interp`. The prelude must sit beside the stdlib as `../prelude`.
 
 ## Configuration
 
 - `-I dir` adds a search root.
-- `-os linux|windows|macos` selects the `#if OS == ...` branches, so `jaic check file.jai -os linux` type-checks another OS's bindings from a Mac.
+- `-os linux|windows|macos` selects the `#if OS == ...` branches, so `jaic file.jai -check -os linux` type-checks another OS's bindings from a Mac.
 - `JAIC_STDLIB` overrides the stdlib directory.
 
 ## Dependencies

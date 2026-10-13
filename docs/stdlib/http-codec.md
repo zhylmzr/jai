@@ -142,7 +142,7 @@ http-garden (Docker, differential testing of whole HTTP servers) is optional: `h
 
 ## Performance
 
-`bench/bench.jai` (`jaic build stdlib/Extensions/Http/bench/bench.jai -O2 -o /tmp/http-bench`), Apple silicon, native `-O2`, fed in 4 KiB reads, best of three:
+`bench/bench.jai` (`jaic stdlib/Extensions/Http/bench/bench.jai -O2 -exe /tmp/http-bench`), Apple silicon, native `-O2`, fed in 4 KiB reads, best of three:
 
 | Stream | scalar scans | vector scans |
 | --- | --- | --- |

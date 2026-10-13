@@ -49,7 +49,7 @@ Callback messages (`WGPUStringView`) are only valid during the callback, so the 
 
 ### Native
 
-`generated.jai` declares each procedure `#foreign libwgpu` (`#library "libwgpu_native"`). jaic looks for it in its native-libs directory ([native libraries](../tools/native-libs.md)): `jaic run` loads the shared library (`.dylib`, `.so`, `.dll`), `jaic build` links the static one (`.a`, `.lib`) by path, so built programs do not need wgpu-native next to them. The system libraries the static archive needs are `link_always` in `macos.jai` (Metal, QuartzCore, ...), `linux.jai` (`libm`, `libdl`, `libpthread`, `libgcc_s`) and `windows.jai` (`d3dcompiler`, `ws2_32`, `userenv`, `bcrypt`, `ntdll`, ...).
+`generated.jai` declares each procedure `#foreign libwgpu` (`#library "libwgpu_native"`). jaic looks for it in its native-libs directory ([native libraries](../tools/native-libs.md)): `jaic -interp` loads the shared library (`.dylib`, `.so`, `.dll`), `jaic` links the static one (`.a`, `.lib`) by path, so built programs do not need wgpu-native next to them. The system libraries the static archive needs are `link_always` in `macos.jai` (Metal, QuartzCore, ...), `linux.jai` (`libm`, `libdl`, `libpthread`, `libgcc_s`) and `windows.jai` (`d3dcompiler`, `ws2_32`, `userenv`, `bcrypt`, `ntdll`, ...).
 
 Release archives ship wgpu-native in `artifacts/native-libs/<platform>/` next to `stdlib/` ([releases](../tools/releases.md)). In a checkout, `python3 tools/fetch_wgpu_native.py` downloads it there.
 
@@ -105,7 +105,7 @@ JAI_WASM_DIR=<built bundle> node --experimental-wasm-jspi tools/test_webgpu_host
 
 - New webgpu-headers revision: update `tools/webgpu.json` (revision and `webgpu.yml` sha256, and the wgpu-native tag and asset hashes built from it; `fetch_wgpu_native.py` refuses a release whose bundled `webgpu.yml` differs, ignoring line endings), rerun `python3 tools/webgpu_gen.py`, and check with `--check-header webgpu.h` (same revision), which renders every struct, function, enum value and callback back to C and compares. Then review `OVERRIDES` and `STRUCT_FIXUPS` in `webgpu_host.mjs` against the JS API. The generator emits jaifmt-formatted Jai; keep it that way so `jaifmt --check stdlib` stays clean.
 - C and JS APIs differ somewhere new: add an `OVERRIDES` entry (whole call) or a `STRUCT_FIXUPS` entry (one dictionary), not generator special cases.
-- New wgpu-native release on a platform: if `jaic build` fails with undefined symbols, add the system library to that platform's `link_always` list.
+- New wgpu-native release on a platform: if `jaic` fails with undefined symbols, add the system library to that platform's `link_always` list.
 - Fragile spots:
   - webgpu.h is still pre-1.0 and changes between revisions (string views, future-based callbacks and `WGPUBool` all changed in 2024-25); wgpu-native lags webgpu-headers, so the pin must be the revision wgpu-native was built from.
   - wgpu-native deviates from the header in small ways (`WGPU_WHOLE_MAP_SIZE`, empty adapter descriptions on Metal); the helpers paper over the known ones.
@@ -119,7 +119,7 @@ JAI_WASM_DIR=<built bundle> node --experimental-wasm-jspi tools/test_webgpu_host
 ```sh
 python3 tools/webgpu_gen.py [--yml webgpu.yml] [--check-header webgpu.h]
 python3 tools/fetch_wgpu_native.py [--platform windows-arm64] [--out DIR] [--force]
-JAIC_NATIVE_LIBS=<main checkout>/artifacts/native-libs/macos-arm64 jaic run examples/webgpu/triangle.jai  # from a worktree
+JAIC_NATIVE_LIBS=<main checkout>/artifacts/native-libs/macos-arm64 jaic examples/webgpu/triangle.jai -interp  # from a worktree
 ```
 
 Browser: the bundle ships `webgpu_host.mjs` and `webgpu_bindings.generated.mjs` next to `engine.mjs`. An embedder passes `createEngine(bytes, { host: createWebGPUHost({ canvas, output, onSurface }) })`, runs with `playAsync`, and forwards events with `host.input(event)` / `host.resize(w, h)`. Without a host (or without `navigator.gpu`) `webgpu_available()` is false and the `wgpu*` calls are not provided.

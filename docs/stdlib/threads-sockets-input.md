@@ -6,7 +6,7 @@
 
 ## How it works
 
-`Thread/primitives.jai` defines `Thread` and the operations `thread_init(thread, proc)`, `thread_start`, `thread_is_done`, `thread_deinit`, plus `Mutex` (`init`, `lock`, `unlock`, `destroy`), `Condition_Variable` (`wait`, `wake`, `wake_all`) and `Semaphore` (`signal`, `wait_for`). POSIX targets call `pthread_create` (`native_posix.jai`); Windows uses `CreateThread` (`native_windows.jai`). Under `jaic run` the interpreter schedules these threads cooperatively ([threads under jaic run](../compiler/interpreter-threads.md)).
+`Thread/primitives.jai` defines `Thread` and the operations `thread_init(thread, proc)`, `thread_start`, `thread_is_done`, `thread_deinit`, plus `Mutex` (`init`, `lock`, `unlock`, `destroy`), `Condition_Variable` (`wait`, `wake`, `wake_all`) and `Semaphore` (`signal`, `wait_for`). POSIX targets call `pthread_create` (`native_posix.jai`); Windows uses `CreateThread` (`native_windows.jai`). Under `jaic -interp` the interpreter schedules these threads cooperatively ([threads under jaic -interp](../compiler/interpreter-threads.md)).
 
 The worker procedure has the type `Native_Thread_Proc :: (*Thread) -> s64`. The thread gets a copy of the starting context and its own temporary storage (16 KiB by default; a supplied `starting_storage` stays caller-owned). Waits take milliseconds: negative waits forever, zero polls.
 
