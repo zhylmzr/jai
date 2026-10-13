@@ -103,6 +103,22 @@ Name lookups (`resolve`) use `getaddrinfo` on the same helper threads; a helper 
 
 Inline wins below about 128 KiB for a single fiber, and the pool wins from 256 KiB up once several reads overlap (27 GB/s against 18 GB/s at 1 MiB) and whenever the disk is cold, which these numbers do not show. The default threshold is 32 KiB: smaller operations (headers, small config and log files) stay inline at no cost, and anything a static file server reads in blocks goes to the pool. `JAI_IO_FILE_INLINE=0` sends everything to the pool, a huge value keeps everything inline.
 
+## Who may wake a fiber
+
+`wake` asserts that its target is `BLOCKED`. So whoever calls it must know the fiber is parked and that nothing else will wake that park. A fiber parks at once after it queues itself somewhere, and wakes once; calls the running fiber makes before it parks (`engine_submit`, `wake_arm`, `uring_cancel`) can finish other fibers' work, never its own.
+
+- **`finish_op`** (all backends) wakes the fiber of a finished operation. The operation is taken off its queue (or its ring entry is consumed) first, so it finishes once. A fiber has an operation outstanding only after its submit returned false, so it is parked when the completion comes. A submit that fails or finishes inline returns true and reports through `op.result`; `poll_submit` does this too when the kernel refuses to watch the descriptor, and it does not go through `finish_op` for its own operation.
+- **Cancel and deadline of an operation** (`cancel_op`) only ask the engine to end it. The fiber wakes in `finish_op` when the canceled operation completes, so a completion racing a cancel is still one wake. A pool or IoRing operation ignores the cancel and wakes when it completes.
+- **`poll_fail` and `poll_close`** finish the operations queued on a descriptor. Those belong to parked fibers; the fiber that closes has no operation queued.
+- **File pool and IoRing completions** (`pool_collect`, `ring_drain`) finish operations that parked fibers hold. `pool_arm` runs before the new operation reaches a worker, so an inline `pool_collect` cannot find it.
+- **Resolver** (`wake_fiber`): a job is collected once. The fiber that queued it is still running when `wake_arm` collects an answer that is already there, so `wake_fiber` clears `fiber.job` and leaves it; `resolve_with_helper` parks only while `fiber.job` is set. A canceled or timed-out fiber abandons its job first (`job.fiber` is null), so a late answer wakes nobody.
+- **`cancel_fiber`** does nothing unless the fiber is `BLOCKED`. The fiber then has either an operation (it wakes in `finish_op`), a lookup (`abandon_job`, then one wake), or a wait list entry and maybe a timer (both removed, then one wake). A fiber that is `READY` or `RUNNING` only gets `canceled` set.
+- **`fire_timers`** removes the timer before it acts, so one timer is one wake. For an operation it cancels (wake in `finish_op`), for a lookup it abandons the job and wakes, otherwise it takes the fiber off its wait list and wakes it. Leaving it on the list would let a producer wake it again before it runs.
+- **`wake`** removes a timer the fiber still has, so a completion after a timer (or the reverse) never leaves a stale timer behind.
+- **Pipes** (`pipe_wake`) and **channels, wait groups and mutexes** (`hand_to_receiver`, `take_ready`, `close`, `wake_all`, `unlock`): the waiter is popped from the list before its fiber is woken, so a waiter wakes once. A fiber is on a list only while parked, and the caller is running, so it never wakes itself. Cancel and deadline take a fiber off the list before they wake it.
+
+A new `wake` caller has to answer three questions: can the target be the running fiber, can it be woken twice for one park (completion plus cancel, completion plus timer, two completions), can it be `READY`. `tests/pipe.jai` (`test_write_between_deadline_and_wakeup`) and `tests/backends.jai` (`test_epoll_refuses_a_descriptor`) are the regressions for the last two bugs; `test_cancel_resolve` covers the lookup that is answered early.
+
 ## How to change it
 
 - **A new operation:** add an `Op_Kind`, a case in `poll_attempt` (poll backends) and in `uring_submit`, then a public procedure in `net.jai` or `files.jai` that fills an `Op` and calls `await_op`.
