@@ -98,14 +98,14 @@ Extractor failures, 404, 405, 413 (body over the limit), 414, 431 and 408 use th
 
 Server RSS with N idle keep-alive connections that each sent one request (`bench/idle_bench.jai`: the server in its own process, 4-core Linux VM, `-O2`; bytes are RSS growth per connection):
 
-| Connections | Backend | Before | After buffers | After stack release |
-|---|---|---|---|---|
-| 1,000 | io_uring | 35.2 MB (34.8 KB each) | 17.3 MB (16.4 KB each) | 13.6 MB (12.5 KB each) |
-| 1,000 | epoll | 35.3 MB (34.9 KB each) | 17.1 MB (16.2 KB each) | 13.2 MB (12.2 KB each) |
-| 9,000 | io_uring | 306 MB (34.7 KB each) | 144 MB (16.2 KB each) | 108 MB (12.2 KB each) |
-| 9,000 | epoll | 307 MB (34.8 KB each) | 144 MB (16.3 KB each) | 109 MB (12.2 KB each) |
+| Connections | Backend | Before | After |
+|---|---|---|---|
+| 1,000 | io_uring | 35.2 MB (34.8 KB each) | 17.3 MB (16.4 KB each) |
+| 1,000 | epoll | 35.3 MB (34.9 KB each) | 17.1 MB (16.2 KB each) |
+| 9,000 | io_uring | 306 MB (34.7 KB each) | 144 MB (16.2 KB each) |
+| 9,000 | epoll | 307 MB (34.8 KB each) | 144 MB (16.3 KB each) |
 
-Of the 16 KB that the buffer work left, 12.3 KB were fiber stack pages the connection had touched. `Io.wait_readable`, the call the idle wait is made with, now gives the pages below the fiber's live frames back to the system before it parks (`madvise(MADV_DONTNEED)`; `stack_discard_dead` in `Io`), which took the stack share to 8.2 KB (the two pages the connection loop's own frames sit in) and the total to about 12.2 KB. The rest, about 4 KB, is the fiber record with its context, the temporary storage, the socket's registration and the connection state. A connection that is busy never takes this path (the `HOT_MS` rule below reads without waiting), so requests per second did not change beyond noise (`bench/server_bench.jai`, `-O2`, 4-core Linux VM, io_uring, before and after alternating, medians of 5 runs of 3 s; the run-to-run spread is about 10%): one thread, hello 97.6k to 95.0k and JSON 82.0k to 92.3k; four threads, hello 355k to 336k and JSON 303k to 353k. Earlier, when the buffer give-back was added: one thread pinned to a core, 15 runs of 2 s, hello 97.9k to 96.0k and JSON 90.5k to 94.2k. Without the `HOT_MS` rule the extra operation per request cost about 4 to 6% on one thread (9 runs), which is why it exists. On epoll, requests per second rose by 10% to 17% in the same series for an unrelated reason, the edge-triggered registration in [io-engine](io-engine.md#numbers).
+Of the 16 KB left, about 12 KB are fiber stack pages the connection has touched (see Idle stacks in [io-engine](io-engine.md)) and about 4 KB the fiber record with its context, the temporary storage, the socket's registration and the connection state. Requests per second did not change beyond noise (`bench/server_bench.jai`, `-O2`, 4-core Linux VM, io_uring, before and after alternating, medians of 5 runs of 3 s; the run-to-run spread is about 10%): one thread, hello 97.6k to 95.0k and JSON 82.0k to 92.3k; four threads, hello 355k to 336k and JSON 303k to 353k. Earlier, when the buffer give-back was added: one thread pinned to a core, 15 runs of 2 s, hello 97.9k to 96.0k and JSON 90.5k to 94.2k. Without the `HOT_MS` rule the extra operation per request cost about 4 to 6% on one thread (9 runs), which is why it exists. On epoll, requests per second rose by 10% to 17% in the same series for an unrelated reason, the edge-triggered registration in [io-engine](io-engine.md#numbers).
 
 **Serving.** `serve(*app)` runs one scheduler thread per core (`config.threads`), each with its own listener on the same port (`SO_REUSEPORT` when more than one), and returns when stopped. With `config.handle_signals`, SIGINT and SIGTERM begin a graceful stop: the listener closes, idle keep-alive connections close at once, requests in progress finish and get `Connection: close`, and after `config.shutdown_timeout` the rest are cut. `shutdown(*app)` does the same from any thread. For tests and programs that do more, `start(*app)` inside `Io.io_run` returns a `Server` (`server_url`, `stop`, `wait`) for the running scheduler only.
 
