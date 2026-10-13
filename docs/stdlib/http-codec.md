@@ -58,7 +58,7 @@ Set `parser.response_to` to the method of the request a response answers (needed
 
 ### Strictness
 
-What is refused (each gets an `Error_Kind`; `error_status(kind)` maps it to the status to send):
+What is refused (each gets a `Parse_Error_Kind`; `error_status(kind)` maps it to the status to send):
 
 | Refused | Kind | Status |
 | --- | --- | --- |
@@ -109,7 +109,7 @@ All append to a `[..] u8` the caller owns.
 
 ## How to change it
 
-- **A new strictness rule:** header-level rules go in `note_header` (`parser.jai`; it runs as each header line arrives, so bad messages are refused early); rules that need the whole head go in `finish_head`. Add the `Error_Kind` and its status in `types.jai` (`error_status`), a row in the tables above, and a case in `tests/smuggling.jai`.
+- **A new strictness rule:** header-level rules go in `note_header` (`parser.jai`; it runs as each header line arrives, so bad messages are refused early); rules that need the whole head go in `finish_head`. Add the `Parse_Error_Kind` and its status in `types.jai` (`error_status`), a row in the tables above, and a case in `tests/smuggling.jai`.
 - **A new well-known header:** add it to `Header_Name` and `HEADER_NAMES` (same order; `#assert` checks the count, and `tests/codec.jai` checks that each name maps back to its enum member). Raise `HEADER_TABLE_SIZE` if the table gets crowded.
 - **A new scan:** write the vector loop in `scan.jai` with its scalar twin and run `tests/codec.jai` (it compares both on messages with bytes at every 16-byte boundary).
 - **Chunk framing:** `chunked.jai` is a byte-at-a-time state machine (`Parser_State` CHUNK_*, `Ext_State` for extensions); body data is the only part handled in bulk.
