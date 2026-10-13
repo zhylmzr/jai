@@ -112,6 +112,7 @@ The clean-room `stdlib/`. Contributors must not read the source of an official J
 - [Http: the HTTP/1 codec, strict and sans-IO (jaic extension)](stdlib/http-codec.md)
 - [Http server: routes, extractors checked at compile time, middleware, graceful shutdown (jaic extension)](stdlib/http-server.md)
 - [Http client: typed JSON calls, a connection pool, redirects and timeouts (jaic extension)](stdlib/http-client.md)
+- [Http testing: a client wired to an App in memory, expectations with readable failures, a small test runner (jaic extension)](stdlib/http-testing.md)
 - [SIMD: portable fixed-width vectors (jaic extension)](stdlib/simd.md)
 - [Byte_Search: vectorized byte and substring search (jaic extension)](stdlib/byte-search.md)
 - [Compiler API, reflection and metaprogram support](stdlib/compiler-and-metaprogramming.md)

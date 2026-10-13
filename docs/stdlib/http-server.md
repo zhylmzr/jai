@@ -2,7 +2,7 @@
 
 ## What it is
 
-A routing HTTP/1.1 server on fibers: you register plain functions as handlers, say what they need as parameter types, and the module checks them against the route at compile time and generates the code that reads the request. It sits on the [codec](http-codec.md) and on [Io](io-engine.md), and is a jaic extension, not official Jai. Not available on wasm (fibers cannot switch stacks there); the codec still is. The [client](http-client.md) is the other half.
+A routing HTTP/1.1 server on fibers: you register plain functions as handlers, say what they need as parameter types, and the module checks them against the route at compile time and generates the code that reads the request. It sits on the [codec](http-codec.md) and on [Io](io-engine.md), and is a jaic extension, not official Jai. Not available on wasm (fibers cannot switch stacks there); the codec still is. The [client](http-client.md) is the other half, and the [test client](http-testing.md) drives an `App` in memory for end-to-end tests.
 
 ```jai
 #import "Basic";
@@ -36,7 +36,7 @@ main :: () {
 }
 ```
 
-Runnable versions are in `examples/http/`: `crud.jai` (a notes API with in-memory state), `middleware.jai` (middleware and groups) and `client.jai`.
+Runnable versions are in `examples/http/`: `crud.jai` (a notes API with in-memory state), `middleware.jai` (middleware and groups), `client.jai`, and `crud_test.jai`, end-to-end tests of the notes API (`notes.jai`, which `crud.jai` serves).
 
 ## How it works
 
@@ -135,6 +135,6 @@ Also `app.state`, `app.on_error` and `app.json_options` (limits for `Json(T)` bo
 
 ## Tests and benchmark
 
-`stdlib/Extensions/Http/tests/`: `server_routing.jai` (templates, priority, 404/405, HEAD/OPTIONS, conflicts), `server_extractors.jai`, `server_responses.jai` (return mapping, errors, `on_error`, middleware, groups), `server_connections.jai` (keep-alive, pipelining, limits, timeouts, 100-continue, graceful and forced shutdown, a 150-request crowd) and `client.jai`, sharing `tests/lib/server_support.jai`. Compile errors are in `crates/jaic-cli/tests/http_routes.rs`. `python3 tools/http_conformance.py` also builds `tools/http_garden/server.jai` (an echo server) and probes it with smuggling shapes, limits and a SIGINT shutdown; it is the program to put in a [http-garden](https://github.com/narfindustries/http-garden) image.
+`stdlib/Extensions/Http/tests/`: `server_routing.jai` (templates, priority, 404/405, HEAD/OPTIONS, conflicts), `server_extractors.jai`, `server_responses.jai` (return mapping, errors, `on_error`, middleware, groups; these three use the [test client](http-testing.md), no socket), `testing.jai` (the test client itself), `server_connections.jai` (on raw sockets) (keep-alive, pipelining, limits, timeouts, 100-continue, graceful and forced shutdown, a 150-request crowd) and `client.jai`, sharing `tests/lib/server_support.jai`. Compile errors are in `crates/jaic-cli/tests/http_routes.rs`. `python3 tools/http_conformance.py` also builds `tools/http_garden/server.jai` (an echo server) and probes it with smuggling shapes, limits and a SIGINT shutdown; it is the program to put in a [http-garden](https://github.com/narfindustries/http-garden) image.
 
 `stdlib/Extensions/Http/bench/server_bench.jai` measures requests per second over loopback with 32 keep-alive connections per thread, for a text route and a JSON route (build with `-O2`; arguments are threads and milliseconds per route). Every thread is an independent server with its own load clients, so the numbers include the load generator's cost. On a 10-core M-series Mac, with other work running: about 96k requests/s for hello and 82k for the JSON route on one thread, 140k and 136k on two, 126k and 124k on four. More threads stop helping because the client and server share the machine and the loopback stack; the single-thread figure is the one to compare.
