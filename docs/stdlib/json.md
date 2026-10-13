@@ -39,7 +39,7 @@ free_json(*user);                               // one free for a value, a Json_
 
 ## Types
 
-Integers are exact over their full range (including 64-bit); a number that does not fit is `.OUT_OF_RANGE`. Floats print as the shortest string that round-trips (`0.1`, `1e21`; integral values get `.0`); `NaN` and infinities encode as `null`. Decoding floats is correctly rounded: after the RFC 8259 grammar check, the token goes to Basic's conversion (`scan_decimal_float` and `decimal_float_to_float64`/`32`, see `Float_Parse.jai`), with no exponent limit, so `1e999999` is `.OUT_OF_RANGE` and `1e-999999` is zero. Supported: strings, bools, enums (by name, or number with `as_number`), fixed/view/resizable arrays, pointers (`null` or a value), nested and recursive structs, `Hash_Table` with string keys, and `Json_Value`. 128-bit integers are not.
+Integers are exact over their full range (including 64-bit); a number that does not fit is `.OUT_OF_RANGE`. Floats print as the shortest string that round-trips (`0.1`, `1e21`; integral values get `.0`); `NaN` and infinities encode as `null`. Decoding floats is correctly rounded: after the RFC 8259 grammar check, a token of at most 19 significant digits is converted directly (one exact multiplication or division when digits and power of ten are exactly representable, otherwise Eisel-Lemire with the 128-bit powers of five in `pow5.jai`, as in fast_float), and everything else, including every overflow, goes to Basic's conversion (`scan_decimal_float` and `decimal_float_to_float64`/`32`, see `Float_Parse.jai`), with no exponent limit, so `1e999999` is `.OUT_OF_RANGE` and `1e-999999` is zero. Supported: strings, bools, enums (by name, or number with `as_number`), fixed/view/resizable arrays, pointers (`null` or a value), nested and recursive structs, `Hash_Table` with string keys, and `Json_Value`. 128-bit integers are not.
 
 ## Attributes
 
@@ -77,6 +77,7 @@ Strict RFC 8259: no BOM, trailing commas, leading zeros, lone surrogates, invali
 - Key matching: for each field and alias the generator emits a length test followed by comparisons of 8/4/2/1-byte words against constants built at compile time (little-endian targets). No string table walk, no hashing. Keys with escapes are unescaped by the reader before matching.
 - Key emission: compact output appends one prebuilt `"key":` or `,"key":` constant per field (pretty output goes through the indent-aware path).
 - Rename rules, aliases, defaults, skip conditions and the size of the `seen` array are resolved at compile time.
+- Floats: decoding converts short tokens directly (above); `float64` printing generates the shortest digits with Schubfach (`shortest_decimal` in `number.jai`, table in `pow10.jai`) and formats the text in a local buffer with one append. Subnormals and `float32` keep Basic's exact digit generator.
 - Constant documents can be decoded at compile time with `#run` and baked in (see `tests/baked.jai`):
 
 ```jai
@@ -105,11 +106,33 @@ Vector code (via `Extensions/SIMD`, `u8x16`: SSE2/NEON) accelerates the hot byte
 
 ### Not done, and why
 
-A full simdjson-style structural index (every `{}[],:` plus a stage 2 that walks it) was built experimentally and dropped: for documents of short strings and numbers it cost more to build than the scalar reader's own byte checks cost to repeat. `from_json(T)` is already a schema-guided single pass (generated decoder over the bytes, vector string scanning, no full index), and it measured equal to or faster than index-then-decode, so typed decoding does not build a structural index. A structural index or tape for untyped `from_json(Json_Value, ...)`, and simd-json-style number fast paths, remain possible future steps.
+A full simdjson-style structural index (every `{}[],:` plus a stage 2 that walks it) was built experimentally and dropped: for documents of short strings and numbers it cost more to build than the scalar reader's own byte checks cost to repeat. `from_json(T)` is already a schema-guided single pass (generated decoder over the bytes, vector string scanning, no full index), and it measured equal to or faster than index-then-decode, so typed decoding does not build a structural index. A structural index or tape for untyped `from_json(Json_Value, ...)` remains a possible future step. The number fast paths that this section used to list as future work are done (floats above); an untyped number is kept as its text, so only typed decoding converts.
+
+Tried and dropped (measured on the machine below, kept only if a row gained about 5% beyond noise): writing a string that needs no escaping with `ensure_contiguous_space` in one reservation instead of three appends (7% slower on twitter, citm and the catalog); Schubfach for subnormals (it gives two digits where one reads back, e.g. `4.9e-323` for `5e-323`) and for `float32`. `#no_abc` is used on the loops that guard every index themselves (number, whitespace and string scans, the escaper, the float conversion): tests run under `jaic build -sanitize address,undefined` stay clean.
 
 ### Benchmark
 
-`stdlib/Extensions/Json/bench/bench.jai` (build with `-O2`); `tools/json_bench_data.py` downloads twitter.json, canada.json and citm_catalog.json, which are not vendored. Apple silicon, native `-O2`, MB/s, best of two. "vector" is the vector scans; "+ index" adds stage 1 (forced for every size).
+`stdlib/Extensions/Json/bench/bench.jai` (build with `-O2`); `tools/json_bench_data.py` downloads twitter.json, canada.json and citm_catalog.json, which are not vendored. `bench floats` is a generated 2 MB array of 17-digit coordinates decoded into and encoded from a typed struct. "vector" is the vector scans; "+ index" adds stage 1 (forced for every size). MB/s of JSON text.
+
+**This machine** (x86-64 Linux, 4 cores, Intel Xeon @ 2.10 GHz, shared with other jobs, so expect a few percent of noise; canada's `to_json` alternates between two speeds from run to run). Median of five runs of the whole benchmark, default configuration (vector scans, no index), before and after the performance work:
+
+| Document | Operation | before | after | |
+| --- | --- | --- | --- | --- |
+| twitter.json (632 KB) | from_json (untyped) | 276 | 382 | 1.38x |
+| twitter.json | to_json (Json_Value) | 356 | 382 | 1.07x |
+| canada.json (2.2 MB) | from_json (untyped) | 103 | 179 | 1.74x |
+| canada.json | to_json (Json_Value) | 439 | 583 | 1.33x |
+| citm_catalog.json (1.7 MB) | from_json (untyped) | 326 | 464 | 1.42x |
+| citm_catalog.json | to_json (Json_Value) | 230 | 260 | 1.13x |
+| generated catalog (4 MB) | from_json (untyped) | 119 | 162 | 1.36x |
+| generated catalog | from_json(Catalog) | 195 | 245 | 1.26x |
+| generated catalog | to_json(Catalog) | 242 | 245 | 1.01x |
+| coordinates (2 MB, float64) | from_json(Floats) | 37 | 238 | 6.4x |
+| coordinates | to_json(Floats) | 50 | 189 | 3.8x |
+
+What moved them: `Json_Value` arrays and objects are built in a reusable stack and allocated once at their exact size (a growing `[..]` reserves at least eight 104-byte elements, so canada's pairs took 832 bytes each); the whitespace test is inline and number scanning has no bounds checks (citm is mostly indentation); floats take the direct conversion and Schubfach printing; integers of up to 19 digits skip the per-digit overflow test (typed integers, about 1.2x). String scanning and escaping without bounds checks gave 3 to 9%. The remaining cost is allocation (a text per number in a `Json_Value`) and `String_Builder.append`.
+
+**Apple silicon**, before this work (native `-O2`, best of two; not rerun):
 
 | Document | Operation | scalar | vector | + index |
 | --- | --- | --- | --- | --- |
@@ -123,7 +146,7 @@ A full simdjson-style structural index (every `{}[],:` plus a stage 2 that walks
 | generated catalog (4 MB) | from_json(Catalog) | 440 | 457 | 458 |
 | generated catalog | to_json(Catalog) | 503 | 529 | 524 |
 
-Gains are modest (about 1.0 to 1.1x, 1.4x for long clean strings): the parser is mostly bound by value construction and number conversion, not byte scanning.
+The vector scans themselves are worth about 1.0 to 1.1x (1.4x for long clean strings); the parser is bound by value construction, allocation and number conversion, not byte scanning.
 
 ## How to change it
 
@@ -131,6 +154,7 @@ Gains are modest (about 1.0 to 1.1x, 1.4x for long clean strings): the parser is
 - New type: add cases to `emit_encode` and `emit_decode`.
 - `query.jai` is the non-JSON text decoders; a new field kind there needs a `Pair_Kind` and a case in `generate_pair_kinds` (`generate.jai`).
 - Runtime helpers (`json_read_*`, `json_key`, ...) live in `reader.jai` and `writer.jai`; float printing in `number.jai` (reading a validated token calls Basic); stage 1 in `index.jai`.
+- `pow5.jai` (Eisel-Lemire) and `pow10.jai` (Schubfach) are generated tables of exact big-integer arithmetic; their header comments say how. `tests/numbers.jai` checks the direct conversions against Basic's exact one (`fast_path_agrees`) and the printed digits against Basic's exact generator (`shortest_matches_exact`); both sweeps grow with `FULL_SWEEP`.
 - Vector paths stay behind `simd_enabled()` and must give identical results; run `tests/differential.jai`.
 - A new owning type in the decoder needs a matching case in `emit_free` (generate.jai), or a failed decode leaks it; `tests/leaks.jai` shows it.
 - The random sweeps in `tests/numbers.jai` and `tests/stdlib/basic-float-parse-correct-rounding.jai` are small by default so they run in seconds under a debug jaic; set their `FULL_SWEEP` constant to `true` for the large sweep.
