@@ -2,7 +2,7 @@
 
 ## What it is
 
-`#import "Extensions/Json";` gives `to_json`, `from_json` and `parse_json`, modelled on Rust's `serde_json`. Encoders and decoders for your own types are generated at compile time from `Type_Info` (`#insert` inside polymorphic procedures, the same technique as `Extensions/Regex` and `Extensions/Args`). A jaic extension, not official Jai.
+`#import "Extensions/Json";` gives `to_json`, `from_json` and `free_json`, modelled on Rust's `serde_json`. Encoders and decoders for your own types are generated at compile time from `Type_Info` (`#insert` inside polymorphic procedures, the same technique as `Extensions/Regex` and `Extensions/Args`). A jaic extension, not official Jai.
 
 ```jai
 User :: struct @json(rename_all=camelCase) {
@@ -15,7 +15,8 @@ User :: struct @json(rename_all=camelCase) {
 text := to_json(user);                          // to_json(user, pretty = true) indents
 user, error := from_json(User, text);           // error.kind == .NONE on success
 if error.kind != .NONE print("%\n", json_error_text(error));
-value, error := parse_json(text);               // a Json_Value tree when the shape is unknown
+value, error := from_json(Json_Value, text);    // a Json_Value tree when the shape is unknown
+free_json(*user);                               // one free for a value, a Json_Value and a Json_Error
 ```
 
 ## API
@@ -24,14 +25,17 @@ value, error := parse_json(text);               // a Json_Value tree when the sh
 | --- | --- |
 | `to_json(value, pretty := false) -> string` | encode any supported value; caller frees the string |
 | `write_json(*builder, value, pretty := false)` | encode into a `String_Builder` |
-| `from_json($T, text, options := .{}) -> T, Json_Error` | decode into `T`; the error has `kind`, `message`, `offset`, `line`, `column`, `path` (`tags[2]`) |
-| `parse_json(text, options) -> Json_Value, Json_Error` | untyped tree |
+| `from_json($T, text, options := .{}) -> T, Json_Error` | decode into `T` (`T` = `Json_Value` for an untyped tree); the error has `kind`, `message`, `offset`, `line`, `column`, `path` (`tags[2]`) |
+| `from_json($T, Json_Source, options := .{}) -> T, Json_Error` | the same for a document that arrives in pieces (see below); `Io.read_json(reader, T)` is this over an `Io.Reader` |
 | `json_null/bool/int/uint/float/string/array/object`, `json_push`, `json_set` | build a `Json_Value` |
-| `json_get`, `json_at`, `json_count`, `json_as_bool`, `json_as_string`, `json_free` | read one |
-| `free_json(*value)` | release what `from_json` allocated for a decoded value (strings, arrays, pointers and what they point to, tables, `Json_Value`s) |
-| `json_error_text`, `free_json_error` | format and release errors |
+| `json_get`, `json_at`, `json_count`, `json_as_bool`, `json_as_string` | read one |
+| `free_json(*value)` | one overload set that releases what the decoders allocated: a decoded value of any type (strings, arrays, pointers and what they point to, tables, `Json_Value`s), a `Json_Value` tree, and a `Json_Error` (`message`, `path`) |
+| `json_error_text` | format an error |
+| `from_query($T, pairs)`, `from_param($T, text)` | typed values from a URL query or form and from a single string (not JSON; see below) |
 
 `Json_Options` has `max_depth` (256) and `max_size` (1 GiB); exceeding either is a `.LIMIT` error.
+
+**From a stream.** `Json_Source` is `{ data, fill }`: `fill(data, buffer)` puts the next piece of text in `buffer` and returns the byte count (0 at the end) and a failure text (empty when it worked). `from_json(T, source)` gathers the pieces in one buffer, then decodes exactly as for text, so a document cut at any byte gives the same value or error; a source that fails gives a `.READ` error with its text, and one past `max_size` a `.LIMIT` error without reading on. Json does not import Io (it builds for WebAssembly); `Io.read_json(reader, T)` ([io-streams.md](io-streams.md)) makes a `Json_Source` from an `Io.Reader`, and the HTTP client's `read_json(*response, T)` is that over the response body. The decoder wants the whole document in memory and copies its strings out, so the one buffer is the only extra copy.
 
 ## Types
 
@@ -61,7 +65,7 @@ Unknown fields are ignored unless denied; a missing field with no `default` is a
 
 Strict RFC 8259: no BOM, trailing commas, leading zeros, lone surrogates, invalid UTF-8 or raw control characters in strings. Line and column count characters. Encoding replaces invalid UTF-8 with U+FFFD. A failed decode frees everything it had allocated and returns a default `T`, wherever it fails.
 
-**Freeing.** Generated per type next to the decoder: `free_json(*value)` calls `json_free_value(value, defaults)`, whose body comes from `generate_freer` in `generate.jai`. It compares each field with the type's declared default first, so a field that kept `nick := "guest"` because the document omitted it is not freed (a string literal would crash `free`); it resets the fields it frees, so a second call is harmless. Fields with a `with=` handler belong to the handler, which must free its own allocations when it fails; `free_json` does not touch them. Do not call it on values that were not decoded (their strings may not come from the allocator). On failure a struct decoder tracks which fields it has finished (`seen[i] == 2`) and frees exactly those in a `defer`; arrays, views, tables and pointers decode elements into locals and free what they hold before reporting; a repeated key in a `Hash_Table` object replaces and frees the earlier value. The success path pays one byte store per struct field. `tests/leaks.jai` runs a valid document cut at every byte, with every byte replaced, and with trailing data under a counting allocator in both reader paths and checks that no block is left.
+**Freeing.** `free_json` is an overload set: `*Json_Value` (in `value.jai`) and `*Json_Error` (in `module.jai`) are plain procedures, and the generic `free_json(*value)` for every other type calls the module-private `free_json_fields(value, defaults)`, whose body is generated per type by `generate_freer` in `generate.jai`. It compares each field with the type's declared default first, so a field that kept `nick := "guest"` because the document omitted it is not freed (a string literal would crash `free`); it resets the fields it frees, so a second call is harmless. Fields with a `with=` handler belong to the handler, which must free its own allocations when it fails; `free_json` does not touch them. Do not call it on values that were not decoded (their strings may not come from the allocator). On failure a struct decoder tracks which fields it has finished (`seen[i] == 2`) and frees exactly those in a `defer`; arrays, views, tables and pointers decode elements into locals and free what they hold before reporting; a repeated key in a `Hash_Table` object replaces and frees the earlier value. The success path pays one byte store per struct field. `tests/leaks.jai` also checks that `free_json` on a decoded struct, a `Json_Value` and a `Json_Error` each leaves nothing allocated, and runs a valid document cut at every byte, with every byte replaced, and with trailing data under a counting allocator in both reader paths and checks that no block is left.
 
 ### JSONTestSuite
 
@@ -80,6 +84,16 @@ make :: () -> Config { config, error := from_json(Config, "{\"port\":80}"); retu
 config :: #run make();
 ```
 
+## Query and form text
+
+`from_query($T, pairs)` and `from_param($T, text)` (`query.jai`) are not JSON: they decode the key/value pairs of a URL query or a urlencoded form (`Query_Pair`), and a single string such as a path segment or a header, into a typed value, for the Http server's `Query`, `Form`, `Path` and `Params` extractors. They live here because each value is read by the type of the field its key names, with the same `@json` notes (`rename`, `alias`, `default`, `deny_unknown_fields`) and the same errors as `from_json`: the pairs become the JSON object that says the same thing, which `from_json` decodes. A repeated key gives an array for an array field and is a "duplicate field" error for any other; keys no field has are ignored unless the struct denies them. They were `from_pairs` and `from_text`. Query strings and forms decode identically, so there is one function for both.
+
+```jai
+Search :: struct @json(default) { q: string; limit := 20; tags: [..] string; }
+search, error := from_query(Search, pairs);        // pairs of "?q=jai&tags=a&tags=b"
+page, error2 := from_param(int, "42");
+```
+
 ## SIMD
 
 Vector code (via `Extensions/SIMD`, `u8x16`: SSE2/NEON) accelerates the hot byte scans. Scalar code is the reference, and is used on wasm and wherever vectors are unavailable.
@@ -91,7 +105,7 @@ Vector code (via `Extensions/SIMD`, `u8x16`: SSE2/NEON) accelerates the hot byte
 
 ### Not done, and why
 
-A full simdjson-style structural index (every `{}[],:` plus a stage 2 that walks it) was built experimentally and dropped: for documents of short strings and numbers it cost more to build than the scalar reader's own byte checks cost to repeat. `from_json(T)` is already a schema-guided single pass (generated decoder over the bytes, vector string scanning, no full index), and it measured equal to or faster than index-then-decode, so typed decoding does not build a structural index. A structural index or tape for `parse_json`, and simd-json-style number fast paths, remain possible future steps.
+A full simdjson-style structural index (every `{}[],:` plus a stage 2 that walks it) was built experimentally and dropped: for documents of short strings and numbers it cost more to build than the scalar reader's own byte checks cost to repeat. `from_json(T)` is already a schema-guided single pass (generated decoder over the bytes, vector string scanning, no full index), and it measured equal to or faster than index-then-decode, so typed decoding does not build a structural index. A structural index or tape for untyped `from_json(Json_Value, ...)`, and simd-json-style number fast paths, remain possible future steps.
 
 ### Benchmark
 
@@ -99,13 +113,13 @@ A full simdjson-style structural index (every `{}[],:` plus a stage 2 that walks
 
 | Document | Operation | scalar | vector | + index |
 | --- | --- | --- | --- | --- |
-| twitter.json (632 KB) | parse_json | 571 | 627 | 623 |
+| twitter.json (632 KB) | from_json (untyped) | 571 | 627 | 623 |
 | twitter.json | to_json (Json_Value) | 730 | 814 | 813 |
-| canada.json (2.2 MB) | parse_json | 419 | 422 | 403 |
+| canada.json (2.2 MB) | from_json (untyped) | 419 | 422 | 403 |
 | canada.json | to_json (Json_Value) | 1207 | 1300 | 1194 |
-| citm_catalog.json (1.7 MB) | parse_json | 755 | 773 | 772 |
+| citm_catalog.json (1.7 MB) | from_json (untyped) | 755 | 773 | 772 |
 | citm_catalog.json | to_json (Json_Value) | 590 | 580 | 583 |
-| long strings (5.7 MB) | parse_json | 1039 | 1080 | 1422 |
+| long strings (5.7 MB) | from_json (untyped) | 1039 | 1080 | 1422 |
 | generated catalog (4 MB) | from_json(Catalog) | 440 | 457 | 458 |
 | generated catalog | to_json(Catalog) | 503 | 529 | 524 |
 
@@ -115,6 +129,7 @@ Gains are modest (about 1.0 to 1.1x, 1.4x for long clean strings): the parser is
 
 - New attribute: parse it in `collect_leaves` (`generate.jai`), carry it on `Leaf`, and emit it in `generate_encoder` / `generate_decoder`.
 - New type: add cases to `emit_encode` and `emit_decode`.
+- `query.jai` is the non-JSON text decoders; a new field kind there needs a `Pair_Kind` and a case in `generate_pair_kinds` (`generate.jai`).
 - Runtime helpers (`json_read_*`, `json_key`, ...) live in `reader.jai` and `writer.jai`; float printing in `number.jai` (reading a validated token calls Basic); stage 1 in `index.jai`.
 - Vector paths stay behind `simd_enabled()` and must give identical results; run `tests/differential.jai`.
 - A new owning type in the decoder needs a matching case in `emit_free` (generate.jai), or a failed decode leaks it; `tests/leaks.jai` shows it.
@@ -126,7 +141,7 @@ Gains are modest (about 1.0 to 1.1x, 1.4x for long clean strings): the parser is
 
 ## Dependencies
 
-`Basic`, `String`, `Compiler`, `Hash_Table`, `Extensions/SIMD`.
+`Basic`, `String`, `Compiler`, `Hash_Table`, `Extensions/SIMD`. Nothing from Io; `Io.read_json` imports Json, not the other way round.
 
 ## Credits
 

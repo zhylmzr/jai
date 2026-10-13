@@ -2,7 +2,7 @@
 
 ## What it is
 
-`Thread` (threads, mutexes, condition variables, semaphores, thread groups), `Atomics`, `Socket` (BSD/Winsock wrappers), and the input stack: `Input` (event queue and key state), `Keymap` (named key bindings loaded from text) and `Gamepad`.
+`Thread` (threads, mutexes, condition variables, semaphores, thread groups), `Atomics`, `Socket` (BSD/Winsock wrappers; for fibers, `Extensions/Io` has TCP, files and pipes behind one [reader/writer interface](io-streams.md)), and the input stack: `Input` (event queue and key state), `Keymap` (named key bindings loaded from text) and `Gamepad`.
 
 ## How it works
 

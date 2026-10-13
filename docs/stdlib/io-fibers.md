@@ -2,7 +2,7 @@
 
 ## What it is
 
-`#import "Extensions/Io";` gives cooperative fibers on a per-thread scheduler: `io_run`, `spawn`, `yield`, `sleep`, `cancel`, a bounded `Channel(T)`, `Wait_Group` and `Fiber_Mutex`. A jaic extension. Sockets, files, deadlines and name lookups run on the same scheduler through a completion engine: see [the Io engine](io-engine.md). It builds on the [fiber intrinsics](../compiler/fibers.md) and is a compile error on wasm.
+`#import "Extensions/Io";` gives cooperative fibers on a per-thread scheduler: `io_run`, `spawn`, `yield`, `sleep`, `cancel`, a bounded `Channel(T)`, `Wait_Group` and `Fiber_Mutex`. A jaic extension. Sockets, files, deadlines and name lookups run on the same scheduler through a completion engine: see [the Io engine](io-engine.md); files, TCP and pipes share one reader/writer interface and one deadline primitive: see [io-streams.md](io-streams.md). It builds on the [fiber intrinsics](../compiler/fibers.md) and is a compile error on wasm.
 
 ```jai
 Io :: #import "Extensions/Io";
@@ -24,7 +24,7 @@ main :: () {
 - Blocking calls (`sleep`, `recv`, `send`, `wait`, `lock`, `yield`) return an `Io_Error`: `.NONE`, `.CANCELED` after `cancel(handle)` (sticky for that fiber, see `is_canceled()`), or `.CLOSED` for a closed channel. Waiters sit in intrusive lists on the blocked fiber's stack.
 - Each fiber gets a copy of the spawner's `context` with its own temporary storage (`TEMPORARY_BYTES`, reset when the fiber ends).
 - `in_scheduler()` says whether the caller runs on a fiber (inside `io_run`), for code that starts a scheduler of its own when there is none (the [HTTP client](http-client.md) does).
-- `make_pipe()` returns two connected `*Pipe_Stream` ends, an in-memory duplex stream with the shape of a TCP connection: `read` (waits for bytes, 0 once the other end closed and everything was read, honours `with_deadline` and `cancel`), `write` (never blocks, `.BROKEN_PIPE` after the peer closed), `shutdown_write` and `close` (each end once; the pair frees itself after the second). Both ends belong to one scheduler. It is what lets the [HTTP test client](http-testing.md) run a server connection without a socket. `pipe.jai`; test: `Extensions/Io/tests/pipe.jai`.
+- `make_pipe()` returns two connected `*Pipe_Stream` ends, an in-memory duplex stream with the shape of a TCP connection: `read` (waits for bytes, 0 once the other end closed and everything was read, honours `with_deadline` and `cancel`), `read_full`, `write` and `write_some` (never block, `.BROKEN_PIPE` after the peer closed), `shutdown_write` and `close` (each end once; the pair frees itself after the second). `reader_of(pipe)`/`writer_of(pipe)` make an `Io.Reader`/`Io.Writer` ([io-streams.md](io-streams.md)). Both ends belong to one scheduler. It is what lets the [HTTP test client](http-testing.md) run a server connection without a socket. `pipe.jai`; test: `Extensions/Io/tests/pipe.jai`.
 - `Fiber_Handle` carries a generation, so a stale handle (to a finished, reused fiber) is ignored by `cancel`.
 - Stack overflow (POSIX): a SIGSEGV/SIGBUS handler on an alternate stack checks the fault address against the running fiber's guard page and prints `fatal: fiber stack overflow: ...`, exit status 139. On Windows the runtime's usual access violation report applies. Under `jaic run` the interpreter's own stack-depth trap fires instead.
 
@@ -42,4 +42,4 @@ Io :: #import "Extensions/Io"(STACK_BYTES = 64 * 1024);
 
 ## Dependencies
 
-`Basic`, the fiber intrinsics, `POSIX`/`Windows` for stack memory and signals. Tests: `tests/stdlib/io-fibers-*.jai` (interp and native; skipped on wasm), `tests/native/fibers/`.
+`Basic`, [`Extensions/Json`](json.md) (only for `read_json`), the fiber intrinsics, `POSIX`/`Windows` for stack memory and signals. Tests: `tests/stdlib/io-fibers-*.jai` (interp and native; skipped on wasm), `tests/native/fibers/`.

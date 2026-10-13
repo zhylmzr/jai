@@ -104,6 +104,7 @@ The clean-room `stdlib/`. Contributors must not read the source of an official J
 - [Stdlib extensions: jaic-only modules in `stdlib/Extensions/`](stdlib/extensions.md)
 - [Io: fibers, scheduler, channels (jaic extension)](stdlib/io-fibers.md)
 - [Io engine: TCP, files, deadlines, io_uring/epoll/kqueue backends (jaic extension)](stdlib/io-engine.md)
+- [Io readers and writers: one set of operations over files, TCP and pipes, one deadline primitive, JSON from a reader (jaic extension)](stdlib/io-streams.md)
 - [Io_Uring: raw io_uring bindings generated from the kernel header, and ring helpers (jaic extension, Linux)](stdlib/io-uring.md)
 - [Command_Line](stdlib/command-line.md)
 - [Args: a compile-time-generated command-line parser (jaic extension)](stdlib/args.md)

@@ -99,7 +99,7 @@ Why plain procedures and not a fluent chain: Jai has no methods, so a chain woul
 ## How to change it
 
 - A new expectation: add it to `expect.jai` (before `#scope_module`), start with `test_state.checks += 1;`, return early on success, and report with `fail_response(loc, headline, response, focus)` so the output has the same shape; take `loc := #caller_location` last. If it needs the body use `checked_body(response)`, not the connection. Add a row above, a case to `failure_messages` in `tests/testing.jai` (it compares the printed text) and use it in `examples/http/crud_test.jai` if it reads well there.
-- A different transport (a Unix socket, TLS): fill `Client.transport` with `open` returning a `Stream`; add a `Stream_Kind` and its cases in `stream.jai`. The pool keeps connections per `transport.data`.
+- A different transport (a Unix socket, TLS): fill `Client.transport` with `open` returning a `Link` (an `Io.Reader` and `Io.Writer` of your own, or `tcp_link`/`pipe_link`; see `link.jai`). The pool keeps connections per `transport.data`.
 - Test the test tools themselves with `begin_failure_capture()` / `end_failure_capture()`: failures inside are collected as text and do not count against the run.
 - The pipe is `Extensions/Io/pipe.jai` (`make_pipe`, `read`, `write`, `shutdown_write`, `close`, all taking `*Pipe_Stream`); close each end once, the pair frees itself after the second.
 - Gotchas: `test_client` returns a pointer owned by the test run (`free_test_client` releases it sooner). An app's routes must not change while clients use it. A handler that blocks the thread (`sleep` from `Thread`, a busy wait) blocks the whole test: use `Io.sleep`.

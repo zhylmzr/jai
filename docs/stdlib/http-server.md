@@ -67,7 +67,7 @@ Checked: a `Path` or `Params` name that is not in the template, a `Path` type th
 | `*Request` | the whole request (`method`, `target`, `path`, `headers`, `body`, `peer`, `header(...)`, `query_param(...)`) | |
 | `*State(T)` | `app.state`, the pointer you set (not a copy) | |
 
-Query, form and path text is turned into typed values by [`from_pairs`/`from_text`](json.md) in Json, so the same field rules and error wording apply.
+Query, form and path text is turned into typed values by [`from_query`/`from_param`](json.md#query-and-form-text) in Json, so the same field rules and error wording apply.
 
 **Return values.** The first return value becomes the response, an optional second `Http_Error` replaces it when its `kind` is not `.NONE`:
 
