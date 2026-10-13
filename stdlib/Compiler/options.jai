@@ -386,7 +386,7 @@ derive_main_outputs :: (options: *Build_Options) {
     // Source paths use `/` on every OS (that is what `#file` gives), so the directory does too.
     with_separator := copy_text(slice_directory(file, directory.count + 1));
 
-    for 0..with_separator.count - 1 if with_separator[it] == #char "\\" with_separator[it] = #char "/";
+    for *with_separator if it.* == #char "\\" it.* = #char "/";
 
     options.output_path = with_separator;
     options.intermediate_path = copy_text(tprint("%.build", with_separator));
