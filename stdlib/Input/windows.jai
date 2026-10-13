@@ -230,13 +230,13 @@ windows_process_input_message :: (hwnd: Win.HWND, kind: u32, wparam: Win.WPARAM,
         queue_input_event(window, event);
     } else if message.message == Win.WM_MOUSEWHEEL {
         event.type = .MOUSE_WHEEL;
-        event.wheel_delta = cast(s16) ((message.wParam >> 16) & 0xffff);
+        event.wheel_delta = cast,trunc(s16) ((message.wParam >> 16) & 0xffff);
         event.typical_wheel_delta = 120;
         windows_modifiers(*event);
         queue_input_event(window, event);
     } else if message.message == Win.WM_MOUSEMOVE {
-        x := cast(s16) ((cast(u64) message.lParam) & 0xffff);
-        y := cast(s16) (((cast(u64) message.lParam) >> 16) & 0xffff);
+        x := cast,trunc(s16) ((cast(u64) message.lParam) & 0xffff);
+        y := cast,trunc(s16) (((cast(u64) message.lParam) >> 16) & 0xffff);
         found := false;
 
         for *position: windows_mouse_positions {
@@ -254,7 +254,7 @@ windows_process_input_message :: (hwnd: Win.HWND, kind: u32, wparam: Win.WPARAM,
     } else if message.message == Win.WM_SIZE {
         queue_window_resize(window, cast(u16) ((cast(u64) message.lParam) & 0xffff), cast(u16) (((cast(u64) message.lParam) >> 16) & 0xffff));
     } else if message.message == Win.WM_MOVE {
-        queue_window_move(window, cast(s16) ((cast(u64) message.lParam) & 0xffff), cast(s16) (((cast(u64) message.lParam) >> 16) & 0xffff));
+        queue_window_move(window, cast,trunc(s16) ((cast(u64) message.lParam) & 0xffff), cast,trunc(s16) (((cast(u64) message.lParam) >> 16) & 0xffff));
     }
 
 }
