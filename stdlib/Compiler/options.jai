@@ -383,8 +383,11 @@ derive_main_outputs :: (options: *Build_Options) {
     if dot > 1 name.count = dot - 1;
 
     options.output_executable_name = copy_text(name);
-    options.output_path = copy_text(tprint("%/", directory));
-    options.intermediate_path = copy_text(tprint("%/.build", directory));
+    // The directory keeps the main file's own separator, so on Windows a `\` path stays that way.
+    with_separator := file;
+    with_separator.count = directory.count + 1;
+    options.output_path = copy_text(with_separator);
+    options.intermediate_path = copy_text(tprint("%.build", with_separator));
     main_intermediate_default = copy_text(options.intermediate_path);
 }
 
