@@ -2262,6 +2262,21 @@ create_enum :: (c: Cursor) -> *Enum {
         if fits e.type = g.type_def_s32;
     }
 
+    #if OS == .WINDOWS {
+        if context.generator_options.os != .WINDOWS && is_signed_storage(e.type) && e.type.size == 4 && !e.type.type_of_typedef && !has_fixed_underlying_type(key) {
+            // The converse of the case above: libclang on a Windows host parses for MSVC and gives
+            // `int`, where the Itanium and AAPCS64 targets type an enum without negative values
+            // `unsigned int`.
+            fits := true;
+
+            for get_children(key) {
+                if cursor_kind(it) == .ENUM_CONSTANT_DECL && clang("enum_value", it) < 0 fits = false;
+            }
+
+            if fits e.type = g.type_def_u32;
+        }
+    }
+
     if context.generator_options.alias_original_enum_names e.flags |= .ALIAS_ORIGINAL_NAMES;
     if options_mimic_enums() e.flags |= .MIMIC_SPACING;
 

@@ -383,15 +383,24 @@ derive_main_outputs :: (options: *Build_Options) {
     if dot > 1 name.count = dot - 1;
 
     options.output_executable_name = copy_text(name);
-    // The directory keeps the main file's own separator, so on Windows a `\` path stays that way.
-    with_separator := file;
-    with_separator.count = directory.count + 1;
-    options.output_path = copy_text(with_separator);
+    // Source paths use `/` on every OS (that is what `#file` gives), so the directory does too.
+    with_separator := copy_text(slice_directory(file, directory.count + 1));
+
+    for 0..with_separator.count - 1 if with_separator[it] == #char "\\" with_separator[it] = #char "/";
+
+    options.output_path = with_separator;
     options.intermediate_path = copy_text(tprint("%.build", with_separator));
     main_intermediate_default = copy_text(options.intermediate_path);
 }
 
 main_intermediate_default: string;
+
+slice_directory :: (file: string, count: s64) -> string {
+    result := file;
+    result.count = count;
+
+    return result;
+}
 
 collect_command_line :: () -> [] string {
     count := __jaic_command_line_count();
