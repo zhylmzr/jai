@@ -22,7 +22,7 @@ main :: () {
 }
 ```
 
-A `Client` holds what requests have in common (`base_url`, default `headers`, `timeout`, `max_redirects`, the `transport`). Every call takes the client it goes through; each also has a form without one (`get_json(User, "http://localhost:8080/users/1")`) that uses `default_client()`, a plain client with no base URL. Inside `Io.io_run` (or a handler or a spawned fiber) a call runs on the calling fiber and only that fiber waits; outside a scheduler `send` runs one for that call, so a script needs no `io_run` (connections are not kept between such calls). `examples/http/client.jai` is a complete program.
+A `Client` holds what requests have in common (`base_url`, default `headers`, `timeout`, `max_redirects`, the `transport`). Every call takes the client it goes through, and there is no other form. A zeroed `Client` works (no base URL, TCP, 30 seconds), so a one-off script writes `api: Client;` and passes `*api`; absolute URLs need no `base_url`. Inside `Io.io_run` (or a handler or a spawned fiber) a call runs on the calling fiber and only that fiber waits; outside a scheduler `send` runs one for that call, so a script needs no `io_run` (connections are not kept between such calls). `examples/http/client.jai` is a complete program.
 
 ## How it works
 
