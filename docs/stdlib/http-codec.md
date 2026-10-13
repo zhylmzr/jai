@@ -34,7 +34,7 @@ while true {
 | `SWITCHED` | a 101 response, or a 2xx response to CONNECT: the rest of the stream is not HTTP |
 | `ERROR` | `parser.error` has a `kind`, a static `message` and the byte offset; the parser stays failed |
 
-**Memory.** The head is copied into a buffer the parser owns, so header strings (`Header.name`, `.value`, `head.target`...) stay valid however the input was chunked, until the next message's first byte is parsed. Body bytes are never copied. Pipelined requests therefore work like this: take what you need from `parser.head` before parsing past `END`. Buffers are reused across messages; `parser_free` releases them, `parser_reset` starts a new connection.
+**Memory.** The head is copied into a buffer the parser owns, so header strings (`Header_Field.name`, `.value`, `head.target`...) stay valid however the input was chunked, until the next message's first byte is parsed. Body bytes are never copied. Pipelined requests therefore work like this: take what you need from `parser.head` before parsing past `END`. Buffers are reused across messages; `parser_free` releases them, `parser_reset` starts a new connection.
 
 **Lines, not bytes.** The head is read a line at a time: the next CR or LF is found with a vector scan, the line is appended to the buffer and checked when complete, so feeding one byte at a time costs no more than feeding everything. A bad first byte of a line (an obs-fold), a lone CR or LF and an over-long line are refused before the line ends.
 
