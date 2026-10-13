@@ -14,7 +14,7 @@ User :: struct @json(rename_all=camelCase) {
 
 text := to_json(user);                          // to_json(user, pretty = true) indents
 user, error := from_json(User, text);           // error.kind == .NONE on success
-if error.kind != .NONE print("%\n", json_error_text(error));
+if error.kind != .NONE print("%\n", error_text(error));
 value, error := from_json(Json_Value, text);    // a Json_Value tree when the shape is unknown
 free_json(*user);                               // one free for a value, a Json_Value and a Json_Error
 ```
@@ -30,7 +30,7 @@ free_json(*user);                               // one free for a value, a Json_
 | `json_null/bool/int/uint/float/string/array/object`, `json_push`, `json_set` | build a `Json_Value` |
 | `json_get`, `json_at`, `json_count`, `json_as_bool`, `json_as_string` | read one |
 | `free_json(*value)` | one overload set that releases what the decoders allocated: a decoded value of any type (strings, arrays, pointers and what they point to, tables, `Json_Value`s), a `Json_Value` tree, and a `Json_Error` (`message`, `path`) |
-| `json_error_text` | format an error |
+| `error_text` | format an error |
 | `from_query($T, pairs)`, `from_param($T, text)` | typed values from a URL query or form and from a single string (not JSON; see below) |
 
 `Json_Options` has `max_depth` (256) and `max_size` (1 GiB); exceeding either is a `.LIMIT` error.
