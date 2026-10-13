@@ -2,7 +2,7 @@
 
 ## What it is
 
-`#import "Extensions/Http";` gives a sans-IO HTTP/1.0 and HTTP/1.1 codec: an incremental parser for requests and responses, and writers for heads and chunked bodies. It reads and writes byte buffers and never touches a socket, so the server and client of [the async IO plan](../plans/async-io.md) (milestone 6) sit on top of it, tests drive it directly, and it builds for every target including wasm. A jaic extension, not official Jai. Strict RFC 9112 framing is the point: ambiguous messages are refused, which is what stops request smuggling.
+`#import "Extensions/Http";` gives a sans-IO HTTP/1.0 and HTTP/1.1 codec: an incremental parser for requests and responses, and writers for heads and chunked bodies. It reads and writes byte buffers and never touches a socket, so the [server](http-server.md) and [client](http-client.md) sit on top of it, tests drive it directly, and it builds for every target including wasm. A jaic extension, not official Jai. Strict RFC 9112 framing is the point: ambiguous messages are refused, which is what stops request smuggling.
 
 ```jai
 parser: Parser;
@@ -138,7 +138,7 @@ The llhttp fixtures: 229 run (pausing fixtures and ones with inline JavaScript a
 - **Timing:** `GET / HTTP/5.6` without its CRLF is refused when the line ends, llhttp refuses at the first bad byte.
 - Where llhttp keeps blanks around a header value in the value, the tests compare the trimmed value (RFC 9110 5.5).
 
-http-garden (Docker, differential testing of whole HTTP servers) is optional: `http_conformance.py --garden DIR` detects Docker and a checkout, and reports it not applicable until the jaic server exists. h2spec and HPACK suites are for the HTTP/2 milestone.
+http-garden (Docker, differential testing of whole HTTP servers) is optional: `http_conformance.py --garden DIR` detects Docker and a checkout, and points at `tools/http_garden/server.jai`, the echo server to put in its image; the script itself probes that server over TCP (smuggling shapes, limits, SIGINT shutdown) without Docker, see [the server](http-server.md). h2spec and HPACK suites are for the HTTP/2 milestone.
 
 ## Performance
 
