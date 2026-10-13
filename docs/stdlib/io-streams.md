@@ -2,7 +2,7 @@
 
 ## What it is
 
-One way to move bytes whatever they come from. `Io.Reader` and `Io.Writer` are small handles over a file (`Io_File`), a TCP connection (`Tcp_Stream`), an in-memory pipe (`*Pipe_Stream`) or a source of your own, and every source has the same five operations: `read`, `read_full`, `write`, `write_some` and `close`. `with_deadline` is the one way to bound a wait, for all of them. `Io.read_json` decodes a document straight from a reader. Part of [`Extensions/Io`](io-fibers.md); the sockets, files and engine are in [the Io engine](io-engine.md). Everything that waits runs on a fiber inside `io_run`.
+One way to move bytes whatever they come from. `Io.Reader` and `Io.Writer` are small handles over a file (`Io_File`), a TCP connection (`Tcp_Stream`), an in-memory pipe (`*Pipe_Stream`) or a source of your own, and every source has the same five operations: `read`, `read_full`, `write`, `write_some` and `close`. A source that can say when a read would not wait (a TCP stream) also offers `wait_readable`. `with_deadline` is the one way to bound a wait, for all of them. `Io.read_json` decodes a document straight from a reader. Part of [`Extensions/Io`](io-fibers.md); the sockets, files and engine are in [the Io engine](io-engine.md). Everything that waits runs on a fiber inside `io_run`.
 
 ```jai
 Io :: #import "Extensions/Io";
@@ -35,16 +35,19 @@ Io.with_deadline(2000, #code {
 | `write(dst, bytes)` / `write(dst, text)` | all of it, waiting as often as it takes; on an error, how many went out |
 | `write_some(dst, bytes)` | at least one byte (unless empty); returns how many |
 | `close(x, now := false)` | closes it; with `now`, without waiting |
+| `wait_readable(src)` | returns when a `read` would not wait: bytes are there, the source ended or failed (the `read` says which). Takes no buffer and consumes nothing; `Tcp_Stream` and `Reader` only, `.UNSUPPORTED` when a reader has no `wait_proc` (`can_wait_readable(reader)` asks) |
 
 `read_all(reader, size_hint := 0)` collects a reader to its end, and `read_file(path)` is that over a file (the size is the hint). `write_file(path, data)` creates or replaces a file.
 
-**Representation: a vtable.** `Reader` is `{ data: *void, read_proc, close_proc }` and `Writer` is `{ data: *void, write_proc, close_proc }`, where the procedures take `data` first (`Read_Proc`, `Write_Proc`, `Close_Proc` in `stream.jai`). The built-in sources are made with `reader_of(x)` / `writer_of(x)`; a TCP connection carries its descriptor in `data` (it fits in a word), a file or pipe is pointed at. A source of your own fills the struct by hand:
+**Representation: a vtable.** `Reader` is `{ data: *void, read_proc, close_proc, wait_proc }` and `Writer` is `{ data: *void, write_proc, close_proc }`, where the procedures take `data` first (`Read_Proc`, `Write_Proc`, `Close_Proc` in `stream.jai`). The built-in sources are made with `reader_of(x)` / `writer_of(x)`; a TCP connection carries its descriptor in `data` (it fits in a word), a file or pipe is pointed at. A source of your own fills the struct by hand:
 
 ```jai
 source := Io.Reader.{ data = *mine, read_proc = my_read, close_proc = my_close };
 ```
 
 and then works with `read_full`, `read_all`, `Io.read_json`, the HTTP connection loop and everything else written against a `Reader`. An enum union would have been smaller for the three built-in sources but closed to users, and every new kind (a TLS stream, a gzip reader) would mean editing Io. The cost of the vtable is one indirect call per read, which is nothing next to the system call behind it. `close_proc` may be null.
+
+`wait_proc` (`Wait_Proc`, `(data) -> Io_Error`) may stay null; it is how a reader says it can wait for readability. `reader_of(Tcp_Stream)` sets it, so a program that holds many connections can wait for each one without a buffer and take one only when something has arrived (the Http server does, see [its memory notes](http-server.md#memory)). It is public because the call is clean on its own: a deadline and `cancel` end it like any wait, it consumes nothing, and a reader that cannot offer it says so instead of pretending. Pipes and files do not offer it (a file is always ready, and a pipe's waiters are not an engine operation).
 
 A reader and a writer over one TCP stream or pipe end share the connection: `close` on either closes it, so close only one of them. A file's reader and writer share its position.
 
