@@ -1,5 +1,7 @@
 # Http server (`Extensions/Http`)
 
+Shared rules of Io, Tls, Http and Json (pointers or values, `close(x, now)`, errors, who frees, milliseconds): [conventions](extensions-conventions.md).
+
 ## What it is
 
 A routing HTTP/1.1 server on fibers: you register plain functions as handlers, say what they need as parameter types, and the module checks them against the route at compile time and generates the code that reads the request. It sits on the [codec](http-codec.md) and on [Io](io-engine.md), and is a jaic extension, not official Jai. Not available on wasm (fibers cannot switch stacks there); the codec still is. The [client](http-client.md) is the other half, and the [test client](http-testing.md) drives an `App` in memory for end-to-end tests.
@@ -132,20 +134,20 @@ Of the 16 KB left, about 12 KB are fiber stack pages the connection has touched 
 
 ## Configuration
 
-`app.config` (`Server_Config`); times in milliseconds, 0 turns off the ones that allow it.
+`app.config` (`Server_Config`). Every time is in milliseconds. For `header_timeout`, `body_timeout`, `idle_timeout` and `write_timeout`, 0 or a negative number means no limit (the code turns it into `Io.NO_DEADLINE`). `shutdown_timeout` is the exception: 0 or less is not "wait forever" but "do not wait", so connections are cut at once; there is no unlimited setting for it.
 
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `address` | `":8080"` | `":8080"`, `"127.0.0.1:3000"`, `"[::1]:8080"`; port 0 picks a free one |
-| `threads` | 0 | schedulers; 0 is one per processor |
-| `header_timeout` | 10000 | from the first byte of a request to the end of its head (408) |
-| `body_timeout` | 30000 | silence while the body is sent (408) |
-| `idle_timeout` | 60000 | waiting for the next request on a keep-alive connection |
-| `write_timeout` | 30000 | one write of a response |
-| `shutdown_timeout` | 10000 | how long `stop` waits before cutting connections |
+| `threads` | 0 | schedulers; 0 or less is one per processor |
+| `header_timeout` | 10000 | from the first byte of a request to the end of its head (408); also the TLS handshake of an https connection; 0 or less: no limit |
+| `body_timeout` | 30000 | silence while the body is sent (408); 0 or less: no limit |
+| `idle_timeout` | 60000 | waiting for the next request on a keep-alive connection; 0 or less: wait until the client sends or hangs up (`stop` still closes it) |
+| `write_timeout` | 30000 | one write of a response; 0 or less: no limit |
+| `shutdown_timeout` | 10000 | how long `stop` waits before cutting connections; 0 or less: cut at once, never "forever" |
 | `max_body_size` | 1 MiB | 413 over it |
 | `max_head_size`, `max_headers`, `max_line_size` | 64 KiB, 100, 8 KiB | 431 / 414 |
-| `max_requests_per_connection` | 10000 | then `Connection: close` |
+| `max_requests_per_connection` | 10000 | then `Connection: close`; 0 or less: no limit |
 | `read_buffer_size` | 16 KiB | per connection that has bytes to read, not per connection ([Memory](#memory)) |
 | `server_name` | `"jaic"` | the `Server` header; empty sends none |
 | `log_requests` | false | one line per request on standard output |

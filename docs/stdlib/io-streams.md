@@ -1,5 +1,7 @@
 # Io: readers, writers and deadlines (`Extensions/Io`)
 
+Shared rules of Io, Tls, Http and Json (pointers or values, `close(x, now)`, errors, who frees, milliseconds): [conventions](extensions-conventions.md).
+
 ## What it is
 
 One way to move bytes whatever they come from. `Io.Reader` and `Io.Writer` are small handles over a file (`Io_File`), a TCP connection (`Tcp_Stream`), an in-memory pipe (`*Pipe_Stream`) or a source of your own, and every source has the same five operations: `read`, `read_full`, `write`, `write_some` and `close`. A source that can say when a read would not wait (a TCP stream) also offers `wait_readable`. `with_deadline` is the one way to bound a wait, for all of them. `Io.read_json` decodes a document straight from a reader. Part of [`Extensions/Io`](io-fibers.md); the sockets, files and engine are in [the Io engine](io-engine.md). Everything that waits runs on a fiber inside `io_run`.

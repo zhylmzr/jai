@@ -1,5 +1,7 @@
 # Http client (`Extensions/Http`)
 
+Shared rules of Io, Tls, Http and Json (pointers or values, `close(x, now)`, errors, who frees, milliseconds): [conventions](extensions-conventions.md).
+
 ## What it is
 
 A small HTTP/1.1 client for fibers. A request returns a response that holds the status and headers; the body stays on the connection and is read from the response afterwards (`read_text`, `read_bytes`, `read_json`, `read_some`). There is a per-scheduler connection pool, timeouts and redirects. `http://` and `https://` (see [HTTPS](#https)). It shares `#import "Extensions/Http"` with the [server](http-server.md) and the [codec](http-codec.md) and is a jaic extension. Not available on wasm. A client can also be wired to an `App` in memory for [tests](http-testing.md).

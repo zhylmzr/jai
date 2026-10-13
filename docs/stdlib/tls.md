@@ -1,5 +1,7 @@
 # Tls (`Extensions/Tls`)
 
+Shared rules of Io, Tls, Http and Json (pointers or values, `close(x, now)`, errors, who frees, milliseconds): [conventions](extensions-conventions.md).
+
 ## What it is
 
 TLS 1.2 and 1.3 for fibers, on a vendored [mbedTLS](https://github.com/Mbed-TLS/mbedtls) 3.6.7 (LTS; Apache-2.0 OR GPL-2.0-or-later, the licence file ships with the libraries). `#import "Extensions/Tls"` wraps any `Io.Reader`/`Io.Writer` pair, such as a TCP stream, in a TLS client or server connection whose reader and writer are again an `Io.Reader` and `Io.Writer`, so the [HTTP client and server](http-client.md) run over it unchanged. A jaic extension, not available on wasm (a compile-time `#assert` says why). Milestone 10 of [the async IO plan](../plans/async-io.md).

@@ -1,5 +1,7 @@
 # Json: typed JSON generated at compile time (jaic extension)
 
+Shared rules of Io, Tls, Http and Json (pointers or values, `close(x, now)`, errors, who frees, milliseconds): [conventions](extensions-conventions.md).
+
 ## What it is
 
 `#import "Extensions/Json";` gives `to_json`, `from_json` and `free_json`, modelled on Rust's `serde_json`. Encoders and decoders for your own types are generated at compile time from `Type_Info` (`#insert` inside polymorphic procedures, the same technique as `Extensions/Regex` and `Extensions/Args`). A jaic extension, not official Jai.
