@@ -20,6 +20,7 @@ mod links;
 pub mod lints;
 mod model;
 mod modules;
+mod paths;
 mod position;
 mod project;
 mod protocol;

@@ -528,9 +528,11 @@ fn module_qualified_struct_constants_resolve() {
         "Square :: struct {\n    SIDES :: 4;\n    side: int;\n}\nmake :: () -> Square { return .{}; }\n",
     )
     .unwrap();
+    // A path inside a Jai program is written with `/` on Windows too (`#file` does), and a
+    // backslash in a string literal is an escape.
     let text = format!(
         "Shapes :: #import,file \"{}\";\n\n// Uses [Shapes.Square.SIDES] and [Shapes.Square.side] and [Shapes.Square.nothing].\nf :: () {{ s := Shapes.make(); }}\n",
-        module.display()
+        module.display().to_string().replace('\\', "/")
     );
     let s = open_with(&text);
     let found = s

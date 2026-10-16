@@ -93,7 +93,7 @@ impl Session {
         start: usize,
         end: usize,
     ) -> Option<Location> {
-        let target = DocumentUri::parse(&format!("file://{path}")).ok()?;
+        let target = DocumentUri::from_path(path)?;
         let span = Span::new(start, end);
         let range = match self.documents.get(&target) {
             Some(open) if *open.text == **text => open.index.range(&open.text, span).ok()?,
@@ -1007,7 +1007,7 @@ impl Session {
             .environment
             .as_ref()
             .map_or(path.clone(), |e| e.fs.canonical(&path));
-        DocumentUri::parse(&format!("file://{}", path.to_string_lossy())).ok()
+        DocumentUri::from_path(&path.to_string_lossy())
     }
 
     /// Each `#load` / `#import` string of the document with the file it brings in.

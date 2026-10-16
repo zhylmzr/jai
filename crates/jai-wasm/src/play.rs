@@ -146,9 +146,10 @@ fn parse_located(message: &str) -> Option<(&str, u32, u32, &str)> {
 }
 
 fn workspace_name(path: &str) -> String {
-    let prefix = format!("{WORKSPACE_ROOT}/");
-    path.strip_prefix(&prefix)
-        .map_or_else(|| path.to_string(), str::to_string)
+    match std::path::Path::new(path).strip_prefix(WORKSPACE_ROOT) {
+        Ok(rest) if !rest.as_os_str().is_empty() => rest.display().to_string(),
+        _ => path.to_string(),
+    }
 }
 
 fn convert(compiler: &Compiler, d: &Diagnostic) -> PlayDiagnostic {

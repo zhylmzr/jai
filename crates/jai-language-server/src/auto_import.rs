@@ -659,16 +659,10 @@ impl Session {
         }
         let mut out = Vec::new();
         for file in files {
-            if self
-                .documents
-                .contains_key(&match DocumentUri::parse(&format!(
-                    "file://{}",
-                    file.to_string_lossy()
-                )) {
-                    Ok(uri) => uri,
-                    Err(_) => continue,
-                })
-            {
+            let Some(uri) = DocumentUri::from_path(&file.to_string_lossy()) else {
+                continue;
+            };
+            if self.documents.contains_key(&uri) {
                 continue;
             }
             let scan = sources.scan(&mut index, &file);
@@ -684,7 +678,6 @@ impl Session {
                 continue;
             };
             let lines = crate::position::LineIndex::new(&text);
-            let uri = format!("file://{}", file.to_string_lossy());
             for symbol in hits {
                 if out.len() >= room {
                     return out;
@@ -706,7 +699,7 @@ impl Session {
                         _ => crate::model::SymbolKind::Variable,
                     },
                     location: crate::model::Location {
-                        uri: uri.clone(),
+                        uri: uri.as_str().into(),
                         range,
                     },
                     container: None,

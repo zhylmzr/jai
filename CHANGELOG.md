@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixes
+
+- Windows: `jailsp` on a project now answers go to definition, hover's "declared at" links and call hierarchy.
+
 ## [0.17.0] - 2026-10-13
 
 One `jaic` command line instead of the `run`, `check` and `build` subcommands, with more options for the program being built.

@@ -287,7 +287,7 @@ impl Session {
             if calling(&here, at).is_none_or(|s| s.name_span != me.name_span) {
                 continue;
             }
-            let Ok(target) = DocumentUri::parse(&format!("file://{path}")) else {
+            let Some(target) = DocumentUri::from_path(&path) else {
                 continue;
             };
             let known = parsed.entry(path.clone()).or_insert_with(|| sites(&text));

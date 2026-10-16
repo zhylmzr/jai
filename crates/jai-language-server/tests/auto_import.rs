@@ -40,7 +40,7 @@ fn project(name: &str, files: &[(&str, &str)]) -> PathBuf {
 }
 
 fn uri_of(path: &Path) -> DocumentUri {
-    DocumentUri::parse(&format!("file://{}", path.display())).unwrap()
+    DocumentUri::from_path(&path.to_string_lossy()).unwrap()
 }
 
 fn end_of(text: &str, marker: &str) -> Position {

@@ -1,6 +1,6 @@
 //! Go to definition and document links on `#load` / `#import`, resolved as the compiler does.
 use jai_language_server::{DocumentUri, Environment, Limits, Position, Session};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn stdlib() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -27,6 +27,11 @@ fn session() -> Session {
 
 fn doc(path: &str) -> DocumentUri {
     DocumentUri::parse(&format!("file:///lsp-links-test/{path}")).unwrap()
+}
+
+/// The URI of a file on disk, as the server reports it.
+fn uri_of(path: &Path) -> DocumentUri {
+    DocumentUri::from_path(&path.to_string_lossy()).unwrap()
 }
 
 fn at(text: &str, marker: &str, offset: usize) -> Position {
@@ -82,7 +87,9 @@ fn target(s: &Session, position: Position) -> (String, Position) {
 #[test]
 fn import_and_load_strings_go_to_the_file_the_compiler_reads() {
     let s = open_all();
-    let basic = format!("file://{}/Basic/module.jai", stdlib().display());
+    let basic = uri_of(&stdlib().join("Basic/module.jai"))
+        .as_str()
+        .to_owned();
     let start = Position::default();
     for (marker, expected) in [
         ("\"Basic\";\nB", basic.clone()),
@@ -126,7 +133,9 @@ fn document_links_span_the_strings() {
 #[test]
 fn module_names_and_reexported_symbols_go_to_their_declarations() {
     let s = open_all();
-    let basic = format!("file://{}/Basic/module.jai", stdlib().display());
+    let basic = uri_of(&stdlib().join("Basic/module.jai"))
+        .as_str()
+        .to_owned();
     // `B` of `B.print`: the module's entry file.
     assert_eq!(
         target(&s, at(MAIN, "B.print", 0)),
@@ -163,4 +172,27 @@ fn module_names_and_reexported_symbols_go_to_their_declarations() {
             "{marker}"
         );
     }
+}
+
+/// The reported case: a project the editor opened from disk, whose path has a drive on
+/// Windows, jumping to a name the standard library declares.
+#[test]
+fn a_project_on_disk_reaches_the_standard_library() {
+    let dir = std::env::temp_dir().join(format!("jailsp-links-stdlib-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let main = dir.join("main.jai");
+    let text = "main :: () {\n    print(\"hello\\n\");\n}\n\n#import \"Basic\";\n";
+    std::fs::write(&main, text).unwrap();
+    let mut s = session();
+    let uri = uri_of(&main);
+    s.open(uri.clone(), 1, text.into()).unwrap();
+    assert_eq!(s.diagnostics(&uri).unwrap().len(), 0);
+    let found = s.definition(&uri, at(text, "print", 2)).unwrap();
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(
+        found[0].uri.ends_with("stdlib/Basic/Print.jai"),
+        "{found:?}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }

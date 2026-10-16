@@ -109,11 +109,7 @@ impl SandboxFs {
     }
 
     fn is_dir(&self, path: &str) -> bool {
-        if path == "/" || self.dirs.contains(path) {
-            return true;
-        }
-        let prefix = format!("{}/", path.trim_end_matches('/'));
-        if self.files.keys().any(|k| k.starts_with(&prefix)) {
+        if is_root(path) || self.dirs.contains(path) || self.files.keys().any(|k| under(k, path)) {
             return true;
         }
         !self.removed.contains(path)
@@ -161,10 +157,10 @@ impl SandboxFs {
                 }
             }
         }
-        let prefix = format!("{}/", path.trim_end_matches('/'));
+        let prefix = format!("{}{}", path.trim_end_matches(['/', '\\']), separator(path));
         for key in &self.files {
             if let Some(rest) = key.0.strip_prefix(&prefix) {
-                match rest.split_once('/') {
+                match rest.split_once(['/', '\\']) {
                     Some((dir, _)) => {
                         out.insert(dir.to_string(), true);
                     }
@@ -176,7 +172,7 @@ impl SandboxFs {
         }
         for dir in &self.dirs {
             if let Some(rest) = dir.strip_prefix(&prefix) {
-                let first = rest.split('/').next().unwrap_or(rest);
+                let first = rest.split(['/', '\\']).next().unwrap_or(rest);
                 if !first.is_empty() {
                     out.insert(first.to_string(), true);
                 }
@@ -186,28 +182,83 @@ impl SandboxFs {
     }
 }
 
-fn join(dir: &str, name: &str) -> String {
-    format!("{}/{}", dir.trim_end_matches('/'), name)
+/// Whether `path` starts with a Windows drive (`C:\dir`), which takes the place of `/` as the
+/// root of the path.
+fn drive(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() > 1 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
 }
 
-/// Resolve `path` against `cwd` and drop `.`/`..` components.
+/// The separator of a path whose root is a drive: `\`. A `/`-rooted path (the browser's file
+/// system, the standard library's own paths) keeps `/`.
+fn separator(path: &str) -> char {
+    if drive(path) {
+        '\\'
+    } else {
+        '/'
+    }
+}
+
+/// Whether `path` names a root: `/` on Unix, `C:\` (or `C:`) on Windows.
+fn is_root(path: &str) -> bool {
+    let trimmed = path.trim_end_matches(['/', '\\']);
+    trimmed.is_empty() || (drive(trimmed) && trimmed.len() == 2)
+}
+
+/// Whether `path` is a file or folder inside `dir`, as `dir` spells it.
+fn under(path: &str, dir: &str) -> bool {
+    path.strip_prefix(&format!(
+        "{}{}",
+        dir.trim_end_matches(['/', '\\']),
+        separator(dir)
+    ))
+    .is_some_and(|rest| !rest.is_empty())
+}
+
+fn join(dir: &str, name: &str) -> String {
+    format!(
+        "{}{}{name}",
+        dir.trim_end_matches(['/', '\\']),
+        separator(dir)
+    )
+}
+
+/// Resolve `path` against `cwd` and drop `.`/`..` components. The parts are split on both
+/// separators, and the result is in the form its root is: `C:\a\b` when a Windows drive is the
+/// root, `/a/b` otherwise.
 fn absolute(cwd: &str, path: &str) -> String {
-    let full = if path.starts_with('/') {
+    let rooted = drive(path) || path.starts_with(['/', '\\']);
+    let windows = if rooted {
+        drive(path)
+    } else {
+        drive(cwd)
+    };
+    let full = if rooted {
         path.to_string()
     } else {
-        format!("{cwd}/{path}")
+        format!("{cwd}{}{path}", separator(cwd))
+    };
+    let (root, rest) = if windows {
+        full.split_at(2)
+    } else {
+        ("", &full[..])
     };
     let mut parts: Vec<&str> = Vec::new();
-    for part in full.split('/') {
+    for part in rest.split(['/', '\\']) {
         match part {
             "" | "." => {}
             ".." => {
+                // The root stays: `/..` is `/` and `C:\..` is `C:\`.
                 parts.pop();
             }
             p => parts.push(p),
         }
     }
-    format!("/{}", parts.join("/"))
+    if windows {
+        format!("{root}\\{}", parts.join("\\"))
+    } else {
+        format!("/{}", parts.join("/"))
+    }
 }
 
 struct OpenFile {
@@ -349,7 +400,17 @@ impl SandboxHost {
     }
 
     fn parent_exists(&self, path: &str) -> bool {
-        let parent = path.rsplit_once('/').map_or("/", |(p, _)| p);
+        let parent = path.rsplit_once(['/', '\\']).map_or(
+            if drive(path) {
+                ""
+            } else {
+                "/"
+            },
+            |(p, _)| p,
+        );
+        if drive(path) && parent.is_empty() {
+            return true; // `C:\file`: the root of the drive exists.
+        }
         parent.is_empty() || self.fs.is_dir(parent)
     }
 
@@ -1409,6 +1470,22 @@ mod tests {
 
     fn errno(host: &SandboxHost) -> u32 {
         unsafe { std::ptr::read_unaligned(host.errno_cell as *const u32) }
+    }
+
+    /// A path keeps the form of its root: a Windows drive is not `/`-rooted, and a `/`-rooted
+    /// path (the browser's file system) stays one on Windows too.
+    #[test]
+    fn paths_are_joined_and_resolved_the_way_their_root_is_spelled() {
+        assert_eq!(absolute("/tmp", "x"), "/tmp/x");
+        assert_eq!(absolute("/tmp", "../y"), "/y");
+        assert_eq!(absolute("/", "x"), "/x");
+        assert_eq!(absolute("/tmp", "/etc/passwd"), "/etc/passwd");
+        assert_eq!(absolute(r"C:\dir", "x"), r"C:\dir\x");
+        assert_eq!(absolute(r"C:\dir", "../y"), r"C:\y");
+        assert_eq!(absolute(r"C:\", "x"), r"C:\x");
+        assert_eq!(absolute("/tmp", r"C:\other\y"), r"C:\other\y");
+        assert_eq!(join("/tmp", "x"), "/tmp/x");
+        assert_eq!(join(r"C:\dir", "x"), r"C:\dir\x");
     }
 
     #[test]

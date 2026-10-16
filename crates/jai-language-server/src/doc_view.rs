@@ -31,11 +31,12 @@ fn percent(path: &str) -> String {
     out
 }
 
-/// `file:///path#L<line>` for the byte `start` of `text`.
+/// `file:///path#L<line>` for the byte `start` of `text`. `path` is a file as a compile
+/// reported it, in either form.
 pub(crate) fn url(path: &str, text: &str, start: usize) -> String {
     let start = text.floor_char_boundary(start.min(text.len()));
     let line = text[..start].matches('\n').count() + 1;
-    format!("file://{}#L{line}", percent(path))
+    format!("file://{}#L{line}", percent(&crate::paths::to_uri(path)))
 }
 
 /// How an editor should color the declaration a link leads to.
@@ -412,7 +413,7 @@ impl Session {
     /// The documentation of the declaration a completion item stands for.
     pub fn completion_documentation(&self, data: &CompletionData) -> Option<String> {
         let document = DocumentUri::parse(&data.document).ok()?;
-        let file = DocumentUri::parse(&format!("file://{}", data.path)).ok()?;
+        let file = DocumentUri::from_path(&data.path)?;
         let text = self.source(&file)?;
         let raw = docs::declaration(&text, data.offset)?;
         self.render_docs(

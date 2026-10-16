@@ -25,11 +25,12 @@ fn project(name: &str, files: &[(&str, &str)]) -> PathBuf {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, text).unwrap();
     }
-    dir.canonicalize().unwrap()
+    // The client names the folder by its URI, whose path has no Windows verbatim prefix.
+    jaic::canonicalize(&dir).unwrap()
 }
 
 fn uri_of(path: &Path) -> DocumentUri {
-    DocumentUri::parse(&format!("file://{}", path.display())).unwrap()
+    DocumentUri::from_path(&path.to_string_lossy()).unwrap()
 }
 
 /// The type-checker errors of `file` when the workspace folder is `folder`.

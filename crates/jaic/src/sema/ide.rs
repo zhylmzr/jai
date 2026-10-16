@@ -326,7 +326,11 @@ impl Compiler {
         if let Some(&w) = ide.wanted.get(&file) {
             return w;
         }
-        let path = &self.sources.get(file).path;
+        // A path prefix, not a text prefix: a root is a folder the editor named and a file's
+        // path is the compiler's own, and the two may spell `/` and `\`, or a trailing
+        // separator, differently (on Windows a root ends with `/` where a path has `\`).
+        // Which files a root covers is a question about components, so compare those.
+        let path = std::path::Path::new(&self.sources.get(file).path);
         let w = ide.roots.iter().any(|r| path.starts_with(r.as_str()));
         ide.wanted.insert(file, w);
         w

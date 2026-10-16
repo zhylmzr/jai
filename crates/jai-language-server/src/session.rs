@@ -193,7 +193,12 @@ impl Session {
             files: self
                 .documents
                 .iter()
-                .map(|(uri, doc)| (uri.path().to_owned(), doc.text.clone()))
+                .map(|(uri, doc)| {
+                    (
+                        crate::paths::uri_path(Path::new(uri.path())),
+                        doc.text.clone(),
+                    )
+                })
                 .collect(),
         }
     }
@@ -807,7 +812,7 @@ impl Session {
             let locations: Vec<Location> = found
                 .into_iter()
                 .filter_map(|(path, text, start, end)| {
-                    let target = DocumentUri::parse(&format!("file://{path}")).ok()?;
+                    let target = DocumentUri::from_path(&path)?;
                     // An open document's own text and index, else the compiled file's.
                     let range = match self.documents.get(&target) {
                         Some(open) if *open.text == *text => open
